@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AVGO + MRVL — Wave Research Bundle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#090b0e;--panel:#11161a;--grid:#1b242b;--ink:#e8eef0;--dim:#8b99a0;
+    --teal:#27e0c4;--violet:#b06bff;--amber:#f2b134;--red:#ff5d57;--green:#48d97a;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:"JetBrains Mono",monospace;padding:24px;
+    background-image:radial-gradient(circle at 12% -8%,#13343022 0,transparent 55%),radial-gradient(circle at 88% -8%,#3a1f5522 0,transparent 55%);min-height:100vh}
+  .wrap{max-width:1040px;margin:0 auto}
+  h1{font-family:"Fraunces",serif;font-weight:900;font-size:30px;letter-spacing:-.5px}
+  h1 small{font-family:"JetBrains Mono";font-weight:500;font-size:12px;color:var(--teal);display:block;letter-spacing:2px;margin-bottom:6px;text-transform:uppercase}
+  .sub{color:var(--dim);font-size:12.5px;margin-top:8px;line-height:1.6}
+  h2{font-family:"Fraunces",serif;font-size:18px;margin:26px 0 12px;color:var(--amber)}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:680px){.cards{grid-template-columns:1fr}}
+  a.card{display:block;background:var(--panel);border:1px solid var(--grid);border-radius:10px;padding:15px 16px;text-decoration:none;color:var(--ink);transition:border-color .15s}
+  a.card:hover{border-color:var(--teal)}
+  a.card .t{font-family:"Fraunces",serif;font-weight:600;font-size:15px}
+  a.card .d{font-size:11.5px;color:var(--dim);margin-top:5px;line-height:1.5}
+  .tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;float:right;background:#1c2a25;color:var(--teal)}
+  .tag.code{background:#2a2436;color:var(--violet)}
+  .status{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+  .stat{background:var(--panel);border:1px solid var(--grid);border-radius:10px;padding:15px 16px}
+  .stat .px{font-size:24px;font-weight:700}
+  .stat .zone{font-size:11.5px;color:var(--dim);margin-top:6px;line-height:1.55}
+  .a .px{color:var(--red)} .m .px{color:var(--green)}
+  .score{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:#2a2218;color:var(--amber);margin-top:8px}
+  .foot{margin-top:24px;font-size:10.5px;color:var(--dim);line-height:1.6;border-top:1px solid var(--grid);padding-top:14px}
+  code{background:#1b242b;padding:1px 6px;border-radius:4px;color:var(--teal);font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><small>Live TVremix data · through Jun 5 2026</small>AVGO + MRVL — Elliott Wave / NeoWave Research</h1>
+  <p class="sub">A layered engine: <b>channels → Elliott structure → NeoWave overlays → Fibonacci → reversal confluence</b>. The wave label says <i>where</i> a turn is allowed; the confluence score says <i>whether</i> it's confirmed. Both names are currently in their projected pullback zones but neither has confirmed a reversal.</p>
+
+  <h2>Live status</h2>
+  <div class="status">
+    <div class="stat a">
+      <div class="px">AVGO $385.74</div>
+      <div class="zone">Fell $495→$385 (A-B-C corrective). Inside the $358–410 (IV) zone. 2-4 line ~$301 unbroken. Invalidation $251.88.</div>
+      <span class="score">reversal confluence 1/7 — allowed, not confirmed</span>
+    </div>
+    <div class="stat m">
+      <div class="px">MRVL $263.47</div>
+      <div class="zone">Pulled back $324→$263 into the $229–266 ((4)) zone. Extending-impulse top (not terminal). Watch 4h close vs $277.</div>
+      <span class="score">reversal confluence 1/7 — allowed, not confirmed</span>
+    </div>
+  </div>
+
+  <h2>Charts</h2>
+  <div class="cards">
+    <a class="card" href="avgo_wave_projection.html"><span class="tag">chart</span><div class="t">AVGO — Forward Projection</div><div class="d">(IV)≈$384 → (V) $540–620. The projection that hit the $385 low.</div></a>
+    <a class="card" href="avgo_4h_elliott_wave.html"><span class="tag">chart</span><div class="t">AVGO — 4h Ending Diagonal</div><div class="d">Terminal-impulsion top, (IV) target zones.</div></a>
+    <a class="card" href="mrvl_elliott_wave.html"><span class="tag">chart</span><div class="t">MRVL — Multi-Timeframe</div><div class="d">Parabolic wave (III) blow-off, +589%.</div></a>
+    <a class="card" href="neowave_projections_avgo_mrvl.html"><span class="tag">chart</span><div class="t">NeoWave — AVGO vs MRVL</div><div class="d">Terminal (corrective) vs extending-impulse (motive), side by side.</div></a>
+  </div>
+
+  <h2>Code modules</h2>
+  <div class="cards">
+    <a class="card" href="ew_neowave_rules.py"><span class="tag code">python</span><div class="t">ew_neowave_rules.py</div><div class="d">Main rule engine. Elliott hard rules + guidelines, corrective classifiers, diagonals, NeoWave S&B / retracement logic / computed channeling / terminals / complex corrections.</div></a>
+    <a class="card" href="confluence_score.py"><span class="tag code">python</span><div class="t">confluence_score.py</div><div class="d">Reversal scorer — RSI/MACD divergence, volume climax, CHoCH, channel break, swing classifier → stacked confidence score.</div></a>
+    <a class="card" href="neowave_toolkit.py"><span class="tag code">python</span><div class="t">neowave_toolkit.py</div><div class="d">Helper toolkit — ZigZag, Fib helpers, S&B, terminal projection, wave-5 truncation.</div></a>
+    <a class="card" href="README.md"><span class="tag code">docs</span><div class="t">README.md</div><div class="d">Full written research — counts, levels, NeoWave, channels, the ArtavestPro comparison, caveats.</div></a>
+  </div>
+
+  <div class="foot">
+    Honest caveats: Elliott <b>degree</b> is the most subjective call (ArtavestPro labels $495 differently and isn't "wrong"); AVGO's terminal is expanding/irregular; MRVL's ((3)) is S&B-stretched; the earlier "$290 fast terminal" call over-projected vs the shallow $385 reality. Both names score 1/7 confluence = structurally allowed, NOT confirmed reversals. Run engines with <code>python3 ew_neowave_rules.py</code>. Analysis only — not investment advice.
+  </div>
+</div>
+</body>
+</html>

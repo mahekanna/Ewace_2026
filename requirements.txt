@@ -1,0 +1,8 @@
+# Core engine: NO dependencies (Python 3.9+ stdlib only).
+# The library runs as-is. The extras below are OPTIONAL, for your own research
+# extensions (charting, dataframes, live data pulls) — not required by wavelib.
+
+# matplotlib>=3.7      # optional: custom plotting
+# pandas>=2.0          # optional: dataframe workflows
+# numpy>=1.24          # optional: vectorized indicators
+# requests>=2.31       # optional: pulling live OHLCV from an API

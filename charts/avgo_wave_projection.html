@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AVGO · Wave Projection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a0d0f;--panel:#11161a;--grid:#1c252b;--ink:#e8eef0;--dim:#7c8a91;
+    --teal:#27e0c4;--amber:#f2b134;--red:#ff5d57;--green:#48d97a;--line:#3aa6ff;--proj:#ffa94d;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:"JetBrains Mono",monospace;padding:22px;
+    background-image:radial-gradient(circle at 15% -10%,#13343033 0,transparent 55%);min-height:100vh}
+  .wrap{max-width:1080px;margin:0 auto}
+  header{border-bottom:1px solid var(--grid);padding-bottom:14px}
+  h1{font-family:"Fraunces",serif;font-weight:900;font-size:27px;letter-spacing:-.5px;line-height:1.1}
+  h1 small{font-family:"JetBrains Mono";font-weight:500;font-size:12px;color:var(--proj);display:block;
+    letter-spacing:2px;margin-bottom:6px;text-transform:uppercase}
+  .chartbox{background:var(--panel);border:1px solid var(--grid);border-radius:10px;margin-top:16px;padding:8px 6px 2px}
+  svg{width:100%;height:auto;display:block}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;font-size:11.5px;color:var(--dim)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .sw{width:16px;height:3px;border-radius:2px;display:inline-block}
+  .sw.d{height:0;border-top:2px dashed var(--proj);width:18px}
+  table{width:100%;border-collapse:collapse;margin-top:18px;font-size:12.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--grid)}
+  th{color:var(--proj);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  td.w{font-weight:700;color:var(--ink)}
+  .up{color:var(--green)}.dn{color:var(--red)}
+  .foot{margin-top:14px;font-size:10.5px;color:var(--dim);line-height:1.6;border-top:1px solid var(--grid);padding-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1><small>Broadcom · NASDAQ:AVGO · forward projection</small>Projected path: wave (IV) down → wave (V) to new highs</h1></header>
+  <div class="chartbox"><svg id="c" viewBox="0 0 1040 540" preserveAspectRatio="xMidYMid meet"></svg></div>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--line)"></i>completed structure</span>
+    <span><i class="sw d"></i>projected path</span>
+    <span><i class="sw" style="background:#3a4f3f"></i>(IV) target zone</span>
+    <span><i class="sw" style="background:#4a3f2a"></i>(V) target zone</span>
+  </div>
+
+  <table>
+    <tr><th>Next wave</th><th>Direction</th><th>Target zone</th><th>Key Fib logic</th></tr>
+    <tr><td class="w">(IV) now→next</td><td class="dn">DOWN</td><td>$358 – $410</td><td>0.382–0.236 retrace of wave (III); magnet ~$290</td></tr>
+    <tr><td class="w">(V) after (IV)</td><td class="up">UP</td><td>$540 – $620 (stretch $660)</td><td>W5≈W1 from (IV) low; .618×W3</td></tr>
+    <tr><td class="w">Invalidation</td><td>—</td><td>weekly close &lt; $251.88</td><td>(IV) can't overlap (I) top → count breaks</td></tr>
+  </table>
+
+  <div class="foot">
+    Projection from live TVremix data. Wave (V) zone ($540–620) overlaps the Street's high price targets ($600–640). Path is conditional: a weekly close below $251.88 negates the "(IV)-then-(V)" structure and implies the entire impulse from $41.51 is complete. Elliott projections are probabilistic target zones, not predictions — analysis, not investment advice.
+  </div>
+</div>
+<script>
+const NS="http://www.w3.org/2000/svg",svg=document.getElementById("c");
+const W=1040,H=540,mL=12,mR=72,mT=24,mB=42;
+// completed pivots then projected (isProj flag)
+const P=[
+ ["",41.51,0],["(I)",251.88,0],["(II)",138.10,0],
+ ["\u2460",265.43,0],["\u2461",241.11,0],["\u2462",414.61,0],["\u2463",289.96,0],
+ ["\u2464=(III)",495.00,0],["now",407,0],
+ ["(IV)",384,1],["(V)",580,1]];
+const below=new Set([0,2,4,6,9]);
+const pMin=20,pMax=660;
+const X=i=> mL + i/(P.length-1)*(W-mL-mR);
+const Y=p=> mT + (pMax-p)/(pMax-pMin)*(H-mT-mB);
+function el(n,a){const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(x,y,s,a){const t=el("text",{x,y,...a});t.textContent=s;svg.appendChild(t);return t;}
+for(let p=100;p<=650;p+=100){svg.appendChild(el("line",{x1:mL,y1:Y(p),x2:W-mR,y2:Y(p),stroke:"#1c252b"}));
+  txt(W-mR+8,Y(p)+4,"$"+p,{fill:"#7c8a91","font-size":11});}
+// target zones
+function band(p1,p2,col,lab){svg.appendChild(el("rect",{x:X(8.4),y:Y(p2),width:W-mR-X(8.4),height:Y(p1)-Y(p2),fill:col,opacity:0.5}));
+  txt(W-mR-4,Y(p2)+13,lab,{fill:"#cdd6da","font-size":10,"text-anchor":"end"});}
+band(358,410,"#2c3a30","(IV) 358–410");
+band(540,620,"#3a3120","(V) 540–620");
+// solid completed
+let solid=P.slice(0,9).map((pt,i)=>(i?"L":"M")+X(i).toFixed(1)+" "+Y(pt[1]).toFixed(1)).join(" ");
+svg.appendChild(el("path",{d:solid,fill:"none",stroke:"#3aa6ff","stroke-width":2.2,"stroke-linejoin":"round"}));
+// dashed projection from 'now'
+let proj=[8,9,10].map((i,k)=>(k?"L":"M")+X(i).toFixed(1)+" "+Y(P[i][1]).toFixed(1)).join(" ");
+svg.appendChild(el("path",{d:proj,fill:"none",stroke:"#ffa94d","stroke-width":2.2,"stroke-dasharray":"7 5","stroke-linejoin":"round"}));
+// pivots
+P.forEach((pt,i)=>{const x=X(i),y=Y(pt[1]);const proj=pt[2];
+  const col= i===7?"#ff5d57": proj?"#ffa94d": i===8?"#e8eef0":"#27e0c4";
+  svg.appendChild(el("circle",{cx:x,cy:y,r:i===7||i===10?5.5:4,fill:col,stroke:"#0a0d0f","stroke-width":1.5}));
+  const b=below.has(i);
+  txt(x,b?y+18:y-12,pt[0],{fill:col,"font-size":i===7||i===10?13:12,"font-weight":700,"text-anchor":"middle","font-family":"Fraunces, serif"});
+  txt(x,b?y+31:y-25,"$"+pt[1].toFixed(0),{fill:"#9fb0b6","font-size":9.5,"text-anchor":"middle"});});
+txt(X(9.5),Y(490),"projected",{fill:"#ffa94d","font-size":11,"font-style":"italic","text-anchor":"middle","font-family":"Fraunces, serif"});
+</script>
+</body>
+</html>
