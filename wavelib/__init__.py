@@ -42,7 +42,7 @@ from .backtest import (
 from .charting import render_chart
 from .wavetree import (
     WaveNode, build_wave_tree, build_tree_from_pivots, format_tree, deepest_degree,
-    best_count, tree_confidence,
+    best_count, tree_confidence, anchor_count, AnchoredCount,
 )
 from .confluence import (
     score_reversal, classify_swing_sequence,

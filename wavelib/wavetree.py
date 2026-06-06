@@ -136,6 +136,46 @@ def _triangle_geometry(group):
     return None
 
 
+def _diagonal_node(group, degree):
+    """A diagonal is a MOTIVE wedge whose wave 4 overlaps wave 1 (the defining
+    trait that disqualifies it as an impulse) and whose legs contract/expand.
+    Ending diagonal = 3-3-3-3-3 (all corrective children); leading = 5-3-5-3-5.
+    Like triangles, a diagonal's legs are multi-wave, so it only forms at degree>=2."""
+    if degree < 2:
+        return None
+    waves = [n.as_wave() for n in group]
+    if not _alternating(waves):
+        return None
+    w1, w2, w3, w4, w5 = waves
+    up = w1.up
+    overlap = (w4.end.price < w1.end.price) if up else (w4.end.price > w1.end.price)
+    if not overlap:
+        return None                            # no overlap -> impulse, not diagonal
+    net_dir = (w5.end.price > w1.start.price) if up else (w5.end.price < w1.start.price)
+    if not net_dir:
+        return None                            # must be net-directional (a wedge, not a triangle)
+    contracting = w1.length > w3.length > w5.length
+    expanding = w1.length < w3.length < w5.length
+    if not (contracting or expanding):
+        return None
+    hard = elliott_hard_rules(waves)            # R1, R2 must still hold (R3/overlap is expected)
+    if hard[0].status is Status.FAIL or hard[1].status is Status.FAIL:
+        return None
+    subtype = "diagonal"
+    if degree >= 2:                             # verify sub-structure once children are classified
+        all_corr = all(c.pattern in _CORRECTIVE for c in group)
+        leading = (all(group[i].pattern in _MOTIVE for i in (0, 2, 4)) and
+                   all(group[i].pattern in _CORRECTIVE for i in (1, 3)))
+        if not (all_corr or leading):
+            return None
+        subtype = "ending diagonal" if all_corr else "leading diagonal"
+    shape = "contracting" if contracting else "expanding"
+    rr = RuleResult(f"{subtype} ({shape} wedge, w4/w1 overlap)", Status.PASS, f"degree {degree}")
+    conf = _confidence([rr], group, (0, 2, 4), (1, 3)) * (0.4 + 0.6 * _impulse_quality(waves)) * 0.9
+    return WaveNode(group[0].start, group[-1].end, degree, "motive", "DIAGONAL",
+                    list(group), [rr], conf)
+
+
 def _triangle_node(group, degree):
     # A real triangle's five legs are each CORRECTIVE (3s) and its two boundary
     # trendlines genuinely converge/diverge. Monowave legs cannot be a triangle,
@@ -181,15 +221,16 @@ def _build_level(nodes, degree):
     def seg(i, k):
         grp = nodes[i:i + k]
         if k == 5:
-            return _impulse_node(grp, degree) or _triangle_node(grp, degree)
+            return (_impulse_node(grp, degree) or _diagonal_node(grp, degree)
+                    or _triangle_node(grp, degree))
         if k == 3:
             return _correction_node(grp, degree)
         return None
 
     def value(node):
-        # reward coverage (children consumed) x quality, with a motive-impulse
-        # bonus so a clean 5-wave impulse outscores splitting it into corrections
-        bonus = 0.5 if node.pattern == "IMPULSE" else 0.0
+        # reward coverage (children consumed) x quality, with a motive bonus so a
+        # clean 5-wave impulse/diagonal outscores splitting it into corrections
+        bonus = 0.5 if node.pattern == "IMPULSE" else 0.3 if node.pattern == "DIAGONAL" else 0.0
         return len(node.children) * node.confidence + bonus
 
     best = [None] * (n + 1)
@@ -263,6 +304,52 @@ def tree_confidence(roots) -> float:
     return top.confidence * (_span(top) / total)
 
 
+_LABELS = {
+    "IMPULSE": ["1", "2", "3", "4", "5"],
+    "DIAGONAL": ["1", "2", "3", "4", "5"],
+    "ZIGZAG": ["A", "B", "C"],
+    "FLAT": ["A", "B", "C"],
+    "CORRECTION": ["A", "B", "C"],
+    "TRIANGLE": ["A", "B", "C", "D", "E"],
+}
+
+
+@dataclass
+class AnchoredCount:
+    """A single committed wave count: the dominant top structure with its legs
+    labelled (1-5 / A-B-C / A-E), a degree, calibrated confidence, and an honest
+    note about how settled it is."""
+    pattern: str
+    degree: int
+    labels: list                # list of (label, WaveNode)
+    confidence: float
+    coverage: float
+    note: str
+
+    def __str__(self):
+        head = (f"{self.pattern} @ degree {self.degree} — confidence {self.confidence:.0%} "
+                f"(coverage {self.coverage:.0%}); {self.note}")
+        legs = "\n".join(f"  wave {lab}: {n.start.price:.2f} -> {n.end.price:.2f} "
+                         f"[{n.pattern}]" for lab, n in self.labels)
+        return head + ("\n" + legs if legs else "")
+
+
+def anchor_count(bars, scales=(0.04, 0.07, 0.12, 0.20)):
+    """Commit to ONE count: take the best-count dominant structure, label its
+    legs, and tag confidence honestly. Returns AnchoredCount or None.
+    The note flags low-confidence/ambiguous reads instead of overclaiming."""
+    bc = best_count(bars, scales)
+    if not bc:
+        return None
+    top = bc["top"]
+    labs = _LABELS.get(top.pattern, [])
+    labels = list(zip(labs, top.children)) if len(top.children) == len(labs) else []
+    note = ("primary count; watch the wave-1/A origin for invalidation"
+            if bc["score"] >= 0.4 else
+            "LOW confidence — one of several plausible counts; not a committed call")
+    return AnchoredCount(top.pattern, top.degree, labels, bc["score"], bc["coverage"], note)
+
+
 def best_count(bars, scales=(0.04, 0.07, 0.12, 0.20)):
     """Pick the single best macro count: build the tree at several ZigZag scales
     and return the one whose dominant top structure best covers the data with the
@@ -275,9 +362,16 @@ def best_count(bars, scales=(0.04, 0.07, 0.12, 0.20)):
             continue
         total = sum(_span(r) for r in roots) or 1.0
         top = max(roots, key=_span)
+        # a MONOWAVE top is no count at all (coarse scale found no structure) -> penalize;
+        # a motive (impulse/diagonal) top is mildly preferred for a directional move
+        score = tree_confidence(roots)
+        if top.pattern == "MONOWAVE":
+            score *= 0.05
+        elif top.pattern in _MOTIVE:
+            score *= 1.15
         cand = {"scale": s, "roots": roots, "top": top, "n_roots": len(roots),
                 "coverage": _span(top) / total, "confidence": top.confidence,
-                "score": tree_confidence(roots), "depth": deepest_degree(roots)}
+                "score": score, "depth": deepest_degree(roots)}
         if best is None or cand["score"] > best["score"]:
             best = cand
     return best

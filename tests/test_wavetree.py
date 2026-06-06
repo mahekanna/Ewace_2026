@@ -26,6 +26,17 @@ def _pivots(deltas, start=100.0):
     return piv
 
 
+def _bars(points, per=6, vol=1000):
+    """Flat OHLCV bars tracing `points` (per bars per leg) for engine-level tests."""
+    bars, t = [], 0
+    for a, b in zip(points, points[1:]):
+        for k in range(1, per + 1):
+            price = float(a + (b - a) * k / per)
+            bars.append((float(t), price, price, price, price, vol))
+            t += 1
+    return bars
+
+
 MI = [3, -1, 5, -1, 3]      # sub-impulse up (w3 longest, no overlap)
 CD = [-2, 1, -2]            # sub-zigzag down (B retraces 50%)
 
@@ -90,6 +101,50 @@ class TestStage2Triangles(unittest.TestCase):
         for r in roots:
             walk(r)
         self.assertNotIn("TRIANGLE", patterns)
+
+
+class TestStage4Diagonals(unittest.TestCase):
+    """Stage 4: diagonals (motive wedge with w4/w1 overlap) + anchored count."""
+
+    def test_ending_diagonal_from_corrective_legs(self):
+        # 5 corrective (ZIGZAG) legs forming a contracting wedge with w4/w1 overlap
+        from wavelib.wavetree import _diagonal_node, WaveNode
+
+        def leg(t0, p0, t1, p1):
+            return WaveNode(Pivot(t0, p0, "L" if p1 > p0 else "H"),
+                            Pivot(t1, p1, "H" if p1 > p0 else "L"), 1, "corrective", "ZIGZAG")
+        pr = [100, 130, 118, 138, 128, 140]      # contracting, overlap (128<130), net up
+        group = [leg(i, pr[i], i + 1, pr[i + 1]) for i in range(5)]
+        node = _diagonal_node(group, 2)
+        self.assertIsNotNone(node)
+        self.assertEqual(node.pattern, "DIAGONAL")
+        self.assertIn("ending diagonal", node.results[0].rule)
+
+    def test_no_monowave_diagonal(self):
+        # a 5-monowave wedge must NOT be a diagonal (legs must be multi-wave)
+        roots = build_tree_from_pivots(_pivots([10, -4, 6, -4, 3]))
+        patterns = []
+
+        def walk(n):
+            patterns.append(n.pattern)
+            for c in n.children:
+                walk(c)
+        for r in roots:
+            walk(r)
+        self.assertNotIn("DIAGONAL", patterns)
+
+    def test_clean_impulse_not_called_diagonal(self):
+        roots = build_tree_from_pivots(_pivots(MI))      # MI has no overlap
+        self.assertEqual(roots[0].pattern, "IMPULSE")
+
+    def test_anchor_count_labels_legs(self):
+        from wavelib.wavetree import anchor_count
+        # clean 5-wave impulse + trailing pullback so wave 5 is causally confirmed
+        ac = anchor_count(_bars([100, 150, 130, 200, 180, 240, 205]))
+        self.assertIsNotNone(ac)
+        self.assertEqual(ac.pattern, "IMPULSE")
+        self.assertEqual([lab for lab, _ in ac.labels], ["1", "2", "3", "4", "5"])
+        self.assertGreaterEqual(ac.confidence, 0.0)
 
 
 class TestStage3Confidence(unittest.TestCase):
