@@ -118,7 +118,7 @@ class TestDisambiguateFive(unittest.TestCase):
         self.assertIn("DIAGONAL", r.rule)
 
     def test_sideways_triangle(self):
-        r = disambiguate_five(self._legs([100, 120, 105, 112, 103, 99]))   # net not up
+        r = disambiguate_five(self._legs([100, 120, 90, 110, 85, 99]))   # alternates, net not up
         self.assertIn("TRIANGLE", r.rule)
 
 
