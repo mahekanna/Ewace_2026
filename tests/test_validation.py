@@ -67,6 +67,18 @@ class TestCPCV(unittest.TestCase):
         self.assertIsNone(cpcv_profit_factor([0.01, 0.02], n_groups=6, n_test=2))
 
 
+class TestTrialsRegistry(unittest.TestCase):
+    def test_log_and_count_roundtrip(self):
+        import os
+        import tempfile
+        from wavelib import log_trial, count_trials
+        path = os.path.join(tempfile.mkdtemp(), "trials.jsonl")
+        self.assertEqual(count_trials(path), 0)
+        log_trial({"strategy": "x", "sharpe": 0.5}, path=path)
+        log_trial({"strategy": "x", "sharpe": 0.7}, path=path)
+        self.assertEqual(count_trials(path), 2)
+
+
 class TestSkewKurt(unittest.TestCase):
     def test_symmetric_near_zero_skew(self):
         sk, ku = skew_kurt([-2, -1, 0, 1, 2, -2, -1, 0, 1, 2])

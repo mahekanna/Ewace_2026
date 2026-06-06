@@ -1,0 +1,4 @@
+{"strategy": "reversal", "score_threshold": 3, "min_reversal_pct": 0.04, "events": 47, "sharpe": 1.450282924093885}
+{"strategy": "reversal", "score_threshold": 3, "min_reversal_pct": 0.06, "events": 47, "sharpe": 1.4885640068970372}
+{"strategy": "reversal", "score_threshold": 4, "min_reversal_pct": 0.04, "events": 9, "sharpe": 1.466089329328942}
+{"strategy": "reversal", "score_threshold": 4, "min_reversal_pct": 0.06, "events": 9, "sharpe": 1.4599257683017994}
