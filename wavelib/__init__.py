@@ -21,7 +21,7 @@ from .rules import (
     Pivot, Wave, Degree, Status, RuleResult,
     elliott_hard_rules, elliott_guidelines, project_wave5,
     classify_correction, triangle_thrust,
-    diagonal_rules, ending_diagonal_rules, leading_diagonal_rules,
+    diagonal_rules, ending_diagonal_rules, leading_diagonal_rules, disambiguate_five,
     similarity_and_balance, rule_of_proportion, retracement_logic,
     is_terminal, terminal_rules, terminal_retrace_window,
     classify_complex_correction, is_neutral_triangle, x_wave_check,

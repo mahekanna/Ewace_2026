@@ -360,6 +360,40 @@ def diagonal_rules(w: Sequence[Wave], position: str = "ending") -> list[RuleResu
     return leading_diagonal_rules(w) if position == "leading" else ending_diagonal_rules(w)
 
 
+def disambiguate_five(w: Sequence[Wave]) -> RuleResult:
+    """Decide what a 5-leg sequence most likely IS — IMPULSE vs DIAGONAL vs
+    TRIANGLE/sideways — using the decision procedure in docs/research/deep/06:
+      - must alternate as a motive sequence (w1/w3/w5 one way, w2/w4 the other);
+      - no w4/w1 overlap + net-directional + R3 ok  -> IMPULSE;
+      - w4/w1 overlap + net-directional (a wedge)    -> DIAGONAL;
+      - not net-directional (sideways)               -> TRIANGLE / complex.
+    Full ending-vs-leading split needs sub-wave data (see *_diagonal_rules)."""
+    if len(w) != 5:
+        return RuleResult("disambiguate", Status.NA, f"need 5 legs, got {len(w)}")
+    w1, w2, w3, w4, w5 = w
+    d = [x.up for x in w]
+    if not (d[0] == d[2] == d[4] and d[1] == d[3] and d[1] != d[0]):
+        return RuleResult("disambiguate = NOT A 5-SEQUENCE", Status.WARN,
+                          "legs do not alternate as a motive 5-wave sequence")
+    up = w1.up
+    overlap = (w4.end.price < w1.end.price) if up else (w4.end.price > w1.end.price)
+    net_dir = (w5.end.price > w1.start.price) if up else (w5.end.price < w1.start.price)
+    r3_ok = elliott_hard_rules(w)[2].status is Status.PASS
+    if not net_dir:
+        return RuleResult("disambiguate = TRIANGLE / sideways", Status.WARN,
+                          "net move ~0 -> sideways structure (triangle or complex correction)")
+    if overlap:
+        shape = "contracting" if (w1.length > w3.length > w5.length) else "expanding/irregular"
+        return RuleResult("disambiguate = DIAGONAL", Status.PASS,
+                          f"w4/w1 overlap + net-directional -> {shape} wedge "
+                          "(ending vs leading needs sub-wave structure)")
+    if r3_ok:
+        return RuleResult("disambiguate = IMPULSE", Status.PASS,
+                          "no w4/w1 overlap, net-directional, R3 holds")
+    return RuleResult("disambiguate = AMBIGUOUS", Status.REF,
+                      "mixed signals; resolve with sub-wave structure")
+
+
 # =========================================================================== #
 # E. NEOWAVE — CORE LOGIC RULES
 # =========================================================================== #

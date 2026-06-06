@@ -11,7 +11,7 @@ import unittest
 from wavelib import (
     Pivot, Wave, Status,
     classify_correction, triangle_thrust,
-    ending_diagonal_rules, leading_diagonal_rules,
+    ending_diagonal_rules, leading_diagonal_rules, disambiguate_five,
     elliott_guidelines, project_wave5, base_channel_test,
 )
 
@@ -103,6 +103,23 @@ class TestGuidelinesAndProjection(unittest.TestCase):
         proj = project_wave5(50, 100, 60, 120)
         self.assertIn("w5=1.618*w1", proj)
         self.assertIn("w5=0.382*w3", proj)
+
+
+class TestDisambiguateFive(unittest.TestCase):
+    def _legs(self, prices):
+        return [W(i, prices[i], i + 1, prices[i + 1]) for i in range(5)]
+
+    def test_impulse(self):
+        r = disambiguate_five(self._legs([100, 150, 130, 200, 180, 240]))
+        self.assertIn("IMPULSE", r.rule)
+
+    def test_diagonal(self):
+        r = disambiguate_five(self._legs([100, 130, 118, 138, 128, 140]))  # w4<w1 overlap, net up
+        self.assertIn("DIAGONAL", r.rule)
+
+    def test_sideways_triangle(self):
+        r = disambiguate_five(self._legs([100, 120, 105, 112, 103, 99]))   # net not up
+        self.assertIn("TRIANGLE", r.rule)
 
 
 class TestBaseChannel(unittest.TestCase):
