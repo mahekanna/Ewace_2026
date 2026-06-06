@@ -6,3 +6,12 @@
 {"strategy": "reversal_tb", "score_threshold": 3, "pt": 0.08, "sl": 0.05, "events": 47, "sharpe": 0.5141283801830018}
 {"strategy": "reversal_tb", "score_threshold": 4, "pt": 0.06, "sl": 0.04, "events": 9, "sharpe": 2.9603362576061496}
 {"strategy": "reversal_tb", "score_threshold": 4, "pt": 0.08, "sl": 0.05, "events": 9, "sharpe": 1.197392796336812}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 3, "pt": 0.1, "sl": 0.07, "events": 1130, "sharpe": 0.0663234430541834}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 3, "pt": 0.1, "sl": 0.07, "events": 632, "sharpe": 0.12693499545975884}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 3, "pt": 0.15, "sl": 0.1, "events": 632, "sharpe": 0.16449549964496366}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 4, "pt": 0.1, "sl": 0.07, "events": 104, "sharpe": 0.08740757512839646}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 4, "pt": 0.15, "sl": 0.1, "events": 104, "sharpe": 0.11879512512901962}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 3, "pt": 0.1, "sl": 0.07, "events": 632, "sharpe": 0.12693499545975884}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 3, "pt": 0.15, "sl": 0.1, "events": 632, "sharpe": 0.16449549964496366}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 4, "pt": 0.1, "sl": 0.07, "events": 104, "sharpe": 0.08740757512839646}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 4, "pt": 0.15, "sl": 0.1, "events": 104, "sharpe": 0.11879512512901962}

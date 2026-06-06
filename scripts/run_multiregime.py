@@ -107,8 +107,8 @@ def main():
                                    sr_variance=sr_var or 1e-9)
     beats_bh = best["sharpe"] > bench_sr
     total_events = sum(v["events"] for v in variants)
-    first_t = min(b[0] for _s, _y, bars in series for b in bars[:1])
-    last_t = max(b[-1][0] for _s, _y, bars in series)
+    first_t = min(bars[0][0] for _s, _y, bars in series)
+    last_t = max(bars[-1][0] for _s, _y, bars in series)
 
     out = ["# Multi-regime Deflated Sharpe report — reversal strategy (weekly)",
            "",

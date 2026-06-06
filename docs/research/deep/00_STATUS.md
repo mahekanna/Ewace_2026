@@ -96,6 +96,31 @@ build). GAP-3 is the real-time companion to the static `two_four_confirmation`: 
 constructor proposes a complete impulse, the monitor waits for the market to
 confirm it bar-by-bar with no look-ahead. All three are unit-tested (147 tests).
 
+## Stage 10 — multi-regime validation (answers the daily report's main caveat)
+
+The daily DSR report's biggest honesty caveat was *"single recent regime."* That is
+now closed. `scripts/run_multiregime.py` pools the reversal strategy across **25
+instruments** and multiple asset classes (12 semis, indices SPX/NDX/DJI/VIX,
+defensive/energy sectors JPM/XOM/PG/JNJ/WMT/KO, EURUSD/GOLD, BTCUSDT/ETHUSDT) over
+**weekly history 1987→2026** — so the sample now spans 2000, 2008, 2020 and 2022.
+
+| metric | result |
+|---|---|
+| Pooled decided events (all variants) | **1,472** (vs a handful per symbol daily) |
+| Buy-and-hold benchmark Sharpe (13-bar) | 0.228 (42,086 samples) |
+| Best ≥30-event variant Sharpe | 0.164 (632 events) |
+| Beats buy-and-hold | **No** (PSR vs benchmark **5%**) |
+| CPCV 5th-pctile OOS profit factor | 0.59 – 1.07 (≈1.0 = no robust edge) |
+
+**Verdict: no edge over buy-and-hold even across regimes.** This is the strongest
+honesty result the project has produced: with a proper multi-decade, multi-asset
+sample (1,472 events, not a handful) the reversal-confluence strategy still does not
+beat passive holding. The harness refuses to certify a data-mined edge. (Report:
+`reports/MULTIREGIME_2026-06.md`. Replay is bounded by a causal `label_lookback`
+cap + `stride` for tractable runtime — both past-only.) This directly gates the
+chakra_quant cycle integration: there is no validated standalone edge yet for the
+"when" layer to enhance.
+
 ## The honest ceiling
 
 Both research passes converge on the same truth: a single, deterministic,
