@@ -66,6 +66,22 @@ invalidation, at honest (often 26-48%) confidence, and explicitly flags when a l
 **unconfirmed** leg is in progress (so it doesn't over-claim). It is a probabilistic
 zone, not a prediction.
 
+## Stage 9 — NeoWave surfaced + universe expanded
+
+| Item | Status | Where |
+|---|---|---|
+| Dedicated NeoWave-techniques research sweep (60 techniques, gaps) | ✅ done | `deep/11_neowave_techniques.md` |
+| NeoWave shown in the analysis (it was implemented but invisible) | ✅ done | `report_chart._neowave_card` + report line |
+| Watchlist 6 → **12** AI-semis (ARM/SMCI/QCOM/ASML/LRCX/AMAT) | ✅ done | `data/live/`, `run_validation` |
+
+The NeoWave card surfaces monowave structure (:5/:3), Similarity & Balance, the
+terminal/diagonal check, neutral/running-triangle flags, and the 2-4 timing
+confirmation. Honest answer to "did we research NeoWave?": **yes, deeply** (docs
+02 + 05) and it was implemented — the gap was *presentation*, now fixed. Doc 11's
+remaining genuine gaps (next NeoWave work): Rule-3-vs-4 overlap + conditions a-d
+in `monowave_candidates`; a trading-method synthesis panel (entry/stop/targets);
+post-constructive confirmations as a stateful per-bar queue.
+
 ## The honest ceiling
 
 Both research passes converge on the same truth: a single, deterministic,
