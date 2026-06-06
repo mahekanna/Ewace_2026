@@ -152,10 +152,49 @@ def backtest_reversals(bars, score_threshold: int = 4, min_reversal_pct: float =
                               bullish, cycle_aligned, min_history))
 
 
+def _resolve_tb(event: ReversalEvent, bars, pt: float, sl: float, max_hold: int,
+                bullish: bool) -> ReversalOutcome:
+    """Triple-barrier exit (Lopez de Prado): take-profit (+pt), stop-loss (-sl), or
+    a vertical time barrier at max_hold bars (exit at that close). Returns the
+    REALISED return — far more honest than booking every winner at a fixed target."""
+    entry = event.entry_price
+    if bullish:
+        up, dn = entry * (1 + pt), entry * (1 - sl)
+    else:
+        up, dn = entry * (1 + sl), entry * (1 - pt)   # short: stop above, target below
+    after = [b for b in bars if b[0] > event.entry_t][:max_hold]
+    for b in after:
+        t, h, l, c = b[0], b[2], b[3], b[4]
+        if bullish:
+            if l <= dn:
+                return ReversalOutcome(event, "INVALIDATED", t, dn, -sl)
+            if h >= up:
+                return ReversalOutcome(event, "REVERSAL", t, up, pt)
+        else:
+            if h >= up:
+                return ReversalOutcome(event, "INVALIDATED", t, up, -sl)
+            if l <= dn:
+                return ReversalOutcome(event, "REVERSAL", t, dn, pt)
+    if after:                                          # vertical barrier: exit at last close
+        last = after[-1][4]
+        ret = (last - entry) / entry * (1 if bullish else -1)
+        return ReversalOutcome(event, "REVERSAL" if ret > 0 else "INVALIDATED",
+                               after[-1][0], last, ret)
+    return ReversalOutcome(event, "OPEN", None, None, None)
+
+
+def horizon_returns(bars, horizon: int = 20, bullish: bool = True) -> list:
+    """Buy-and-hold baseline: every horizon-forward return in the series. Its
+    Sharpe is the benchmark a timing strategy must beat (docs/research/deep/08)."""
+    cl = [b[4] for b in bars]
+    return [(cl[i + horizon] - cl[i]) / cl[i] * (1 if bullish else -1)
+            for i in range(len(cl) - horizon) if cl[i]]
+
+
 def _replay(bars, score_threshold, min_reversal_pct, degrees, bullish,
-            cycle_aligned, min_history):
-    """Causal bar-by-bar replay -> list[ReversalOutcome]. Shared by the aggregate
-    stats and by reversal_returns()."""
+            cycle_aligned, min_history, pt=None, sl=None, max_hold=None):
+    """Causal bar-by-bar replay -> list[ReversalOutcome]. If pt/sl/max_hold are
+    given, exits use the triple-barrier method; else the legacy fixed target."""
     events: list[ReversalEvent] = []
     for t in range(min_history, len(bars)):
         sub = bars[:t + 1]
@@ -171,14 +210,18 @@ def _replay(bars, score_threshold, min_reversal_pct, degrees, bullish,
         if rep.score >= score_threshold:
             events.append(ReversalEvent(sub[-1][0], rep.score, zone,
                                         _invalidation(cands[0], bullish), close))
+    if pt is not None and sl is not None and max_hold is not None:
+        return [_resolve_tb(e, bars, pt, sl, max_hold, bullish) for e in events]
     return [_resolve(e, bars, min_reversal_pct, bullish) for e in events]
 
 
 def reversal_returns(bars, score_threshold: int = 4, min_reversal_pct: float = 0.05,
                      degrees=(0.03, 0.07), bullish: bool = True,
-                     cycle_aligned: bool = False, min_history: int = 60) -> list:
+                     cycle_aligned: bool = False, min_history: int = 60,
+                     pt=None, sl=None, max_hold=None) -> list:
     """Per-event signed returns from a causal replay — feed to validation.cpcv_*
-    for the honest out-of-sample edge verdict (docs/research/deep/08)."""
+    for the honest out-of-sample edge verdict (docs/research/deep/08). Pass
+    pt/sl/max_hold to use realistic triple-barrier exits."""
     outs = _replay(bars, score_threshold, min_reversal_pct, degrees, bullish,
-                   cycle_aligned, min_history)
+                   cycle_aligned, min_history, pt=pt, sl=sl, max_hold=max_hold)
     return [o.move_pct for o in outs if o.move_pct is not None]

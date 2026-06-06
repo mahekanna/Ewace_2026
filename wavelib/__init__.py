@@ -37,7 +37,8 @@ from .automation import (
     CandidateCount, label_and_validate, assign_degrees_neely, swing_sequence,
 )
 from .backtest import (
-    backtest_reversals, reversal_returns, ReversalEvent, ReversalOutcome, BacktestStats,
+    backtest_reversals, reversal_returns, horizon_returns,
+    ReversalEvent, ReversalOutcome, BacktestStats,
 )
 from .validation import (
     sharpe_ratio, skew_kurt, probabilistic_sharpe_ratio, min_track_record_length,

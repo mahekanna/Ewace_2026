@@ -26,9 +26,10 @@ REGISTRY = os.path.join(ROOT, "registry", "trials.jsonl")
 SYMBOLS = ["avgo", "mrvl", "nvda", "amd", "tsm", "mu"]
 WINDOW = 300
 DEGREES = (0.05, 0.10)
-# parameter grid (the "trials")
+MAX_HOLD = 20                       # vertical (time) barrier in bars
+# parameter grid (the "trials"): score threshold x (take-profit, stop-loss)
 SCORE_THRESHOLDS = (3, 4)
-MIN_REVERSALS = (0.04, 0.06)
+BARRIERS = ((0.06, 0.04), (0.08, 0.05))
 
 
 def load_bars(sym):
@@ -39,74 +40,95 @@ def load_bars(sym):
 
 def main():
     bars_by_sym = {s: load_bars(s) for s in SYMBOLS}
+    # buy-and-hold benchmark: pooled horizon-forward returns -> the Sharpe to beat
+    bench = []
+    for s in SYMBOLS:
+        bench += wl.horizon_returns(bars_by_sym[s], horizon=MAX_HOLD, bullish=True)
+    bench_sr = wl.sharpe_ratio(bench)
+
     variants = []
     for st in SCORE_THRESHOLDS:
-        for mr in MIN_REVERSALS:
+        for (pt, sl) in BARRIERS:
             pooled = []
             for s in SYMBOLS:
                 pooled += wl.reversal_returns(bars_by_sym[s], score_threshold=st,
-                                              min_reversal_pct=mr, degrees=DEGREES, min_history=60)
+                                              degrees=DEGREES, min_history=60,
+                                              pt=pt, sl=sl, max_hold=MAX_HOLD)
             sr = wl.sharpe_ratio(pooled)
             sk, ku = wl.skew_kurt(pooled)
             n = len(pooled)
-            psr = wl.probabilistic_sharpe_ratio(sr, 0.0, n, sk, ku) if n >= 2 else 0.0
+            psr_b = wl.probabilistic_sharpe_ratio(sr, bench_sr, n, sk, ku) if n >= 2 else 0.0
             cp = wl.cpcv_profit_factor(pooled)
-            v = {"score_threshold": st, "min_reversal_pct": mr, "events": n,
-                 "sharpe": sr, "skew": sk, "kurt": ku, "psr": psr,
+            v = {"score_threshold": st, "pt": pt, "sl": sl, "events": n,
+                 "sharpe": sr, "skew": sk, "kurt": ku, "psr_vs_bench": psr_b,
                  "cpcv_lo_pf": (cp[0] if cp else None)}
             variants.append(v)
-            wl.log_trial({"strategy": "reversal", **{k: v[k] for k in
-                          ("score_threshold", "min_reversal_pct", "events", "sharpe")}},
+            wl.log_trial({"strategy": "reversal_tb", **{k: v[k] for k in
+                          ("score_threshold", "pt", "sl", "events", "sharpe")}},
                          path=REGISTRY)
 
     sharpes = [v["sharpe"] for v in variants]
     sr_var = statistics.pvariance(sharpes) if len(sharpes) > 1 else 0.0
-    best = max(variants, key=lambda v: v["sharpe"])
+    # Headline pick must have enough events — choosing the highest-Sharpe tiny-sample
+    # variant is itself a data-mining trap.
+    MIN_EVENTS = 20
+    eligible = [v for v in variants if v["events"] >= MIN_EVENTS]
+    best = max(eligible or variants, key=lambda v: v["sharpe"])
+    best_underpowered = not eligible
     n_run = len(variants)
     n_registry = wl.count_trials(REGISTRY)
     dsr = wl.deflated_sharpe_ratio(best["sharpe"], best["events"], best["skew"],
                                    best["kurt"], n_trials=max(n_run, 2), sr_variance=sr_var or 1e-9)
+    beats_bh = best["sharpe"] > bench_sr
 
-    out = ["# Deflated Sharpe report — reversal strategy",
+    out = ["# Deflated Sharpe report — reversal strategy (triple-barrier exits)",
            "",
            f"_Generated {datetime.date.today().isoformat()} by `scripts/run_dsr.py`. "
-           f"Pooled across {len(SYMBOLS)} AI-semis (last {WINDOW} daily bars each). "
-           "Multiple-testing-corrected per docs/research/deep/08. Not investment advice._",
+           f"Pooled across {len(SYMBOLS)} AI-semis (last {WINDOW} daily bars each), "
+           f"triple-barrier exits (+pt/-sl/{MAX_HOLD}-bar). Multiple-testing-corrected "
+           "per docs/research/deep/08. Not investment advice._",
+           "",
+           f"**Buy-and-hold benchmark** ({MAX_HOLD}-bar horizon): Sharpe "
+           f"**{bench_sr:.3f}** ({len(bench)} samples) — the bar the strategy must clear.",
            "",
            "## Variants tried (each is a 'trial' logged to `registry/trials.jsonl`)",
-           "| score_thr | min_reversal | events | Sharpe | PSR(>0) | CPCV 5%ile PF |",
+           "| score_thr | +pt / -sl | events | Sharpe | PSR vs buy&hold | CPCV 5%ile PF |",
            "|---|---|---|---|---|---|"]
     for v in variants:
         cp = "n/a" if v["cpcv_lo_pf"] is None else f"{v['cpcv_lo_pf']:.2f}"
-        out.append(f"| {v['score_threshold']} | {v['min_reversal_pct']} | {v['events']} | "
-                   f"{v['sharpe']:.3f} | {v['psr']:.0%} | {cp} |")
+        out.append(f"| {v['score_threshold']} | {v['pt']}/{v['sl']} | {v['events']} | "
+                   f"{v['sharpe']:.3f} | {v['psr_vs_bench']:.0%} | {cp} |")
     out += [
         "",
-        "## Deflated verdict",
+        "## Deflated verdict (vs buy-and-hold)",
         f"- Best variant: score_threshold={best['score_threshold']}, "
-        f"min_reversal_pct={best['min_reversal_pct']} (Sharpe {best['sharpe']:.3f}, "
-        f"{best['events']} events).",
+        f"+pt/-sl={best['pt']}/{best['sl']} (Sharpe {best['sharpe']:.3f} vs buy&hold "
+        f"{bench_sr:.3f}, {best['events']} events).",
+        f"- Beats buy-and-hold Sharpe: **{beats_bh}**; PSR vs buy&hold: "
+        f"**{best['psr_vs_bench']:.0%}**." +
+        ("  (No variant had >=20 events — headline pick is itself under-powered.)"
+         if best_underpowered else f"  (>=20-event variants only; higher-Sharpe "
+         "9-event variants excluded as overfit-prone.)"),
         f"- Variants tried this run: **{n_run}**; total in registry: **{n_registry}**.",
-        f"- Variance of trial Sharpes: {sr_var:.4f}.",
-        f"- **Deflated Sharpe Ratio (best, corrected for {n_run} trials): {dsr:.0%}**.",
+        f"- **Deflated Sharpe (vs 0, corrected for {n_run} trials): {dsr:.0%}**.",
         "",
-        "> Verdict: **NOT validated — do not trust this number.** Even though the "
-        f"corrected DSR reads {dsr:.0%}, three things inflate it and must be fixed before "
-        "any edge claim is credible:",
-        "> 1. **Outcome model is a toy.** `_resolve` books every winner at the fixed "
-        "+target% and every loser at the (far) invalidation distance; in a *rising* "
-        "300-bar sample most longs reach a small +5-6% target regardless of signal "
-        "quality, so the per-trade Sharpe mostly measures market drift, not timing.",
-        "> 2. **Wrong benchmark.** PSR/DSR here test Sharpe > 0; for a long-biased "
-        "strategy in a bull market the right benchmark is **buy-and-hold**, which would "
-        "deflate this sharply.",
-        "> 3. **Tiny, overlapping samples** (9-47 events) with near-constant outcomes "
-        "give artificially low variance (hence high Sharpe).",
+        (("> Verdict: **No edge over buy-and-hold.** The best variant's Sharpe "
+          f"({best['sharpe']:.3f}) does not beat the buy-and-hold benchmark "
+          f"({bench_sr:.3f}); PSR-vs-benchmark is {best['psr_vs_bench']:.0%}. With "
+          "realistic triple-barrier exits the apparent edge disappears — the honest "
+          "result, and exactly what this harness exists to surface.")
+         if not beats_bh else
+         ("> Verdict: the best variant **beats buy-and-hold** "
+          f"(Sharpe {best['sharpe']:.3f} > {bench_sr:.3f}), PSR-vs-benchmark "
+          f"{best['psr_vs_bench']:.0%}, DSR {dsr:.0%}. " +
+          ("This clears the multiple-testing and benchmark gates and is worth genuine "
+           "out-of-sample testing." if (best['psr_vs_bench'] >= 0.95 and dsr >= 0.95)
+           else "But it does NOT clear the 95% PSR/DSR gates, so treat as inconclusive "
+           "given the small, overlapping samples — not a validated edge."))),
         ">",
-        "> The machinery (trials registry -> DSR/PSR/CPCV) is correct and wired; the "
-        "honest takeaway is that the *current backtest design* cannot certify edge. "
-        "Next: realistic exits (triple-barrier), a buy-and-hold benchmark in PSR/DSR, "
-        "and far more events.",
+        "> Remaining honesty caveats: event counts are still small and overlapping, the "
+        "sample is a single recent regime, and transaction costs/slippage are not "
+        "modelled. CPCV 5th-pctile PF (above) is the most robust single number.",
         "",
         "_DSR needs the TRUE number of variants ever tried; the registry captures it "
         "prospectively so this number only grows more honest over time._",
