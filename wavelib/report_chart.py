@@ -12,63 +12,74 @@ from __future__ import annotations
 import datetime
 import json
 
-from .toolkit import zigzag_causal, pivots_to_waves, fib_retrace
-from .rules import is_terminal
+from .toolkit import zigzag_causal, fib_retrace
 from .confluence import score_reversal
 from .automation import label_and_validate
+from .wavetree import best_count
 
 
 def _fmt(t):
     return datetime.datetime.utcfromtimestamp(t).strftime("%Y-%m-%d")
 
 
-def analyze_symbol(symbol, bars, zone, bullish=True, desc=""):
-    """Run the engine on `bars` (t,o,h,l,c,v) and return a chart-data dict."""
-    closes = [b[4] for b in bars]
-    line = [[b[0], b[4]] for b in bars]
+def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
+    """Run the engine on `bars` (t,o,h,l,c,v) and return chart-data for a page.
+
+    The chart shows the most recent `window` bars (readable); the MACRO wave-tree
+    count uses the FULL history with honest confidence. `zone` may be None — then
+    it is derived as the 0.382-0.618 retrace band of the recent up-leg.
+    """
+    full = bars
+    recent = bars[-window:] if len(bars) > window else bars
+    closes = [b[4] for b in recent]
+    line = [[b[0], b[4]] for b in recent]
     last_close = closes[-1]
 
-    # macro swing pivots for labelling
-    piv = [p for p in zigzag_causal(bars, pct=0.10)]
-    # top = highest pivot; launch low = lowest pivot before the top
+    piv = [p for p in zigzag_causal(recent, pct=0.06)]
+    if len(piv) < 2:
+        piv = [Pivot(recent[0][0], recent[0][4], "L"), Pivot(recent[-1][0], last_close, "H")]
     top_i = max(range(len(piv)), key=lambda i: piv[i].price)
     top = piv[top_i]
     pre = piv[:top_i] or piv
     launch = min(pre, key=lambda p: p.price)
 
-    # label the last up-to-7 pivots as the visible swing sequence
-    labels = ["①", "②", "③", "④", "⑤", "Ⓐ", "Ⓑ", "Ⓒ"]
-    tail = piv[-7:]
-    pivots = []
-    for i, p in enumerate(tail):
-        lab = labels[i] if i < len(labels) else ""
-        kind = "T" if p is top else p.kind
-        pivots.append([p.t, round(p.price, 2), lab, kind])
-    pivots.append([bars[-1][0], round(last_close, 2), "now", "N"])
+    if zone is None:
+        rng = top.price - launch.price
+        zone = ((round(top.price - 0.618 * rng, 2), round(top.price - 0.382 * rng, 2))
+                if rng > 0 else (round(last_close * 0.95, 2), round(last_close * 1.05, 2)))
 
-    # Fibonacci retracement targets of the last major up-leg (launch -> top)
+    labels = ["①", "②", "③", "④", "⑤", "Ⓐ", "Ⓑ", "Ⓒ"]
+    pivots = [[p.t, round(p.price, 2), (labels[i] if i < len(labels) else ""),
+               ("T" if p is top else p.kind)] for i, p in enumerate(piv[-7:])]
+    pivots.append([recent[-1][0], round(last_close, 2), "now", "N"])
+
     fibs = fib_retrace(top.price, launch.price)
     targets = [[round(v, 2), f"{r:.3f}  ${v:,.0f}", 0.85] for r, v in sorted(fibs.items())]
 
-    # engine read
-    cands = label_and_validate(bars, degrees=(0.05, 0.10, 0.15), max_candidates=1)
+    cands = label_and_validate(recent, degrees=(0.05, 0.10, 0.15), max_candidates=1)
     best = cands[0] if cands else None
-    term = is_terminal(pivots_to_waves(piv[-6:])) if len(piv) >= 6 else None
-    rep = score_reversal(symbol, bars, zone, bullish=bullish)
+    rep = score_reversal(symbol, full[-250:], zone, bullish=bullish)
+    macro = best_count(full)
 
     tier = ("HIGH-CONFIDENCE reversal" if rep.score >= 4
             else "BUILDING — not yet confirmed" if rep.score >= 2
             else "structurally allowed only")
+    macro_line = ("No single dominant count — fragmented history." if not macro else
+                  f"Top structure <span class='k'>{macro['top'].pattern}</span>, "
+                  f"depth {macro['depth']}, honest confidence "
+                  f"<span class='k'>{macro['score']:.0%}</span> (covers {macro['coverage']:.0%} "
+                  f"of {len(full)} bars — multi-year counts are inherently ambiguous).")
 
-    card_engine = ("What the engine detects", [
-        f"Swing top <span class='r'>${top.price:,.2f}</span> on {top.date}; "
-        f"launch low <span class='k'>${launch.price:,.2f}</span> ({launch.date}).",
-        (f"Best auto-count: <span class='k'>{best.count_type}</span> "
-         f"(quality {best.fib_score:.0%}, {best.hard_fails} rule-breaks)." if best
-         else "No clean count at the tested scales."),
-        (f"Terminal/diagonal check on the last 5 legs: "
-         f"<span class='k'>{term.detail}</span>" if term and term.status.value != 'N/A'
-         else "Last 5 legs are a directional move (no terminal overlap)."),
+    card_macro = ("Macro wave-tree count (full history)", [
+        f"History: <span class='k'>{len(full)}</span> daily bars from {_fmt(full[0][0])}.",
+        macro_line,
+        f"Recent swing top <span class='r'>${top.price:,.2f}</span> ({top.date}); "
+        f"launch <span class='k'>${launch.price:,.2f}</span> ({launch.date}).",
+    ])
+    card_engine = ("Recent structure", [
+        (f"Best recent count: <span class='k'>{best.count_type}</span> "
+         f"(fib quality {best.fib_score:.0%}, {best.hard_fails} rule-breaks)." if best
+         else "No clean recent count."),
         f"Price <span class='k'>${last_close:,.2f}</span> vs reversal zone "
         f"<span class='g'>${zone[0]}-{zone[1]}</span>.",
     ])
@@ -80,16 +91,23 @@ def analyze_symbol(symbol, bars, zone, bullish=True, desc=""):
     return {
         "symbol": symbol,
         "desc": desc or symbol,
-        "subtitle": f"{desc or symbol} · daily · auto-generated",
-        "headline": f"Elliott / NeoWave — best count: {best.count_type if best else 'n/a'}",
+        "subtitle": f"{desc or symbol} · daily · last {len(recent)} bars",
+        "headline": f"Macro: {macro['top'].pattern if macro else 'n/a'} "
+                    f"({macro['score']:.0%} conf) · recent: {best.count_type if best else 'n/a'}",
         "price": last_close,
-        "change": f"in ${zone[0]}-{zone[1]} reversal zone · score {rep.score}/7",
-        "asof": _fmt(bars[-1][0]),
+        "change": f"in ${zone[0]}-{zone[1]} zone · confluence {rep.score}/7",
+        "asof": _fmt(recent[-1][0]),
         "line": line,
         "pivots": pivots,
         "targets": targets,
         "zone": list(zone),
-        "cards": [card_engine, card_conf],
+        "cards": [card_macro, card_engine, card_conf],
+        "score": rep.score,
+        "best_recent": best.count_type if best else None,
+        "macro": (None if not macro else {
+            "pattern": macro["top"].pattern, "score": macro["score"],
+            "coverage": macro["coverage"], "depth": macro["depth"],
+            "n_roots": macro["n_roots"]}),
     }
 
 

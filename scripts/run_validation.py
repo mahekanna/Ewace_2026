@@ -24,13 +24,16 @@ LIVE = os.path.join(ROOT, "data", "live")
 CHARTS = os.path.join(ROOT, "charts")
 REPORT = os.path.join(ROOT, "reports", "VALIDATION_2026-06.md")
 
-# documented structural reversal zones + bias (README / DOCUMENTATION)
+# Semiconductor-AI watchlist. zone=None -> derived from the recent up-leg.
 SYMBOLS = {
-    "AVGO": {"file": "avgo_1d_2026-06.json", "zone": (358, 410), "bullish": True,
-             "desc": "Broadcom · NASDAQ:AVGO"},
-    "MRVL": {"file": "mrvl_1d_2026-06.json", "zone": (229, 266), "bullish": True,
-             "desc": "Marvell · NASDAQ:MRVL"},
+    "AVGO": {"file": "avgo_1d_2026-06.json", "zone": (358, 410), "desc": "Broadcom · NASDAQ:AVGO"},
+    "MRVL": {"file": "mrvl_1d_2026-06.json", "zone": (229, 266), "desc": "Marvell · NASDAQ:MRVL"},
+    "NVDA": {"file": "nvda_1d_2026-06.json", "zone": None, "desc": "Nvidia · NASDAQ:NVDA"},
+    "AMD":  {"file": "amd_1d_2026-06.json",  "zone": None, "desc": "AMD · NASDAQ:AMD"},
+    "TSM":  {"file": "tsm_1d_2026-06.json",  "zone": None, "desc": "TSMC · NYSE:TSM"},
+    "MU":   {"file": "mu_1d_2026-06.json",   "zone": None, "desc": "Micron · NASDAQ:MU"},
 }
+BACKTEST_WINDOW = 300   # bar-by-bar replay over the recent window (full history is too slow)
 
 
 def load_bars(fname):
@@ -40,83 +43,49 @@ def load_bars(fname):
 
 
 def section(sym, cfg, out):
+    """Analyze one symbol: build its rich page, run a bounded causal backtest, and
+    append a compact markdown block. Returns a summary dict for the dashboard."""
     bars = load_bars(cfg["file"])
-    last = bars[-1]
-    out.append(f"## {sym} — {len(bars)} daily bars, last close {last[4]:.2f}\n")
+    data = analyze_symbol(sym, bars, cfg.get("zone"), bullish=True, desc=cfg.get("desc", sym))
+    render_analysis_page(data, output_path=os.path.join(CHARTS, f"{sym.lower()}_analysis.html"))
+    zone = tuple(data["zone"])
+    macro = data["macro"]
 
-    # 1) multi-scale pivots
-    streams = wl.zigzag_multiscale(bars, scales=(0.05, 0.10, 0.15))
-    counts = {s: len(v) for s, v in streams.items()}
-    out.append(f"**Multi-scale pivots** (scale→count): {counts}  "
-               f"— non-increasing with scale: "
-               f"{all(a >= b for a, b in zip(list(counts.values()), list(counts.values())[1:]))}\n")
+    # bounded causal backtest on the recent window (full-history bar-by-bar is too slow)
+    bt = bars[-BACKTEST_WINDOW:]
+    flat = wl.backtest_reversals(bt, score_threshold=4, min_reversal_pct=0.05,
+                                 degrees=(0.05, 0.10), bullish=True, min_history=60)
 
-    # 2) auto-labeling
-    cands = wl.label_and_validate(bars, degrees=(0.05, 0.10, 0.15), max_candidates=5)
-    out.append(f"**Auto-labeling** (`label_and_validate`) → {len(cands)} candidate(s):\n")
-    out.append("| rank | type | degree | hard_fails | warns | fib_score |")
-    out.append("|---|---|---|---|---|---|")
-    for i, c in enumerate(cands, 1):
-        out.append(f"| {i} | {c.count_type} | {c.degree} | {c.hard_fails} | {c.warns} | {c.fib_score:.2f} |")
-    out.append("")
-
-    # 3) bottom-up degree
-    deg = wl.assign_degrees_neely(bars, base_scale=0.05)
-    types = {}
-    for c in deg:
-        types[c.count_type] = types.get(c.count_type, 0) + 1
-    out.append(f"**Auto-degree** (`assign_degrees_neely`) → {len(deg)} validated candidate(s) "
-               f"{types}; all degree_confidence="
-               f"{set(c.degree_confidence for c in deg) or '{}'}\n")
-
-    # 4) reversal confluence at the documented zone
-    rep = wl.score_reversal(sym, bars, cfg["zone"], bullish=cfg["bullish"])
-    out.append(f"**Reversal confluence** at zone {cfg['zone']} (bullish={cfg['bullish']}):\n")
-    out.append("```")
-    out.append(str(rep).strip())
-    out.append("```")
-    if getattr(rep, "warnings", None):
-        out.append(f"_warnings: {rep.warnings}_\n")
-
-    # 5) causal backtest + walk-forward
-    flat = wl.backtest_reversals(bars, score_threshold=4, min_reversal_pct=0.05,
-                                 degrees=(0.05, 0.10), bullish=cfg["bullish"], min_history=60)
-    out.append("**Causal backtest** (whole series, score≥4, reversal=+5%):")
-    out.append(f"- signals={flat.n_signals} reversals={flat.n_reversals} "
-               f"invalidations={flat.n_invalidations} open={flat.n_open} "
-               f"hit_rate={flat.hit_rate:.2f} profit_factor={flat.profit_factor:.2f}")
-    wfo = wl.backtest_reversals(bars, score_threshold=4, degrees=(0.05, 0.10),
-                                bullish=cfg["bullish"], min_history=60,
-                                wfo_train_size=120, wfo_test_size=40, wfo_step_size=40)
-    out.append(f"- walk-forward efficiency (OOS/IS PF): {wfo.wfe}")
-    out.append("")
-
-    # 6) chart
-    waves = wl.pivots_to_waves(wl.zigzag_causal(bars, pct=0.08))
-    svg_path = os.path.join(CHARTS, f"{sym.lower()}_1d_auto.svg")
-    wl.render_chart(waves, zones=[cfg["zone"]], title=f"{sym} 1D — auto zigzag (pct=0.08)",
-                    output_path=svg_path)
-    out.append(f"**Chart:** `charts/{sym.lower()}_1d_auto.svg` ({len(waves)} legs)\n")
-    return {"sym": sym, "last": last[4], "zone": cfg["zone"], "score": rep.score,
-            "type": cands[0].count_type if cands else "-",
-            "fib": cands[0].fib_score if cands else 0.0,
-            "svg": f"{sym.lower()}_1d_auto.svg"}
+    out.append(f"## {sym} — {cfg.get('desc', sym)}")
+    out.append(f"- **{len(bars)} daily bars**, last close ${data['price']:,.2f}")
+    if macro:
+        out.append(f"- Macro wave-tree count (full history): top **{macro['pattern']}**, "
+                   f"depth {macro['depth']}, **honest confidence {macro['score']:.0%}** "
+                   f"(covers {macro['coverage']:.0%}; {macro['n_roots']} roots) — "
+                   "multi-year counts are inherently ambiguous")
+    out.append(f"- Recent best count: **{data['best_recent'] or 'n/a'}**; reversal zone "
+               f"{zone}; live confluence **{data['score']}/7**")
+    out.append(f"- Causal backtest (last {len(bt)} bars, score≥4, +5% target): "
+               f"signals={flat.n_signals} reversals={flat.n_reversals} "
+               f"invalidations={flat.n_invalidations} hit_rate={flat.hit_rate:.0%}")
+    out.append(f"- Chart: `charts/{sym.lower()}_analysis.html`\n")
+    return {"sym": sym, "desc": cfg.get("desc", sym), "price": data["price"],
+            "change": data["change"], "macro": macro}
 
 
-def write_dashboard():
-    """Build a standalone rich analysis page per symbol + an index that links them."""
+def write_dashboard(summaries):
+    """Build the index that links each symbol's standalone analysis page."""
     today = datetime.date.today().isoformat()
     cards = []
-    for sym, cfg in SYMBOLS.items():
-        bars = load_bars(cfg["file"])
-        data = analyze_symbol(sym, bars, cfg["zone"], bullish=cfg["bullish"],
-                              desc=cfg.get("desc", sym))
-        render_analysis_page(data, output_path=os.path.join(CHARTS, f"{sym.lower()}_analysis.html"))
+    for s in summaries:
+        mc = (f"macro {s['macro']['pattern']} {s['macro']['score']:.0%}"
+              if s["macro"] else "macro n/a")
         cards.append(
-            f"<a class='tile' href='{sym.lower()}_analysis.html'>"
-            f"<div class='sym'>{sym}</div>"
-            f"<div class='meta'>{cfg.get('desc', sym)}</div>"
-            f"<div class='meta'>last ${data['price']:,.2f} · {data['change']}</div>"
+            f"<a class='tile' href='{s['sym'].lower()}_analysis.html'>"
+            f"<div class='sym'>{s['sym']}</div>"
+            f"<div class='meta'>{s['desc']}</div>"
+            f"<div class='meta'>last ${s['price']:,.2f} · {s['change']}</div>"
+            f"<div class='meta'>{mc}</div>"
             f"<div class='open'>open chart &rarr;</div></a>")
     index = ("<!DOCTYPE html><html><head><meta charset='utf-8'>"
              "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
@@ -153,7 +122,7 @@ def main():
     for sym, cfg in SYMBOLS.items():
         summaries.append(section(sym, cfg, out))
         out.append("---\n")
-    dash = write_dashboard()
+    dash = write_dashboard(summaries)
     out.append("### How to reproduce\n")
     out.append("```\npython3 scripts/run_validation.py\npython3 -m unittest discover -s tests\n```")
     text = "\n".join(out) + "\n"

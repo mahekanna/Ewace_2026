@@ -2,77 +2,57 @@
 
 _Regenerated 2026-06-06 by `scripts/run_validation.py` on TradingView/tvremix daily snapshots in `data/live/` (price data as of 2026-06-05 close). Analysis tooling only — not investment advice._
 
-## AVGO — 220 daily bars, last close 385.73
-
-**Multi-scale pivots** (scale→count): {0.05: 79, 0.1: 18, 0.15: 6}  — non-increasing with scale: True
-
-**Auto-labeling** (`label_and_validate`) → 5 candidate(s):
-
-| rank | type | degree | hard_fails | warns | fib_score |
-|---|---|---|---|---|---|
-| 1 | CORRECTION | 0 | 0 | 0 | 0.99 |
-| 2 | CORRECTION | 1 | 0 | 0 | 0.98 |
-| 3 | CORRECTION | 0 | 0 | 0 | 0.98 |
-| 4 | CORRECTION | 0 | 0 | 0 | 0.98 |
-| 5 | CORRECTION | 0 | 0 | 0 | 0.98 |
-
-**Auto-degree** (`assign_degrees_neely`) → 110 validated candidate(s) {'CORRECTION': 105, 'IMPULSE': 5}; all degree_confidence={'HEURISTIC'}
-
-**Reversal confluence** at zone (358, 410) (bullish=True):
-
-```
-=== AVGO @ 385.73 — REVERSAL CONFLUENCE (220 bars) ===
-  [✓] Fib/structure zone: price 385.7 INSIDE 358-410
-  [✓] Momentum divergence: HIDDEN BULL div: price HL (404.8->405.9) / RSI LL (62.2->52.2)
-  [ ] MACD turn: hist 4.43->0.89->-3.61 (flat/against)
-  [ ] Volume capitulation: vol 51.1M vs avg 26.1M (2.0× no spike); range 24.91 vs 1.5×ATR(16.70)=narrow (churn)
-  [ ] Counter-trend channel break: trendline @ 492.0 (anchors 439.8@bar204, 481.6@bar216); close 385.7 (held)
-  [ ] CHoCH (higher-high): no CHoCH: close 385.7 ≤ swing-H 442.4
-  [ ] Hurst/FLD cycle window (external input)
-  SCORE 2/7 -> BUILDING — not yet confirmed
-```
-**Causal backtest** (whole series, score≥4, reversal=+5%):
-- signals=1 reversals=1 invalidations=0 open=0 hit_rate=1.00 profit_factor=inf
-- walk-forward efficiency (OOS/IS PF): None
-
-**Chart:** `charts/avgo_1d_auto.svg` (29 legs)
+## AVGO — Broadcom · NASDAQ:AVGO
+- **4234 daily bars**, last close $385.73
+- Macro wave-tree count (full history): top **ZIGZAG**, depth 2, **honest confidence 28%** (covers 37%; 8 roots) — multi-year counts are inherently ambiguous
+- Recent best count: **CORRECTION**; reversal zone (358, 410); live confluence **2/7**
+- Causal backtest (last 300 bars, score≥4, +5% target): signals=1 reversals=1 invalidations=0 hit_rate=100%
+- Chart: `charts/avgo_analysis.html`
 
 ---
 
-## MRVL — 220 daily bars, last close 263.47
+## MRVL — Marvell · NASDAQ:MRVL
+- **5000 daily bars**, last close $263.47
+- Macro wave-tree count (full history): top **TRIANGLE**, depth 5, **honest confidence 33%** (covers 46%; 11 roots) — multi-year counts are inherently ambiguous
+- Recent best count: **CORRECTION**; reversal zone (229, 266); live confluence **2/7**
+- Causal backtest (last 300 bars, score≥4, +5% target): signals=0 reversals=0 invalidations=0 hit_rate=0%
+- Chart: `charts/mrvl_analysis.html`
 
-**Multi-scale pivots** (scale→count): {0.05: 115, 0.1: 37, 0.15: 14}  — non-increasing with scale: True
+---
 
-**Auto-labeling** (`label_and_validate`) → 5 candidate(s):
+## NVDA — Nvidia · NASDAQ:NVDA
+- **5000 daily bars**, last close $205.10
+- Macro wave-tree count (full history): top **FLAT**, depth 4, **honest confidence 17%** (covers 57%; 11 roots) — multi-year counts are inherently ambiguous
+- Recent best count: **CORRECTION**; reversal zone (143.89, 179.27); live confluence **0/7**
+- Causal backtest (last 300 bars, score≥4, +5% target): signals=6 reversals=1 invalidations=5 hit_rate=17%
+- Chart: `charts/nvda_analysis.html`
 
-| rank | type | degree | hard_fails | warns | fib_score |
-|---|---|---|---|---|---|
-| 1 | CORRECTION | 1 | 0 | 0 | 1.00 |
-| 2 | CORRECTION | 0 | 0 | 0 | 0.99 |
-| 3 | CORRECTION | 0 | 0 | 0 | 0.98 |
-| 4 | CORRECTION | 0 | 0 | 0 | 0.98 |
-| 5 | CORRECTION | 0 | 0 | 0 | 0.97 |
+---
 
-**Auto-degree** (`assign_degrees_neely`) → 177 validated candidate(s) {'CORRECTION': 160, 'IMPULSE': 17}; all degree_confidence={'HEURISTIC'}
+## AMD — AMD · NASDAQ:AMD
+- **5000 daily bars**, last close $466.38
+- Macro wave-tree count (full history): top **FLAT**, depth 4, **honest confidence 8%** (covers 15%; 34 roots) — multi-year counts are inherently ambiguous
+- Recent best count: **CORRECTION**; reversal zone (256.0, 366.92); live confluence **1/7**
+- Causal backtest (last 300 bars, score≥4, +5% target): signals=2 reversals=1 invalidations=1 hit_rate=50%
+- Chart: `charts/amd_analysis.html`
 
-**Reversal confluence** at zone (229, 266) (bullish=True):
+---
 
-```
-=== MRVL @ 263.47 — REVERSAL CONFLUENCE (220 bars) ===
-  [✓] Fib/structure zone: price 263.5 INSIDE 229-266
-  [ ] Momentum divergence: no bullish div: price (158.0->162.9) RSI (59.1->67.2)
-  [ ] MACD turn: hist 9.66->11.90->9.11 (flat/against)
-  [✓] Volume capitulation: vol 94.0M vs avg 41.5M (2.3× spike ✓); range 39.33 vs 1.5×ATR(17.24)=wide ✓
-  [ ] Counter-trend channel break: channel too short (7 bars < 10 min)
-  [ ] CHoCH (higher-high): BOS (up continuation): close 263.5 > swing-H 192.2
-  [ ] Hurst/FLD cycle window (external input)
-  SCORE 2/7 -> BUILDING — not yet confirmed
-```
-**Causal backtest** (whole series, score≥4, reversal=+5%):
-- signals=0 reversals=0 invalidations=0 open=0 hit_rate=0.00 profit_factor=0.00
-- walk-forward efficiency (OOS/IS PF): None
+## TSM — TSMC · NYSE:TSM
+- **5000 daily bars**, last close $415.17
+- Macro wave-tree count (full history): top **ZIGZAG**, depth 2, **honest confidence 34%** (covers 47%; 5 roots) — multi-year counts are inherently ambiguous
+- Recent best count: **CORRECTION**; reversal zone (254.93, 329.48); live confluence **0/7**
+- Causal backtest (last 300 bars, score≥4, +5% target): signals=0 reversals=0 invalidations=0 hit_rate=0%
+- Chart: `charts/tsm_analysis.html`
 
-**Chart:** `charts/mrvl_1d_auto.svg` (55 legs)
+---
+
+## MU — Micron · NASDAQ:MU
+- **5000 daily bars**, last close $864.01
+- Macro wave-tree count (full history): top **ZIGZAG**, depth 4, **honest confidence 22%** (covers 46%; 8 roots) — multi-year counts are inherently ambiguous
+- Recent best count: **CORRECTION**; reversal zone (454.14, 696.69); live confluence **1/7**
+- Causal backtest (last 300 bars, score≥4, +5% target): signals=0 reversals=0 invalidations=0 hit_rate=0%
+- Chart: `charts/mu_analysis.html`
 
 ---
 
