@@ -32,6 +32,12 @@ SYMBOLS = {
     "AMD":  {"file": "amd_1d_2026-06.json",  "zone": None, "desc": "AMD · NASDAQ:AMD"},
     "TSM":  {"file": "tsm_1d_2026-06.json",  "zone": None, "desc": "TSMC · NYSE:TSM"},
     "MU":   {"file": "mu_1d_2026-06.json",   "zone": None, "desc": "Micron · NASDAQ:MU"},
+    "ARM":  {"file": "arm_1d_2026-06.json",  "zone": None, "desc": "Arm Holdings · NASDAQ:ARM"},
+    "SMCI": {"file": "smci_1d_2026-06.json", "zone": None, "desc": "Super Micro · NASDAQ:SMCI"},
+    "QCOM": {"file": "qcom_1d_2026-06.json", "zone": None, "desc": "Qualcomm · NASDAQ:QCOM"},
+    "ASML": {"file": "asml_1d_2026-06.json", "zone": None, "desc": "ASML · NASDAQ:ASML"},
+    "LRCX": {"file": "lrcx_1d_2026-06.json", "zone": None, "desc": "Lam Research · NASDAQ:LRCX"},
+    "AMAT": {"file": "amat_1d_2026-06.json", "zone": None, "desc": "Applied Materials · NASDAQ:AMAT"},
 }
 BACKTEST_WINDOW = 300   # bar-by-bar replay over the recent window (full history is too slow)
 
@@ -79,6 +85,17 @@ def section(sym, cfg, out):
         tg = ", ".join(f"{lab} {p:.1f}" for lab, p in fc.targets)
         out.append(f"- **Forecast next**: {fc.next_wave} → targets [{tg}], "
                    f"invalidation {fc.invalidation} (confidence {fc.confidence:.0%})")
+    # NeoWave (Neely) surfaced: monowave bias + S&B on the recent structure
+    rp = [p for p in wl.zigzag_causal(bt, pct=0.06) if p.confirmed_t is not None]
+    if len(rp) >= 4:
+        lab = wl.label_monowaves(rp)
+        mm = sum(1 for _w, l in lab if l.startswith(":5"))
+        cc = sum(1 for _w, l in lab if l.startswith(":3"))
+        nw = f"{mm} motive(:5) / {cc} corrective(:3) monowaves"
+        if len(rp) >= 6:
+            t5 = wl.terminal_rules(wl.pivots_to_waves(rp[-6:]))[0]
+            nw += f"; terminal check: {t5.detail}"
+        out.append(f"- NeoWave: {nw}")
     power = "UNDERPOWERED — too few events to claim edge" if n_ev < 6 else f"PSR {psr:.0%}"
     cpline = (f"CPCV 5th-pctile OOS profit-factor {cp[0]:.2f} ({cp[2]} folds)" if cp
               else f"CPCV needs ≥6 events (have {n_ev})")

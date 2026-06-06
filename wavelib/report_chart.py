@@ -23,6 +23,51 @@ def _fmt(t):
     return datetime.datetime.utcfromtimestamp(t).strftime("%Y-%m-%d")
 
 
+def _neowave_card(piv, primary, full):
+    """Surface the NeoWave engine (Neely) for a symbol: monowave structure bias,
+    Rule of Similarity & Balance, terminal/diagonal check, neutral/running-triangle
+    flags, and the two-stage 2-4 timing confirmation — all from existing functions."""
+    from .rules import (label_monowaves, similarity_and_balance, terminal_rules,
+                        is_neutral_triangle, is_running_triangle, two_four_confirmation)
+    from .toolkit import pivots_to_waves
+    items = []
+    if len(piv) >= 4:
+        labelled = label_monowaves(piv)
+        m = sum(1 for _w, l in labelled if l.startswith(":5"))
+        c = sum(1 for _w, l in labelled if l.startswith(":3"))
+        amb = sum(1 for _w, l in labelled if l.startswith(":5|"))
+        items.append(f"Monowave structure: <span class='k'>{m}</span> motive (:5) / "
+                     f"<span class='k'>{c}</span> corrective (:3)"
+                     + (f", {amb} ambiguous" if amb else "")
+                     + f" over {len(labelled)} monowaves.")
+    legs = [n.as_wave() for _l, n in primary.labels] if primary else []
+    if len(legs) >= 4:
+        sb = similarity_and_balance(legs[1], legs[3], context="wave2 vs wave4")
+    elif len(legs) == 3:
+        sb = similarity_and_balance(legs[0], legs[2], context="A vs C")
+    else:
+        sb = None
+    if sb:
+        items.append(f"Similarity & Balance ({sb.status.value}): {sb.detail}")
+    rl = pivots_to_waves(piv[-6:]) if len(piv) >= 6 else []
+    if len(rl) == 5:
+        items.append(f"Terminal check (last 5 legs): {terminal_rules(rl)[0].detail}")
+        flags = []
+        if is_neutral_triangle(rl).status.value == "PASS":
+            flags.append("neutral triangle")
+        if is_running_triangle(rl).status.value == "PASS":
+            flags.append("running triangle (mislabel risk)")
+        items.append("Special structures: " + (", ".join(flags) if flags
+                                                else "none on last 5 legs"))
+    if primary and primary.pattern in ("IMPULSE", "DIAGONAL") and len(legs) == 5:
+        tf = two_four_confirmation(legs[4], legs[1].end, legs[3].end,
+                                   full[-1][0], full[-1][4], uptrend=legs[0].up)
+        items.append(f"2-4 timing confirmation: {tf[0].detail}")
+    if not items:
+        items = ["insufficient recent structure for NeoWave analysis."]
+    return ("NeoWave techniques (Neely)", items)
+
+
 def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
     """Run the engine on `bars` (t,o,h,l,c,v) and return chart-data for a page.
 
@@ -128,7 +173,8 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
         "pivots": pivots,
         "targets": targets,
         "zone": list(zone),
-        "cards": [card_macro, card_forecast, card_engine, card_conf],
+        "cards": [card_macro, card_forecast, _neowave_card(piv, primary, full),
+                  card_engine, card_conf],
         "score": rep.score,
         "best_recent": best.count_type if best else None,
         "macro": (None if not primary else {
