@@ -18,8 +18,8 @@ CAUSAL: built only from confirmed ZigZag pivots (confirmed_t set). Pure stdlib.
 from __future__ import annotations
 from dataclasses import dataclass, field
 
-from .rules import (Pivot, Wave, Status, elliott_hard_rules, classify_correction,
-                    _classify_triangle, similarity_and_balance)
+from .rules import (Pivot, Wave, Status, RuleResult, elliott_hard_rules,
+                    classify_correction, similarity_and_balance)
 from .toolkit import zigzag_causal
 
 _MOTIVE = {"IMPULSE", "DIAGONAL"}
@@ -76,16 +76,46 @@ def _impulse_node(group, degree):
     hard = elliott_hard_rules(waves)
     if any(h.status is Status.FAIL for h in hard):
         return None                            # not a clean impulse (diagonals: later stage)
+    # Real impulse sub-structure (5-3-5-3-5): once the children are themselves
+    # classified (degree >= 2), motive legs 1/3/5 must be impulses and corrective
+    # legs 2/4 must be corrections. At degree 1 the children are monowaves
+    # (sub-structure not yet observable) so this is deferred.
+    if degree >= 2:
+        if not all(group[i].pattern in _MOTIVE for i in (0, 2, 4)):
+            return None
+        if not all(group[i].pattern in _CORRECTIVE for i in (1, 3)):
+            return None
     results = hard + [similarity_and_balance(waves[1], waves[3], context="w2 vs w4")]
     conf = _confidence(results, group, (0, 2, 4), (1, 3))
     return WaveNode(group[0].start, group[-1].end, degree, "motive", "IMPULSE",
                     list(group), results, conf)
 
 
+def _triangle_geometry(group):
+    """Genuine triangle test on prices: the two boundaries must converge
+    (contracting) or diverge (expanding). Returns the kind or None."""
+    p = [group[0].start.price] + [n.end.price for n in group]
+    up0 = p[1] > p[0]
+    peaks = [p[1], p[3], p[5]] if up0 else [p[0], p[2], p[4]]
+    troughs = [p[0], p[2], p[4]] if up0 else [p[1], p[3], p[5]]
+    if peaks[0] > peaks[1] > peaks[2] and troughs[0] < troughs[1] < troughs[2]:
+        return "CONTRACTING"
+    if peaks[0] < peaks[1] < peaks[2] and troughs[0] > troughs[1] > troughs[2]:
+        return "EXPANDING"
+    return None
+
+
 def _triangle_node(group, degree):
-    rr = _classify_triangle([n.as_wave() for n in group])
-    if rr.status is not Status.PASS:
+    # A real triangle's five legs are each CORRECTIVE (3s) and its two boundary
+    # trendlines genuinely converge/diverge. Monowave legs cannot be a triangle,
+    # so this only forms at degree >= 2 with all-corrective children.
+    if degree < 2 or not all(c.pattern in _CORRECTIVE for c in group):
         return None
+    geo = _triangle_geometry(group)
+    if geo is None:
+        return None
+    rr = RuleResult(f"triangle: {geo.lower()}, 5 corrective legs, converging lines",
+                    Status.PASS, f"degree {degree}")
     conf = _confidence([rr], group, (), (0, 1, 2, 3, 4))
     return WaveNode(group[0].start, group[-1].end, degree, "corrective", "TRIANGLE",
                     list(group), [rr], conf)
@@ -101,7 +131,10 @@ def _correction_node(group, degree):
     pattern = ("ZIGZAG" if "ZIGZAG" in rr.rule else
                "FLAT" if "FLAT" in rr.rule else "CORRECTION")
     results = [rr, similarity_and_balance(waves[0], waves[2], context="A vs C")]
-    conf = _confidence(results, group, (0, 2), (1,))
+    # sub-structure expectation: zigzag = 5-3-5 (A,C motive), flat = 3-3-5 (C motive)
+    m_idx, c_idx = ((0, 2), (1,)) if pattern == "ZIGZAG" else \
+                   ((2,), (0, 1)) if pattern == "FLAT" else ((), (0, 1, 2))
+    conf = _confidence(results, group, m_idx, c_idx)
     return WaveNode(group[0].start, group[-1].end, degree, "corrective", pattern,
                     list(group), results, conf)
 

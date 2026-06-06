@@ -64,5 +64,33 @@ class TestWaveTree(unittest.TestCase):
         self.assertEqual(build_tree_from_pivots([Pivot(0, 100, "L")]), [])
 
 
+class TestStage2Triangles(unittest.TestCase):
+    """Stage 2: triangles need real converging/diverging lines AND corrective
+    legs — they must NOT form from raw monowaves."""
+
+    def test_geometry_gate(self):
+        from wavelib.wavetree import _triangle_geometry, WaveNode
+
+        def grp(prices):
+            return [WaveNode(Pivot(i, prices[i], "L"), Pivot(i + 1, prices[i + 1], "H"),
+                             0, "leg", "MONOWAVE") for i in range(5)]
+        self.assertEqual(_triangle_geometry(grp([100, 120, 105, 116, 108, 113])), "CONTRACTING")
+        self.assertEqual(_triangle_geometry(grp([100, 120, 98, 128, 90, 135])), "EXPANDING")
+        self.assertIsNone(_triangle_geometry(grp([100, 110, 120, 130, 140, 150])))
+
+    def test_no_triangle_from_monowaves(self):
+        # a contracting-looking 5-monowave set must NOT be labelled a TRIANGLE
+        roots = build_tree_from_pivots(_pivots([10, -7, 5, -3, 1]))
+        patterns = []
+
+        def walk(n):
+            patterns.append(n.pattern)
+            for c in n.children:
+                walk(c)
+        for r in roots:
+            walk(r)
+        self.assertNotIn("TRIANGLE", patterns)
+
+
 if __name__ == "__main__":
     unittest.main()
