@@ -59,15 +59,19 @@ def section(sym, cfg, out):
     out.append(f"## {sym} — {cfg.get('desc', sym)}")
     out.append(f"- **{len(bars)} daily bars**, last close ${data['price']:,.2f}")
     if macro:
-        out.append(f"- Macro wave-tree count (full history): top **{macro['pattern']}**, "
-                   f"depth {macro['depth']}, **honest confidence {macro['score']:.0%}** "
-                   f"(covers {macro['coverage']:.0%}; {macro['n_roots']} roots) — "
-                   "multi-year counts are inherently ambiguous")
+        alt = ("; alternates: " + ", ".join(f"{p} {c:.0%}" for p, c in macro["alternates"])
+               if macro["alternates"] else "")
+        out.append(f"- Macro count (full history): primary **{macro['pattern']}** @ "
+                   f"{macro['degree_label']}, **honest confidence {macro['score']:.0%}** "
+                   f"(covers {macro['coverage']:.0%}){alt} — multi-year counts are ambiguous")
     out.append(f"- Recent best count: **{data['best_recent'] or 'n/a'}**; reversal zone "
                f"{zone}; live confluence **{data['score']}/7**")
+    power = ("UNDERPOWERED — too few events to claim edge" if flat.underpowered or flat.n_signals < 3
+             else f"PSR {flat.psr:.0%}, MinTRL {flat.min_trl:.0f}" if flat.min_trl else "n/a")
     out.append(f"- Causal backtest (last {len(bt)} bars, score≥4, +5% target): "
                f"signals={flat.n_signals} reversals={flat.n_reversals} "
-               f"invalidations={flat.n_invalidations} hit_rate={flat.hit_rate:.0%}")
+               f"invalidations={flat.n_invalidations} hit_rate={flat.hit_rate:.0%}; "
+               f"statistical power: {power}")
     out.append(f"- Chart: `charts/{sym.lower()}_analysis.html`\n")
     return {"sym": sym, "desc": cfg.get("desc", sym), "price": data["price"],
             "change": data["change"], "macro": macro}

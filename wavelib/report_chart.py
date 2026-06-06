@@ -15,7 +15,7 @@ import json
 from .toolkit import zigzag_causal, fib_retrace
 from .confluence import score_reversal
 from .automation import label_and_validate
-from .wavetree import best_count
+from .wavetree import wave_counts
 
 
 def _fmt(t):
@@ -59,20 +59,26 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
     cands = label_and_validate(recent, degrees=(0.05, 0.10, 0.15), max_candidates=1)
     best = cands[0] if cands else None
     rep = score_reversal(symbol, full[-250:], zone, bullish=bullish)
-    macro = best_count(full)
+    counts = wave_counts(full, max_alternates=2)
+    primary = counts[0] if counts else None
+    alternates = counts[1:]
 
     tier = ("HIGH-CONFIDENCE reversal" if rep.score >= 4
             else "BUILDING — not yet confirmed" if rep.score >= 2
             else "structurally allowed only")
-    macro_line = ("No single dominant count — fragmented history." if not macro else
-                  f"Top structure <span class='k'>{macro['top'].pattern}</span>, "
-                  f"depth {macro['depth']}, honest confidence "
-                  f"<span class='k'>{macro['score']:.0%}</span> (covers {macro['coverage']:.0%} "
-                  f"of {len(full)} bars — multi-year counts are inherently ambiguous).")
+    macro_line = ("No single dominant count — fragmented history." if not primary else
+                  f"Primary: <span class='k'>{primary.pattern}</span> @ {primary.degree_label}, "
+                  f"honest confidence <span class='k'>{primary.confidence:.0%}</span> "
+                  f"(covers {primary.coverage:.0%} of {len(full)} bars — multi-year counts "
+                  "are inherently ambiguous).")
+    alt_line = ("Alternates: " + "; ".join(
+        f"{a.pattern} {a.confidence:.0%}" for a in alternates)) if alternates else \
+        "No strong alternates."
 
     card_macro = ("Macro wave-tree count (full history)", [
         f"History: <span class='k'>{len(full)}</span> daily bars from {_fmt(full[0][0])}.",
         macro_line,
+        alt_line,
         f"Recent swing top <span class='r'>${top.price:,.2f}</span> ({top.date}); "
         f"launch <span class='k'>${launch.price:,.2f}</span> ({launch.date}).",
     ])
@@ -92,8 +98,8 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
         "symbol": symbol,
         "desc": desc or symbol,
         "subtitle": f"{desc or symbol} · daily · last {len(recent)} bars",
-        "headline": f"Macro: {macro['top'].pattern if macro else 'n/a'} "
-                    f"({macro['score']:.0%} conf) · recent: {best.count_type if best else 'n/a'}",
+        "headline": f"Macro: {primary.pattern if primary else 'n/a'} "
+                    f"({primary.confidence:.0%} conf) · recent: {best.count_type if best else 'n/a'}",
         "price": last_close,
         "change": f"in ${zone[0]}-{zone[1]} zone · confluence {rep.score}/7",
         "asof": _fmt(recent[-1][0]),
@@ -104,10 +110,10 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
         "cards": [card_macro, card_engine, card_conf],
         "score": rep.score,
         "best_recent": best.count_type if best else None,
-        "macro": (None if not macro else {
-            "pattern": macro["top"].pattern, "score": macro["score"],
-            "coverage": macro["coverage"], "depth": macro["depth"],
-            "n_roots": macro["n_roots"]}),
+        "macro": (None if not primary else {
+            "pattern": primary.pattern, "score": primary.confidence,
+            "coverage": primary.coverage, "degree_label": primary.degree_label,
+            "alternates": [(a.pattern, a.confidence) for a in alternates]}),
     }
 
 
