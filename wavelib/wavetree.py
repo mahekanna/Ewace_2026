@@ -18,7 +18,7 @@ CAUSAL: built only from confirmed ZigZag pivots (confirmed_t set). Pure stdlib.
 from __future__ import annotations
 from dataclasses import dataclass, field
 
-from .rules import (Pivot, Wave, Status, RuleResult, elliott_hard_rules,
+from .rules import (Pivot, Wave, Status, RuleResult, Degree, elliott_hard_rules,
                     classify_correction, similarity_and_balance)
 from .toolkit import zigzag_causal
 
@@ -324,30 +324,78 @@ class AnchoredCount:
     labels: list                # list of (label, WaveNode)
     confidence: float
     coverage: float
+    degree_label: str           # estimated Elliott degree (Neely complexity window)
     note: str
 
     def __str__(self):
-        head = (f"{self.pattern} @ degree {self.degree} — confidence {self.confidence:.0%} "
-                f"(coverage {self.coverage:.0%}); {self.note}")
+        head = (f"{self.pattern} @ {self.degree_label} (tree degree {self.degree}) — "
+                f"confidence {self.confidence:.0%} (coverage {self.coverage:.0%}); {self.note}")
         legs = "\n".join(f"  wave {lab}: {n.start.price:.2f} -> {n.end.price:.2f} "
                          f"[{n.pattern}]" for lab, n in self.labels)
         return head + ("\n" + legs if legs else "")
 
 
-def anchor_count(bars, scales=(0.04, 0.07, 0.12, 0.20)):
-    """Commit to ONE count: take the best-count dominant structure, label its
-    legs, and tag confidence honestly. Returns AnchoredCount or None.
-    The note flags low-confidence/ambiguous reads instead of overclaiming."""
-    bc = best_count(bars, scales)
-    if not bc:
-        return None
-    top = bc["top"]
+def _count_monowaves(node) -> int:
+    return 1 if not node.children else sum(_count_monowaves(c) for c in node.children)
+
+
+def anchored_degree(node) -> Degree:
+    """Estimate Elliott degree from the monowave complexity the count subsumes
+    (Neely's 13-55 window; 21-34 ideal). Heuristic — see docs/research/deep/05,07."""
+    m = _count_monowaves(node)
+    if m < 13:
+        return Degree.MINUETTE
+    if m <= 55:
+        return Degree.MINUTE
+    if m <= 144:
+        return Degree.MINOR
+    return Degree.INTERMEDIATE
+
+
+def _anchored_from(top, score, coverage) -> AnchoredCount:
     labs = _LABELS.get(top.pattern, [])
     labels = list(zip(labs, top.children)) if len(top.children) == len(labs) else []
-    note = ("primary count; watch the wave-1/A origin for invalidation"
-            if bc["score"] >= 0.4 else
-            "LOW confidence — one of several plausible counts; not a committed call")
-    return AnchoredCount(top.pattern, top.degree, labels, bc["score"], bc["coverage"], note)
+    note = ("primary count; watch the wave-1/A origin for invalidation" if score >= 0.4
+            else "LOW confidence — one of several plausible counts; not a committed call")
+    return AnchoredCount(top.pattern, top.degree, labels, score, coverage,
+                         anchored_degree(top).name.replace("_", " ").title(), note)
+
+
+def _scale_score(roots):
+    top = max(roots, key=_span)
+    score = tree_confidence(roots)
+    if top.pattern == "MONOWAVE":
+        score *= 0.05
+    elif top.pattern in _MOTIVE:
+        score *= 1.15
+    return top, score
+
+
+def wave_counts(bars, scales=(0.04, 0.07, 0.12, 0.20), max_alternates: int = 3):
+    """Return a RANKED list of AnchoredCounts (primary first) — one committed
+    count plus plausible alternates across scales, instead of fragmented roots.
+    Addresses the single-count problem (docs/research/deep/07)."""
+    out, seen = [], set()
+    for s in scales:
+        roots = build_wave_tree(bars, base_pct=s)
+        if not roots:
+            continue
+        total = sum(_span(r) for r in roots) or 1.0
+        top, score = _scale_score(roots)
+        key = (top.pattern, int(top.start.t), int(top.end.t))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((score, _anchored_from(top, score, _span(top) / total)))
+    out.sort(key=lambda x: -x[0])
+    return [ac for _, ac in out][:1 + max_alternates]
+
+
+def anchor_count(bars, scales=(0.04, 0.07, 0.12, 0.20)):
+    """Commit to ONE count (the highest-scoring across scales). See wave_counts
+    for the primary + alternates list."""
+    cs = wave_counts(bars, scales, max_alternates=0)
+    return cs[0] if cs else None
 
 
 def best_count(bars, scales=(0.04, 0.07, 0.12, 0.20)):

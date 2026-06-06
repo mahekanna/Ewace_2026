@@ -145,6 +145,17 @@ class TestStage4Diagonals(unittest.TestCase):
         self.assertEqual(ac.pattern, "IMPULSE")
         self.assertEqual([lab for lab, _ in ac.labels], ["1", "2", "3", "4", "5"])
         self.assertGreaterEqual(ac.confidence, 0.0)
+        self.assertTrue(ac.degree_label)                     # degree anchored (non-empty)
+
+    def test_wave_counts_primary_and_alternates(self):
+        from wavelib.wavetree import wave_counts, anchor_count
+        bars = _bars([100, 150, 130, 200, 180, 240, 205])
+        cs = wave_counts(bars, max_alternates=3)
+        self.assertTrue(cs)
+        # ranked: primary has the highest confidence
+        self.assertEqual(cs[0].confidence, max(c.confidence for c in cs))
+        # anchor_count returns the primary
+        self.assertEqual(anchor_count(bars).pattern, cs[0].pattern)
 
 
 class TestStage3Confidence(unittest.TestCase):
