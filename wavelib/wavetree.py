@@ -24,6 +24,37 @@ from .toolkit import zigzag_causal
 
 _MOTIVE = {"IMPULSE", "DIAGONAL"}
 _CORRECTIVE = {"ZIGZAG", "FLAT", "TRIANGLE", "CORRECTION", "COMPLEX"}
+_FIB = (0.382, 0.5, 0.618, 0.786, 1.0, 1.272, 1.618, 2.0, 2.618, 3.618)
+
+
+def _fib_close(r) -> float:
+    """0..1 closeness of ratio r to the nearest Fibonacci level (1 = exact)."""
+    if r != r or r <= 0:
+        return 0.0
+    return max(0.0, 1.0 - min(min(abs(r - t) / t for t in _FIB), 1.0))
+
+
+def _impulse_quality(waves) -> float:
+    """Fibonacci adherence of an impulse's key ratios (0..1)."""
+    w1, w2, w3, w4, w5 = waves
+    parts = [_fib_close(w3.length / w1.length if w1.length else 0),
+             _fib_close(w2.length / w1.length if w1.length else 0),
+             _fib_close(w4.length / w3.length if w3.length else 0)]
+    return sum(parts) / len(parts)
+
+
+def _correction_quality(pattern, waves) -> float:
+    """Quality of a 3-leg correction; shallow-B flats are dubious -> low."""
+    A, B, C = waves
+    b = B.length / A.length if A.length else 0.0
+    cca = C.length / A.length if A.length else 0.0
+    if pattern == "ZIGZAG":
+        base = 0.8
+    elif pattern == "FLAT":
+        base = 0.7 if b >= 0.8 else 0.45        # shallow-B "flat" is really ambiguous
+    else:
+        base = 0.6
+    return base * (0.6 + 0.4 * _fib_close(cca))
 
 
 @dataclass
@@ -86,7 +117,7 @@ def _impulse_node(group, degree):
         if not all(group[i].pattern in _CORRECTIVE for i in (1, 3)):
             return None
     results = hard + [similarity_and_balance(waves[1], waves[3], context="w2 vs w4")]
-    conf = _confidence(results, group, (0, 2, 4), (1, 3))
+    conf = _confidence(results, group, (0, 2, 4), (1, 3)) * (0.4 + 0.6 * _impulse_quality(waves))
     return WaveNode(group[0].start, group[-1].end, degree, "motive", "IMPULSE",
                     list(group), results, conf)
 
@@ -116,7 +147,7 @@ def _triangle_node(group, degree):
         return None
     rr = RuleResult(f"triangle: {geo.lower()}, 5 corrective legs, converging lines",
                     Status.PASS, f"degree {degree}")
-    conf = _confidence([rr], group, (), (0, 1, 2, 3, 4))
+    conf = _confidence([rr], group, (), (0, 1, 2, 3, 4)) * 0.7
     return WaveNode(group[0].start, group[-1].end, degree, "corrective", "TRIANGLE",
                     list(group), [rr], conf)
 
@@ -134,7 +165,7 @@ def _correction_node(group, degree):
     # sub-structure expectation: zigzag = 5-3-5 (A,C motive), flat = 3-3-5 (C motive)
     m_idx, c_idx = ((0, 2), (1,)) if pattern == "ZIGZAG" else \
                    ((2,), (0, 1)) if pattern == "FLAT" else ((), (0, 1, 2))
-    conf = _confidence(results, group, m_idx, c_idx)
+    conf = _confidence(results, group, m_idx, c_idx) * _correction_quality(pattern, waves)
     return WaveNode(group[0].start, group[-1].end, degree, "corrective", pattern,
                     list(group), results, conf)
 
@@ -215,3 +246,38 @@ def format_tree(nodes, indent: int = 0) -> str:
 
 def deepest_degree(nodes) -> int:
     return max((n.degree for n in nodes), default=0)
+
+
+def _span(node) -> float:
+    return node.end.t - node.start.t
+
+
+def tree_confidence(roots) -> float:
+    """Honest top-level confidence: the dominant root's own confidence scaled by
+    how much of the series it actually covers. A tree that fragments into many
+    small roots scores LOW (no single clean count), regardless of leaf quality."""
+    if not roots:
+        return 0.0
+    total = sum(_span(r) for r in roots) or 1.0
+    top = max(roots, key=_span)
+    return top.confidence * (_span(top) / total)
+
+
+def best_count(bars, scales=(0.04, 0.07, 0.12, 0.20)):
+    """Pick the single best macro count: build the tree at several ZigZag scales
+    and return the one whose dominant top structure best covers the data with the
+    highest confidence. Coarser scales yield fewer pivots and a cleaner macro
+    count; finer scales show detail. Returns a dict (or None)."""
+    best = None
+    for s in scales:
+        roots = build_wave_tree(bars, base_pct=s)
+        if not roots:
+            continue
+        total = sum(_span(r) for r in roots) or 1.0
+        top = max(roots, key=_span)
+        cand = {"scale": s, "roots": roots, "top": top, "n_roots": len(roots),
+                "coverage": _span(top) / total, "confidence": top.confidence,
+                "score": tree_confidence(roots), "depth": deepest_degree(roots)}
+        if best is None or cand["score"] > best["score"]:
+            best = cand
+    return best

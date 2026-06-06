@@ -92,5 +92,40 @@ class TestStage2Triangles(unittest.TestCase):
         self.assertNotIn("TRIANGLE", patterns)
 
 
+class TestStage3Confidence(unittest.TestCase):
+    """Stage 3: honest confidence + shallow-flat penalty + fragmentation scoring."""
+
+    @staticmethod
+    def _mono(t0, p0, t1, p1):
+        from wavelib.wavetree import WaveNode
+        return WaveNode(Pivot(t0, p0, "L" if p1 > p0 else "H"),
+                        Pivot(t1, p1, "H" if p1 > p0 else "L"), 0, "leg", "MONOWAVE")
+
+    def test_shallow_flat_scores_below_zigzag(self):
+        from wavelib.wavetree import _correction_node
+        zz = [self._mono(0, 100, 1, 120), self._mono(1, 120, 2, 112), self._mono(2, 112, 3, 130)]
+        fl = [self._mono(0, 100, 1, 120), self._mono(1, 120, 2, 105), self._mono(2, 105, 3, 125)]
+        z, f = _correction_node(zz, 1), _correction_node(fl, 1)
+        self.assertIsNotNone(z)
+        self.assertIsNotNone(f)
+        self.assertGreater(z.confidence, f.confidence)
+
+    def test_fragmentation_lowers_confidence(self):
+        from wavelib.wavetree import WaveNode, tree_confidence
+        big = WaveNode(Pivot(0, 100, "L"), Pivot(100 * DAY, 200, "H"), 2, "motive",
+                       "IMPULSE", confidence=0.9)
+        small = WaveNode(Pivot(100 * DAY, 200, "H"), Pivot(108 * DAY, 190, "L"), 1,
+                         "corrective", "ZIGZAG", confidence=0.9)
+        self.assertAlmostEqual(tree_confidence([big]), 0.9)        # one dominant root
+        self.assertLess(tree_confidence([big, small]), 0.9)        # fragmented -> honest drop
+
+    def test_best_count_returns_dominant(self):
+        roots = build_tree_from_pivots(_pivots(MI + CD + MI + CD + MI))
+        # the clean fractal: single root covering everything
+        from wavelib.wavetree import tree_confidence
+        self.assertEqual(len(roots), 1)
+        self.assertGreaterEqual(tree_confidence(roots), 0.8)
+
+
 if __name__ == "__main__":
     unittest.main()
