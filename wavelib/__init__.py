@@ -40,6 +40,9 @@ from .backtest import (
     backtest_reversals, ReversalEvent, ReversalOutcome, BacktestStats,
 )
 from .charting import render_chart
+from .wavetree import (
+    WaveNode, build_wave_tree, build_tree_from_pivots, format_tree, deepest_degree,
+)
 from .confluence import (
     score_reversal, classify_swing_sequence,
     in_zone, momentum_divergence, macd_turn, volume_capitulation,
