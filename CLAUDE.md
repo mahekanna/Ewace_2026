@@ -65,16 +65,28 @@ All three examples must run clean. If you touch `rules.py` Pivot/Wave, re-check
   rather than forcing a clean label. The terminal-retrace timing rule is a *bias*, not
   a precise target (it over-projected on AVGO — see DOCUMENTATION §9).
 
-## Highest-value TODOs (the user wants to research these)
-1. `label_and_validate(bars)` — auto-segment ZigZag → candidate impulses/corrections →
-   validate at multiple degrees → return best-scoring count. (Removes hand-picking legs.)
-2. Wire a **Hurst/FLD/PSK cycle** model into the reserved 7th confluence slot
-   (`score_reversal(..., cycle_aligned=...)`). User has prior cycle toolkits.
-3. Feed 50–100 bars to confluence so the RSI/divergence strand activates.
-4. Auto **degree** assignment (Neely monowave→polywave→multiwave) — the biggest open
-   subjectivity; currently degree is assumed, only internal consistency is checked.
-5. Backtest harness: replay bars, score reversals, measure score≥4 hit-rate.
-6. `render_chart(waves, projections)` to emit the SVG charts programmatically.
+## Roadmap status (see docs/research/ for the full spec + audit)
+
+Deep research in `docs/research/00_index.md..04_*.md` drove a 5-phase build
+(Phases 0–4) — all implemented and tested (90 unit tests in `tests/`):
+
+1. ✅ `label_and_validate(bars)` — multi-scale auto-segmentation → ranked candidate
+   counts (`wavelib/automation.py`). Removes hand-picking.
+2. 🔲 Hurst/FLD/PSK cycle into the 7th slot — **typed seam only** so far:
+   `CycleSignal` (`wavelib/cycle_seam.py`) + `score_reversal(..., cycle_signal=...)`.
+   Real wiring to `chakra_quant` is deferred until this engine is validated.
+3. ✅ Confirmation strands hardened (`wavelib/confluence.py`): swing-pivot RSI
+   divergence, BOS-vs-CHoCH, structural channel break, ≥50-bar guard.
+4. ✅ Auto **degree** assignment (Neely bottom-up) — `assign_degrees_neely`
+   (`automation.py`); `label_monowaves`/`group_polywaves` in `rules.py`. Degree
+   stays the central subjectivity (degree_confidence="HEURISTIC").
+5. ✅ Causal backtest harness — `wavelib/backtest.py` (`backtest_reversals`,
+   walk-forward, hit-rate/profit-factor; no look-ahead).
+6. ✅ `render_chart(waves, projections)` — stdlib SVG emitter (`wavelib/charting.py`).
+
+Still open: F2 (de-dup `similarity_and_balance`/`project_wave5`/terminal-window
+across `rules.py`/`toolkit.py`); deeper Neely sub-type labels (`:F3`/`:c3`/…);
+the real cycle-model integration (item 2).
 
 ## Current market state baked into data (Jun 5 2026)
 - AVGO $385.74 — in $358–410 (IV) zone, A-B-C corrective, 2-4 line $301 unbroken,
