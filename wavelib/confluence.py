@@ -666,6 +666,8 @@ def score_reversal(
     bullish: bool = True,
     cycle_aligned: bool = False,
     cycle_signal: Optional[CycleSignal] = None,
+    blue_box: Optional[tuple] = None,
+    extra_strands: Optional[list] = None,
 ) -> ConfluenceReport:
     """
     Compute reversal-confluence score for `symbol` at the most recent bar.
@@ -732,6 +734,15 @@ def score_reversal(
         channel_break(closes, decline=bullish),
         _choch_with_close(highs, lows, closes[-1], bullish=bullish),
     ]
+    # Optional EWF Blue Box strand: is price inside the Fib-extension reaction zone?
+    if blue_box is not None:
+        lo, hi = min(blue_box), max(blue_box)
+        c = lo <= closes[-1] <= hi
+        rep.strands.append(Strand("Blue Box (Fib 1.0-1.618)", c,
+                                  f"price {closes[-1]:.1f} {'INSIDE' if c else 'outside'} "
+                                  f"{lo:.1f}-{hi:.1f}"))
+    if extra_strands:
+        rep.strands.extend(extra_strands)
     return rep
 
 

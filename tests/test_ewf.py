@@ -87,6 +87,18 @@ class TestABCvsWXY(unittest.TestCase):
         self.assertEqual(node.pattern, "WXY")
 
 
+class TestBlueBoxStrand(unittest.TestCase):
+    def test_blue_box_adds_strand_and_confirms_in_zone(self):
+        from wavelib import score_reversal
+        bars = [(float(i), 100 + i * 0.1, 100 + i * 0.1, 100 + i * 0.1, 100 + i * 0.1, 1000)
+                for i in range(60)]                 # closes 100.0 -> 105.9
+        base = score_reversal("X", bars, (100, 120))
+        bb = score_reversal("X", bars, (100, 120), blue_box=(104, 106))
+        self.assertEqual(len(bb.strands), len(base.strands) + 1)
+        strand = [s for s in bb.strands if "Blue Box" in s.name][0]
+        self.assertTrue(strand.confirm)             # last close ~105.9 inside 104-106
+
+
 class TestDivergenceAtWaves(unittest.TestCase):
     def test_insufficient_history(self):
         self.assertFalse(divergence_at([1, 2, 3], 0, 2).confirm)

@@ -12,7 +12,7 @@ from __future__ import annotations
 import datetime
 import json
 
-from .toolkit import zigzag_causal, fib_retrace
+from .toolkit import zigzag_causal, fib_retrace, blue_box_zone
 from .confluence import score_reversal
 from .automation import label_and_validate
 from .wavetree import wave_counts
@@ -58,7 +58,11 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
 
     cands = label_and_validate(recent, degrees=(0.05, 0.10, 0.15), max_candidates=1)
     best = cands[0] if cands else None
-    rep = score_reversal(symbol, full[-250:], zone, bullish=bullish)
+    # EWF Blue Box: reaction zone of the recent up-leg (launch->top) projected from
+    # the pullback low — surfaced as an extra confluence strand.
+    post = [p.price for p in piv if p.t > top.t]
+    bb = blue_box_zone(launch.price, top.price, min(post) if post else last_close)
+    rep = score_reversal(symbol, full[-250:], zone, bullish=bullish, blue_box=bb)
     counts = wave_counts(full, max_alternates=2)
     primary = counts[0] if counts else None
     alternates = counts[1:]
@@ -92,7 +96,7 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
     card_conf = ("Reversal confluence (live)",
                  [f"{'<span class=g>&#10003;</span>' if s.confirm else '<span class=dim>&#9675;</span>'} "
                   f"<b>{s.name}</b>: {s.detail}" for s in rep.strands]
-                 + [f"<b>Score {rep.score}/7</b> &rarr; <span class='k'>{tier}</span>."])
+                 + [f"<b>Score {rep.score}/{rep.max_score}</b> &rarr; <span class='k'>{tier}</span>."])
 
     return {
         "symbol": symbol,
@@ -101,7 +105,7 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
         "headline": f"Macro: {primary.pattern if primary else 'n/a'} "
                     f"({primary.confidence:.0%} conf) · recent: {best.count_type if best else 'n/a'}",
         "price": last_close,
-        "change": f"in ${zone[0]}-{zone[1]} zone · confluence {rep.score}/7",
+        "change": f"in ${zone[0]}-{zone[1]} zone · confluence {rep.score}/{rep.max_score}",
         "asof": _fmt(recent[-1][0]),
         "line": line,
         "pivots": pivots,
