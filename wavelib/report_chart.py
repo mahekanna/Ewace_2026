@@ -16,7 +16,7 @@ from .toolkit import zigzag_causal, fib_retrace, blue_box_zone
 from .confluence import score_reversal
 from .automation import label_and_validate
 from .wavetree import wave_counts
-from .forecast import forecast_waves
+from .forecast import forecast_waves, trade_plan
 
 
 def _fmt(t):
@@ -28,7 +28,8 @@ def _neowave_card(piv, primary, full):
     Rule of Similarity & Balance, terminal/diagonal check, neutral/running-triangle
     flags, and the two-stage 2-4 timing confirmation — all from existing functions."""
     from .rules import (label_monowaves, similarity_and_balance, terminal_rules,
-                        is_neutral_triangle, is_running_triangle, two_four_confirmation)
+                        is_neutral_triangle, is_running_triangle, two_four_confirmation,
+                        confirm_completion)
     from .toolkit import pivots_to_waves
     items = []
     if len(piv) >= 4:
@@ -63,6 +64,15 @@ def _neowave_card(piv, primary, full):
         tf = two_four_confirmation(legs[4], legs[1].end, legs[3].end,
                                    full[-1][0], full[-1][4], uptrend=legs[0].up)
         items.append(f"2-4 timing confirmation: {tf[0].detail}")
+        # GAP-3: post-constructive per-bar monitor — has the market CONFIRMED the
+        # completed impulse bar-by-bar since wave 5 ended?
+        fwd = [b for b in full if b[0] > legs[4].end.t]
+        sig = confirm_completion(legs[4], legs[1].end, legs[3].end, fwd, uptrend=legs[0].up)
+        status = ("CONFIRMED complete (stage 2: fully retraced in time)" if sig.stage == 2
+                  else "confirmed complete (stage 1: fast 2-4 break)" if sig.stage == 1
+                  else "PENDING — not yet confirmed by price")
+        when = f" at bar +{sig.bars_elapsed} after wave 5" if sig.at_t else ""
+        items.append(f"Post-constructive confirmation monitor: {status}{when}.")
     if not items:
         items = ["insufficient recent structure for NeoWave analysis."]
     return ("NeoWave techniques (Neely)", items)
@@ -148,6 +158,25 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
     else:
         card_forecast = ("Next-wave forecast", ["No forecast (no clean count)."])
 
+    # GAP-2: NeoWave/EWF trading-method synthesis — direction, confirmation trigger,
+    # stop, invalidation, time-gated targets. Honest: low confidence = wait.
+    tp = trade_plan(full)
+    if tp:
+        tgt = "; ".join(f"{lab} ${p:,.2f}" for lab, p in tp.targets)
+        card_plan = ("Trading-method synthesis (NeoWave/EWF)", [
+            f"Direction: <span class='k'>{tp.direction.upper()}</span> "
+            f"(confidence {tp.confidence:.0%} — low means wait, not act).",
+            f"Entry trigger: <span class='k'>{tp.entry_trigger}</span>.",
+            f"Protective stop: <span class='r'>${tp.stop_level:,.2f}</span>; "
+            f"structural invalidation: <span class='r'>${tp.invalidation:,.2f}</span>.",
+            f"Targets: <span class='g'>{tgt or 'n/a'}</span>.",
+            f"Confirmation must arrive within ~<span class='k'>{tp.confirm_window_bars}</span> "
+            "bars (Neely time gate). " + tp.rationale,
+        ])
+    else:
+        card_plan = ("Trading-method synthesis (NeoWave/EWF)",
+                     ["No actionable plan (no clean count)."])
+
     card_engine = ("Recent structure", [
         (f"Best recent count: <span class='k'>{best.count_type}</span> "
          f"(fib quality {best.fib_score:.0%}, {best.hard_fails} rule-breaks)." if best
@@ -173,8 +202,8 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
         "pivots": pivots,
         "targets": targets,
         "zone": list(zone),
-        "cards": [card_macro, card_forecast, _neowave_card(piv, primary, full),
-                  card_engine, card_conf],
+        "cards": [card_macro, card_forecast, card_plan,
+                  _neowave_card(piv, primary, full), card_engine, card_conf],
         "score": rep.score,
         "best_recent": best.count_type if best else None,
         "macro": (None if not primary else {

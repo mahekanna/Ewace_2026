@@ -2,3 +2,7 @@
 {"strategy": "reversal_tb", "score_threshold": 3, "pt": 0.08, "sl": 0.05, "events": 47, "sharpe": 0.5141283801830018}
 {"strategy": "reversal_tb", "score_threshold": 4, "pt": 0.06, "sl": 0.04, "events": 9, "sharpe": 2.9603362576061496}
 {"strategy": "reversal_tb", "score_threshold": 4, "pt": 0.08, "sl": 0.05, "events": 9, "sharpe": 1.197392796336812}
+{"strategy": "reversal_tb", "score_threshold": 3, "pt": 0.06, "sl": 0.04, "events": 47, "sharpe": 0.608372530171872}
+{"strategy": "reversal_tb", "score_threshold": 3, "pt": 0.08, "sl": 0.05, "events": 47, "sharpe": 0.5141283801830018}
+{"strategy": "reversal_tb", "score_threshold": 4, "pt": 0.06, "sl": 0.04, "events": 9, "sharpe": 2.9603362576061496}
+{"strategy": "reversal_tb", "score_threshold": 4, "pt": 0.08, "sl": 0.05, "events": 9, "sharpe": 1.197392796336812}

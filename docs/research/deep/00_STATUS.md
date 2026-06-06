@@ -77,10 +77,24 @@ zone, not a prediction.
 The NeoWave card surfaces monowave structure (:5/:3), Similarity & Balance, the
 terminal/diagonal check, neutral/running-triangle flags, and the 2-4 timing
 confirmation. Honest answer to "did we research NeoWave?": **yes, deeply** (docs
-02 + 05) and it was implemented — the gap was *presentation*, now fixed. Doc 11's
-remaining genuine gaps (next NeoWave work): Rule-3-vs-4 overlap + conditions a-d
-in `monowave_candidates`; a trading-method synthesis panel (entry/stop/targets);
-post-constructive confirmations as a stateful per-bar queue.
+02 + 05) and it was implemented — the gap was *presentation*, now fixed.
+
+### Stage 9b — doc 11's three remaining NeoWave gaps (now CLOSED)
+
+| Gap (doc 11) | Status | Where |
+|---|---|---|
+| GAP-1 Rule-3-vs-4 overlap test + condition d in monowave labelling | ✅ done | `rules.monowave_candidates` (overlaps_m0 + m0r) now drives `rules.label_monowaves`' core label — fixes the old `retr>1 -> :5` motive over-labelling |
+| GAP-2 trading-method synthesis panel (direction/entry/stop/invalidation/time-gated targets) | ✅ done | `forecast.TradePlan` / `forecast.trade_plan`; surfaced as the "Trading-method synthesis" report card |
+| GAP-3 post-constructive confirmation as a stateful per-bar monitor | ✅ done | `rules.CompletionSignal` / `rules.confirm_completion` walks bars forward from wave-5 end, returns first-confirm bar or `pending`; surfaced in the NeoWave card when the count is an impulse |
+
+GAP-1 makes labels Neely-correct: the 0.618-1.0 retrace band now splits into Rule 3
+(no re-entry into m0 -> motive-or-first `:3/:5`) vs Rule 4 (re-entry -> c-wave
+`:3/:c3`), so the constructor stops calling every deep extension a motive. GAP-2
+turns a forecast into an honest, gated plan (low confidence = *wait*, the stop is
+the structural invalidation, and confirmation is time-boxed to the prior leg's
+build). GAP-3 is the real-time companion to the static `two_four_confirmation`: the
+constructor proposes a complete impulse, the monitor waits for the market to
+confirm it bar-by-bar with no look-ahead. All three are unit-tested (147 tests).
 
 ## The honest ceiling
 
@@ -97,6 +111,7 @@ honest posture.
 
 ## Test coverage
 
-120 unit tests (`python3 -m unittest discover -s tests`), synthetic-ground-truth
-first. Validation math, CPCV, diagonals, anchored counts, and the wave tree all
-have deterministic tests.
+147 unit tests (`python3 -m unittest discover -s tests`), synthetic-ground-truth
+first. Validation math, CPCV, diagonals, anchored counts, the wave tree, the
+monowave Rule-3-vs-4 overlap test, the trade-plan synthesizer, and the
+post-constructive completion monitor all have deterministic tests.

@@ -12,7 +12,8 @@ import unittest
 from wavelib import (
     Pivot, Wave, Status,
     label_monowaves, monowave_candidates, group_polywaves,
-    two_four_confirmation, terminal_rules, is_neutral_triangle,
+    two_four_confirmation, confirm_completion, CompletionSignal,
+    terminal_rules, is_neutral_triangle,
     classify_complex_correction, x_wave_check,
 )
 
@@ -28,17 +29,25 @@ def seg(length, days):
     return Wave(Pivot(0.0, 0.0, "L"), Pivot(days * DAY, float(length), "H"))
 
 
+def chain(*pivots):
+    """Build CHAINED waves (m1.start == m0.end) from consecutive pivots — the
+    contract monowave_candidates expects (so the Rule-3-vs-4 overlap test is real)."""
+    return [Wave(pivots[i], pivots[i + 1]) for i in range(len(pivots) - 1)]
+
+
 class TestLabelMonowaves(unittest.TestCase):
-    PIVOTS = [P(0, 100, "L"), P(10, 200, "H"), P(12, 150, "L"),
-              P(14, 300, "H"), P(40, 250, "L")]
+    # Chained path: edges (:?), then w1 deep-retraced by w2 (corrective :3),
+    # then w2 only shallow-retraced by w3 (motive :5). (GAP-1 candidate core.)
+    PIVOTS = [P(0, 100, "L"), P(6, 160, "H"), P(12, 100, "L"),
+              P(20, 220, "H"), P(40, 200, "L")]
 
     def test_edges_provisional_interior_labelled(self):
         labelled = label_monowaves(self.PIVOTS)
         labels = [lab for (_w, lab) in labelled]
         self.assertEqual(labels[0], ":?")          # first monowave: no m0
         self.assertEqual(labels[-1], ":?")         # last monowave: no m2
-        self.assertTrue(labels[1].startswith(":3"))  # shallow retrace of prior -> corrective
-        self.assertTrue(labels[2].startswith(":5"))  # extends prior -> motive
+        self.assertTrue(labels[1].startswith(":3"))  # deeply retraced -> corrective
+        self.assertTrue(labels[2].startswith(":5"))  # only shallow-retraced -> motive
 
     def test_retracement_rule_number_present(self):
         labelled = label_monowaves(self.PIVOTS)
@@ -51,10 +60,21 @@ class TestMonowaveCandidates(unittest.TestCase):
         self.assertIn(":5", monowave_candidates(m0, m1, m2))
 
     def test_ambiguous_deep_retrace(self):
-        m0, m1, m2 = seg(10, 1), seg(10, 1), seg(8, 1)        # 80% -> 1st vs a-wave
+        # 70% retrace that does NOT re-enter m0's range (Rule 3, no overlap) -> the
+        # genuinely ambiguous 1st-vs-a-wave case, two candidates :3/:5. Chained so
+        # the overlap test is meaningful.
+        m0, m1, m2 = chain(P(0, 100, "L"), P(1, 110, "H"), P(2, 60, "L"), P(3, 95, "H"))
         c = monowave_candidates(m0, m1, m2)
         self.assertIn(":5", c)
         self.assertIn(":3", c)                                # genuinely ambiguous -> >1 candidate
+
+    def test_overlap_back_into_m0_flags_c3(self):
+        # 80% retrace that DOES re-enter m0's price territory (Rule 4 overlap) ->
+        # corrective c-wave candidate, not motive (the GAP-1 fix).
+        m0, m1, m2 = chain(P(0, 100, "L"), P(1, 110, "H"), P(2, 100, "L"), P(3, 108, "H"))
+        c = monowave_candidates(m0, m1, m2)
+        self.assertIn(":c3", c)
+        self.assertNotIn(":5", c)
 
     def test_overshoot_not_a_retrace(self):
         m0, m1, m2 = seg(10, 1), seg(10, 1), seg(20, 1)       # 200% -> reversal/last
@@ -84,6 +104,44 @@ class TestTwoFourConfirmation(unittest.TestCase):
         res = two_four_confirmation(self.W5, P(0, 100), P(10, 120),
                                     20 * DAY, 150, uptrend=True)
         self.assertEqual(res[0].status, Status.WARN)
+
+
+class TestConfirmCompletion(unittest.TestCase):
+    """GAP-3: stateful per-bar 2-4 completion monitor."""
+    # 2-4 line through (0d,100)-(10d,120) rises 2/day; W5 builds 130->160 over 3d
+    # ending day 18, origin 130.
+    W5 = Wave(P(15, 130, "L"), P(18, 160, "H"))
+    W2 = P(0, 100, "L")
+    W4 = P(10, 120, "L")
+
+    def _bar(self, day, close):
+        return (day * DAY, close, close, close, close, 1000)
+
+    def test_first_break_then_full_retrace_confirms_stage2(self):
+        fwd = [self._bar(20, 135),   # line ~140 -> broke fast (stage 1)
+               self._bar(21, 125)]   # <=130 origin within w5 time (stage 2)
+        sig = confirm_completion(self.W5, self.W2, self.W4, fwd, uptrend=True)
+        self.assertIsInstance(sig, CompletionSignal)
+        self.assertTrue(sig.confirmed)
+        self.assertEqual(sig.stage, 2)
+        self.assertEqual(sig.bars_elapsed, 0)        # first bar already broke the line
+        self.assertEqual(sig.at_t, 20 * DAY)
+
+    def test_line_holds_is_pending(self):
+        fwd = [self._bar(20, 145),   # line ~140, price above -> not broken
+               self._bar(21, 143)]   # line ~142, still above
+        sig = confirm_completion(self.W5, self.W2, self.W4, fwd, uptrend=True)
+        self.assertFalse(sig.confirmed)
+        self.assertEqual(sig.stage, 0)
+        self.assertIsNone(sig.at_t)
+
+    def test_slow_break_does_not_confirm(self):
+        # break happens, but only LONG after w5's 3-day build -> not a valid (fast)
+        # confirmation per Neely's time gate.
+        fwd = [self._bar(30, 110)]   # elapsed 12d >> w5 3d
+        sig = confirm_completion(self.W5, self.W2, self.W4, fwd, uptrend=True)
+        self.assertFalse(sig.confirmed)
+        self.assertEqual(sig.stage, 0)
 
 
 class TestTerminalRules(unittest.TestCase):

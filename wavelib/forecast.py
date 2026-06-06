@@ -110,3 +110,75 @@ def forecast_waves(bars, scales=(0.03, 0.05, 0.08), window: int = 300) -> "WaveF
         return None
     seq = swing_sequence(bars=recent, pct=0.10)
     return forecast_from_count(counts[0], recent[-1][4], seq["status"])
+
+
+@dataclass
+class TradePlan:
+    """NeoWave/EWF trading-method synthesis (GAP-2, doc 11 §trading-method).
+
+    Turns a forecast into an actionable-but-honest panel: WHICH WAY, the
+    CONFIRMATION trigger to wait for (Neely never acts on the label alone), the
+    protective STOP, the structural INVALIDATION, the time-gated TARGETS, and the
+    bar WINDOW within which confirmation must arrive (the prior leg's build time).
+    Analysis tooling only — not advice; confidence is the count's honest (often low)
+    number, so a low-confidence plan is a *reason to wait*, not a signal."""
+    symbol: str
+    direction: str                # "long" | "short"
+    entry_trigger: str            # the confirmation condition to act on
+    entry_level: float            # price whose break confirms
+    stop_level: float             # protective stop (beyond the last swing)
+    invalidation: float           # structural void level
+    targets: list                 # [(label, price), ...] next-wave target zone
+    confirm_window_bars: int      # Neely time gate: confirm within prior-leg build time
+    confidence: float
+    rationale: str
+
+    def __str__(self):
+        t = "; ".join(f"{lab} ${p:,.2f}" for lab, p in self.targets)
+        return (f"{self.direction.upper()} on {self.entry_trigger} | stop ${self.stop_level:,.2f} "
+                f"| invalidation ${self.invalidation:,.2f} | targets {t} "
+                f"| confirm within {self.confirm_window_bars} bars | conf {self.confidence:.0%}\n"
+                f"  {self.rationale}")
+
+
+def trade_plan(bars, symbol: str = "", window: int = 300) -> "TradePlan":
+    """Synthesize a NeoWave trading-method plan from the recent count + forecast.
+
+    The trade is in the direction of the forecast NEXT wave; the entry is gated on a
+    CONFIRMATION break of the last confirmed pivot (NeoWave never trades the label
+    alone), the stop sits just beyond the last swing, invalidation is the count's
+    structural void, and the confirmation must arrive within the prior leg's bar
+    count (Neely's time gate). Returns a TradePlan or None. CAUSAL: confirmed
+    pivots + the forecast only."""
+    recent = bars[-window:] if len(bars) > window else bars
+    fc = forecast_waves(bars, window=window)
+    if fc is None:
+        return None
+    counts = wave_counts(recent, (0.03, 0.05, 0.08), max_alternates=0)
+    if not counts:
+        return None
+    legs = [n for _lab, n in counts[0].labels]
+    if not legs:
+        return None
+    last = legs[-1]
+    anchor = last.end.price
+    direction = "long" if fc.direction == "up" else "short"
+    entry_level = round(anchor, 2)
+    swing_lo = min(last.start.price, last.end.price)
+    swing_hi = max(last.start.price, last.end.price)
+    if direction == "long":
+        stop = round(swing_lo * 0.99, 2)
+        trig = f"break ABOVE last pivot ${entry_level:,.2f}"
+    else:
+        stop = round(swing_hi * 1.01, 2)
+        trig = f"break BELOW last pivot ${entry_level:,.2f}"
+    # Neely time gate: confirmation should arrive within the prior leg's build time
+    leg_bars = sum(1 for b in recent if last.start.t <= b[0] <= last.end.t)
+    confirm_window = max(leg_bars, 1)
+    rationale = (f"{fc.pattern} appears complete -> expect {fc.next_wave}. NeoWave method: "
+                 f"act ONLY on confirmation (the pivot break above, arriving within "
+                 f"~{confirm_window} bars = the prior leg's build time); risk to the "
+                 f"structural invalidation, not a fixed stop. Confidence {fc.confidence:.0%} "
+                 "is the count's honest number — low confidence = wait, don't force it.")
+    return TradePlan(symbol or "", direction, trig, entry_level, stop,
+                     fc.invalidation, fc.targets, confirm_window, fc.confidence, rationale)

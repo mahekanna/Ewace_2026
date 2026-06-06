@@ -26,6 +26,7 @@ from .rules import (
     is_terminal, terminal_rules, terminal_retrace_window, is_running_triangle,
     classify_complex_correction, is_neutral_triangle, x_wave_check,
     line_value, two_four_test, two_four_confirmation, throwover_test, base_channel_test,
+    confirm_completion, CompletionSignal,
     label_monowaves, monowave_candidates, group_polywaves,
     validate_impulse, validate_correction, report,
 )
@@ -57,7 +58,9 @@ from .confluence import (
     choch, channel_break, divergence_at,
     rsi, ema, macd, ConfluenceReport, Strand,
 )
-from .forecast import WaveForecast, forecast_waves, forecast_from_count
+from .forecast import (
+    WaveForecast, forecast_waves, forecast_from_count, TradePlan, trade_plan,
+)
 from .cycle_seam import CycleSignal
 
 __version__ = "0.2.0"

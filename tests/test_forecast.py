@@ -5,7 +5,9 @@ Run:  python3 -m unittest tests.test_forecast -v
 """
 import unittest
 
-from wavelib import Pivot, AnchoredCount, forecast_from_count, forecast_waves
+from wavelib import (
+    Pivot, AnchoredCount, forecast_from_count, forecast_waves, trade_plan, TradePlan,
+)
 from wavelib.wavetree import WaveNode
 
 
@@ -62,6 +64,24 @@ class TestForecastEndToEnd(unittest.TestCase):
         self.assertIsNotNone(fc)
         self.assertEqual(fc.direction, "down")
         self.assertTrue(0.0 <= fc.confidence <= 1.0)             # honest, inherited
+
+
+class TestTradePlan(unittest.TestCase):
+    def test_plan_synthesizes_direction_and_gates(self):
+        # completed up-impulse -> forecast a down correction -> plan is SHORT,
+        # gated on a break below the last pivot, with a finite confirm window.
+        plan = trade_plan(_bars([100, 150, 130, 200, 180, 240, 205]), symbol="TEST")
+        self.assertIsInstance(plan, TradePlan)
+        self.assertEqual(plan.direction, "short")
+        self.assertIn("break BELOW", plan.entry_trigger)
+        self.assertGreater(plan.confirm_window_bars, 0)
+        self.assertTrue(0.0 <= plan.confidence <= 1.0)
+        self.assertTrue(plan.targets)
+        # short stop sits above the last swing high
+        self.assertGreater(plan.stop_level, plan.entry_level)
+
+    def test_plan_none_on_no_structure(self):
+        self.assertIsNone(trade_plan([(float(i), 100, 100, 100, 100, 1) for i in range(5)]))
 
 
 if __name__ == "__main__":

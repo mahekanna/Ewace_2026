@@ -490,6 +490,61 @@ def two_four_confirmation(w5: Wave, w2: Pivot, w4: Pivot, current_t: float,
     return [stage1, stage2]
 
 
+@dataclass
+class CompletionSignal:
+    """Result of the per-bar 2-4 completion monitor (GAP-3).
+
+    stage: 0 = not yet confirmed (pending), 1 = 2-4 line broken faster than wave 5
+    built (impulse complete confirmed), 2 = wave 5 ALSO fully retraced within its
+    build time (strong confirmation / trend change). `confirmed` is True iff stage 2.
+    `at_t`/`bars_elapsed` mark the FIRST bar that reached stage 1.
+    """
+    confirmed: bool
+    stage: int
+    at_t: Optional[float]
+    bars_elapsed: Optional[int]
+    detail: str
+
+
+def confirm_completion(w5: Wave, w2: Pivot, w4: Pivot,
+                       forward_bars: Sequence[tuple],
+                       uptrend: bool = True) -> CompletionSignal:
+    """Post-constructive, stateful per-bar 2-4 completion monitor (GAP-3, doc 11).
+
+    After an impulse has been CONSTRUCTED, walk `forward_bars` (each
+    `(t,o,h,l,c[,v])`, strictly AFTER `w5.end`) one bar at a time and apply the
+    two-stage 2-4 confirmation (`two_four_confirmation`) CAUSALLY at each bar's
+    own time/close. Returns the FIRST bar that reaches stage 1 (a 2-4 break faster
+    than wave 5's build), upgrading to stage 2 if wave 5 is later fully retraced in
+    time — or a `pending` signal if neither fires inside the window.
+
+    This is the real-time companion to the static `two_four_confirmation`: the
+    constructor proposes a complete impulse, this monitor *waits for the market to
+    confirm it* bar by bar without any look-ahead.
+    """
+    first_break: Optional[tuple] = None
+    best_stage = 0
+    detail = "pending: 2-4 line not broken faster than wave 5 in this window"
+    for i, bar in enumerate(forward_bars):
+        t, price = bar[0], bar[4]
+        s1, s2 = two_four_confirmation(w5, w2, w4, t, price, uptrend)
+        st = 0
+        if s1.status is Status.PASS:
+            st = 2 if s2.status is Status.PASS else 1
+        if st >= 1 and first_break is None:
+            first_break = (i, t)
+        if st > best_stage:
+            best_stage = st
+            detail = (f"bar {i} (t={int(t)}): stage {st} -> "
+                      + (s2.detail if st == 2 else s1.detail))
+        if best_stage == 2:
+            break
+    if first_break is None:
+        return CompletionSignal(False, 0, None, None, detail)
+    idx, t0 = first_break
+    return CompletionSignal(best_stage == 2, best_stage, t0, idx, detail)
+
+
 def throwover_test(w1_top: Pivot, w3_top: Pivot, w5_peak: float,
                    peak_t: float, uptrend: bool = True) -> RuleResult:
     """
@@ -726,40 +781,36 @@ def label_monowaves(pivots: Sequence[Pivot]) -> list[tuple[Wave, str]]:
         if m0 is None or m2 is None:
             out.append((m1, ":?"))           # edge: provisional, no full context
             continue
-        retr_prior = m1.length / m0.length if m0.length else float("nan")
-        faster = m1.days < m0.days
-        if retr_prior > 1.0 and faster:
-            core = ":5"
-        elif retr_prior <= 0.618:
-            core = ":3"
-        elif retr_prior > 1.0:
-            core = ":5"
-        else:
-            core = ":5|:3"                   # ambiguous
+        # GAP-1: the core label is the PRIMARY candidate from Neely's seven-rule
+        # test (with the Rule-3-vs-4 overlap check), not the old retr>1 -> :5
+        # heuristic that over-labelled motive. monowave_candidates is causal
+        # (uses only m0/m1/m2, all formed by the time m1 is labelled).
+        core = monowave_candidates(m0, m1, m2)[0]
         rule = _retracement_rule(m2.length / m1.length if m1.length else float("nan"))
         out.append((m1, f"{core}(R{rule})"))
     return out
 
 
 def monowave_candidates(m0: "Wave", m1: "Wave", m2: "Wave") -> list[str]:
-    """Neely's seven-rule CANDIDATE structure labels for monowave m1, given the
-    prior monowave m0 and the next one m2 (docs/research/deep/05 §2). Returns a
-    LIST because 30-40% of real monowaves are genuinely ambiguous (Rule 3 etc.);
-    the right design carries all candidates forward and prunes as later waves
-    arrive — forcing one label silently locks in wrong counts. Heuristic mapping.
+    """Neely's seven-rule CANDIDATE structure labels for monowave m1 (chained:
+    m1.start == m0.end, m2.start == m1.end). Returns a LIST because 30-40% of
+    monowaves are genuinely ambiguous; the primary candidate is first.
 
-    Breakpoints are m2's retracement of m1 (0.382/0.618/1.0/1.618/2.618);
-    condition d uses the m0/m1 ratio."""
+    Rule 3 vs Rule 4 are separated by whether m2 retraces BACK INTO m0's price
+    territory (the overlap test) — without this the 0.618-1.0 band over-labels
+    motive (docs/research/deep/11 GAP-1). Condition d uses the m0/m1 ratio."""
     r = m2.length / m1.length if m1.length else float("nan")     # m2 retraces m1
     m0r = m0.length / m1.length if m1.length else float("nan")   # m0 vs m1
     if r != r:
         return [":?"]
+    m0lo, m0hi = min(m0.start.price, m0.end.price), max(m0.start.price, m0.end.price)
+    overlaps_m0 = m0lo <= m2.end.price <= m0hi                   # Rule 3 vs Rule 4
     if r < 0.382:                       # Rule 1: m1 a strong/extended motive
         cands = [":5"]
     elif r < 0.618:                     # Rule 2: 1st or 5th (motive)
-        cands = [":5"]
-    elif r <= 1.0:                      # Rule 3/4: 1st (motive) vs a-wave (corrective) — ambiguous
         cands = [":5", ":3"]
+    elif r <= 1.0:                      # Rule 3 (no overlap) vs Rule 4 (overlap)
+        cands = [":3", ":c3"] if overlaps_m0 else [":3", ":5"]
     elif r <= 1.618:                    # Rule 5: m2 not a retrace -> m1 ended a move
         cands = [":3", ":L5"]
     elif r <= 2.618:                    # Rule 6: strong reversal
