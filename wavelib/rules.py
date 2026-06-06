@@ -724,6 +724,36 @@ def label_monowaves(pivots: Sequence[Pivot]) -> list[tuple[Wave, str]]:
     return out
 
 
+def monowave_candidates(m0: "Wave", m1: "Wave", m2: "Wave") -> list[str]:
+    """Neely's seven-rule CANDIDATE structure labels for monowave m1, given the
+    prior monowave m0 and the next one m2 (docs/research/deep/05 §2). Returns a
+    LIST because 30-40% of real monowaves are genuinely ambiguous (Rule 3 etc.);
+    the right design carries all candidates forward and prunes as later waves
+    arrive — forcing one label silently locks in wrong counts. Heuristic mapping.
+
+    Breakpoints are m2's retracement of m1 (0.382/0.618/1.0/1.618/2.618);
+    condition d uses the m0/m1 ratio."""
+    r = m2.length / m1.length if m1.length else float("nan")     # m2 retraces m1
+    m0r = m0.length / m1.length if m1.length else float("nan")   # m0 vs m1
+    if r != r:
+        return [":?"]
+    if r < 0.382:                       # Rule 1: m1 a strong/extended motive
+        cands = [":5"]
+    elif r < 0.618:                     # Rule 2: 1st or 5th (motive)
+        cands = [":5"]
+    elif r <= 1.0:                      # Rule 3/4: 1st (motive) vs a-wave (corrective) — ambiguous
+        cands = [":5", ":3"]
+    elif r <= 1.618:                    # Rule 5: m2 not a retrace -> m1 ended a move
+        cands = [":3", ":L5"]
+    elif r <= 2.618:                    # Rule 6: strong reversal
+        cands = [":3", ":sL3"]
+    else:                              # Rule 7: extreme -> last segment / x-wave
+        cands = [":sL3", ":x"]
+    if m0r > 2.618 and ":sL3" not in cands:     # condition d
+        cands.append(":sL3")
+    return cands
+
+
 def group_polywaves(labelled: Sequence[tuple]) -> list[list[tuple]]:
     """
     Slide windows of 3 and 5 over labelled monowaves; keep those that form a valid

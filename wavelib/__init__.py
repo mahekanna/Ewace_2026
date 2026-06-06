@@ -26,7 +26,7 @@ from .rules import (
     is_terminal, terminal_rules, terminal_retrace_window,
     classify_complex_correction, is_neutral_triangle, x_wave_check,
     line_value, two_four_test, two_four_confirmation, throwover_test, base_channel_test,
-    label_monowaves, group_polywaves,
+    label_monowaves, monowave_candidates, group_polywaves,
     validate_impulse, validate_correction, report,
 )
 from .toolkit import (

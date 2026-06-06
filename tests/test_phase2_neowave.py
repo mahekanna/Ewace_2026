@@ -11,7 +11,7 @@ import unittest
 
 from wavelib import (
     Pivot, Wave, Status,
-    label_monowaves, group_polywaves,
+    label_monowaves, monowave_candidates, group_polywaves,
     two_four_confirmation, terminal_rules, is_neutral_triangle,
     classify_complex_correction, x_wave_check,
 )
@@ -43,6 +43,22 @@ class TestLabelMonowaves(unittest.TestCase):
     def test_retracement_rule_number_present(self):
         labelled = label_monowaves(self.PIVOTS)
         self.assertIn("(R", labelled[1][1])
+
+
+class TestMonowaveCandidates(unittest.TestCase):
+    def test_motive_when_shallow_retrace(self):
+        m0, m1, m2 = seg(10, 1), seg(10, 1), seg(3, 1)        # m2 retraces 30% of m1
+        self.assertIn(":5", monowave_candidates(m0, m1, m2))
+
+    def test_ambiguous_deep_retrace(self):
+        m0, m1, m2 = seg(10, 1), seg(10, 1), seg(8, 1)        # 80% -> 1st vs a-wave
+        c = monowave_candidates(m0, m1, m2)
+        self.assertIn(":5", c)
+        self.assertIn(":3", c)                                # genuinely ambiguous -> >1 candidate
+
+    def test_overshoot_not_a_retrace(self):
+        m0, m1, m2 = seg(10, 1), seg(10, 1), seg(20, 1)       # 200% -> reversal/last
+        self.assertIn(":3", monowave_candidates(m0, m1, m2))
 
 
 class TestGroupPolywaves(unittest.TestCase):
