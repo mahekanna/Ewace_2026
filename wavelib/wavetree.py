@@ -363,23 +363,25 @@ def anchored_degree(node) -> Degree:
     return Degree.INTERMEDIATE
 
 
-def _anchored_from(top, score, coverage) -> AnchoredCount:
+def _anchored_from(top, confidence, coverage) -> AnchoredCount:
     labs = _LABELS.get(top.pattern, [])
     labels = list(zip(labs, top.children)) if len(top.children) == len(labs) else []
-    note = ("primary count; watch the wave-1/A origin for invalidation" if score >= 0.4
+    confidence = max(0.0, min(1.0, confidence))      # confidence is a probability in [0,1]
+    note = ("primary count; watch the wave-1/A origin for invalidation" if confidence >= 0.4
             else "LOW confidence — one of several plausible counts; not a committed call")
-    return AnchoredCount(top.pattern, top.degree, labels, score, coverage,
+    return AnchoredCount(top.pattern, top.degree, labels, confidence, coverage,
                          anchored_degree(top).name.replace("_", " ").title(), note)
 
 
 def _scale_score(roots):
+    """(top node, honest_confidence<=1, selection_score). The selection score adds
+    a motive bonus / monowave penalty for RANKING only; confidence stays a [0,1]
+    probability."""
     top = max(roots, key=_span)
-    score = tree_confidence(roots)
-    if top.pattern == "MONOWAVE":
-        score *= 0.05
-    elif top.pattern in _MOTIVE:
-        score *= 1.15
-    return top, score
+    conf = tree_confidence(roots)
+    score = conf * (0.05 if top.pattern == "MONOWAVE"
+                    else 1.15 if top.pattern in _MOTIVE else 1.0)
+    return top, conf, score
 
 
 def wave_counts(bars, scales=(0.04, 0.07, 0.12, 0.20), max_alternates: int = 3):
@@ -392,12 +394,12 @@ def wave_counts(bars, scales=(0.04, 0.07, 0.12, 0.20), max_alternates: int = 3):
         if not roots:
             continue
         total = sum(_span(r) for r in roots) or 1.0
-        top, score = _scale_score(roots)
+        top, conf, score = _scale_score(roots)
         key = (top.pattern, int(top.start.t), int(top.end.t))
         if key in seen:
             continue
         seen.add(key)
-        out.append((score, _anchored_from(top, score, _span(top) / total)))
+        out.append((score, _anchored_from(top, conf, _span(top) / total)))
     out.sort(key=lambda x: -x[0])
     return [ac for _, ac in out][:1 + max_alternates]
 

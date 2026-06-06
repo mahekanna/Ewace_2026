@@ -74,6 +74,11 @@ def section(sym, cfg, out):
     out.append(f"- Recent best count: **{data['best_recent'] or 'n/a'}**; reversal zone "
                f"{zone}; live confluence **{data['score']}/7**; "
                f"EWF swing-sequence: {swseq['swings']} ({swseq['status']})")
+    fc = wl.forecast_waves(bars)
+    if fc:
+        tg = ", ".join(f"{lab} {p:.1f}" for lab, p in fc.targets)
+        out.append(f"- **Forecast next**: {fc.next_wave} → targets [{tg}], "
+                   f"invalidation {fc.invalidation} (confidence {fc.confidence:.0%})")
     power = "UNDERPOWERED — too few events to claim edge" if n_ev < 6 else f"PSR {psr:.0%}"
     cpline = (f"CPCV 5th-pctile OOS profit-factor {cp[0]:.2f} ({cp[2]} folds)" if cp
               else f"CPCV needs ≥6 events (have {n_ev})")

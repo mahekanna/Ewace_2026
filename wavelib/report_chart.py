@@ -16,6 +16,7 @@ from .toolkit import zigzag_causal, fib_retrace, blue_box_zone
 from .confluence import score_reversal
 from .automation import label_and_validate
 from .wavetree import wave_counts
+from .forecast import forecast_waves
 
 
 def _fmt(t):
@@ -86,6 +87,22 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
         f"Recent swing top <span class='r'>${top.price:,.2f}</span> ({top.date}); "
         f"launch <span class='k'>${launch.price:,.2f}</span> ({launch.date}).",
     ])
+    fc = forecast_waves(full)
+    if fc:
+        t = "; ".join(f"{lab} ${p:,.2f}" for lab, p in fc.targets)
+        card_forecast = ("Next-wave forecast", [
+            f"Expected next: <span class='k'>{fc.next_wave}</span> "
+            f"(confidence {fc.confidence:.0%}).",
+            f"Target zone: <span class='g'>{t or 'n/a'}</span>.",
+            f"Invalidation: <span class='r'>${fc.invalidation:,.2f}</span>.",
+            fc.rationale,
+        ])
+        # draw forecast targets on the chart
+        for lab, p in fc.targets:
+            targets.append([round(p, 2), f"FC {lab}", 0.95])
+    else:
+        card_forecast = ("Next-wave forecast", ["No forecast (no clean count)."])
+
     card_engine = ("Recent structure", [
         (f"Best recent count: <span class='k'>{best.count_type}</span> "
          f"(fib quality {best.fib_score:.0%}, {best.hard_fails} rule-breaks)." if best
@@ -111,7 +128,7 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
         "pivots": pivots,
         "targets": targets,
         "zone": list(zone),
-        "cards": [card_macro, card_engine, card_conf],
+        "cards": [card_macro, card_forecast, card_engine, card_conf],
         "score": rep.score,
         "best_recent": best.count_type if best else None,
         "macro": (None if not primary else {

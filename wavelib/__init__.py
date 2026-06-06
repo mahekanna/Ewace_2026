@@ -57,6 +57,7 @@ from .confluence import (
     choch, channel_break, divergence_at,
     rsi, ema, macd, ConfluenceReport, Strand,
 )
+from .forecast import WaveForecast, forecast_waves, forecast_from_count
 from .cycle_seam import CycleSignal
 
 __version__ = "0.2.0"

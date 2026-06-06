@@ -153,10 +153,10 @@ def backtest_reversals(bars, score_threshold: int = 4, min_reversal_pct: float =
 
 
 def _resolve_tb(event: ReversalEvent, bars, pt: float, sl: float, max_hold: int,
-                bullish: bool) -> ReversalOutcome:
+                bullish: bool, cost: float = 0.0) -> ReversalOutcome:
     """Triple-barrier exit (Lopez de Prado): take-profit (+pt), stop-loss (-sl), or
     a vertical time barrier at max_hold bars (exit at that close). Returns the
-    REALISED return — far more honest than booking every winner at a fixed target."""
+    REALISED return net of round-trip `cost` (commissions+slippage as a fraction)."""
     entry = event.entry_price
     if bullish:
         up, dn = entry * (1 + pt), entry * (1 - sl)
@@ -167,17 +167,17 @@ def _resolve_tb(event: ReversalEvent, bars, pt: float, sl: float, max_hold: int,
         t, h, l, c = b[0], b[2], b[3], b[4]
         if bullish:
             if l <= dn:
-                return ReversalOutcome(event, "INVALIDATED", t, dn, -sl)
+                return ReversalOutcome(event, "INVALIDATED", t, dn, -sl - cost)
             if h >= up:
-                return ReversalOutcome(event, "REVERSAL", t, up, pt)
+                return ReversalOutcome(event, "REVERSAL", t, up, pt - cost)
         else:
             if h >= up:
-                return ReversalOutcome(event, "INVALIDATED", t, up, -sl)
+                return ReversalOutcome(event, "INVALIDATED", t, up, -sl - cost)
             if l <= dn:
-                return ReversalOutcome(event, "REVERSAL", t, dn, pt)
+                return ReversalOutcome(event, "REVERSAL", t, dn, pt - cost)
     if after:                                          # vertical barrier: exit at last close
         last = after[-1][4]
-        ret = (last - entry) / entry * (1 if bullish else -1)
+        ret = (last - entry) / entry * (1 if bullish else -1) - cost
         return ReversalOutcome(event, "REVERSAL" if ret > 0 else "INVALIDATED",
                                after[-1][0], last, ret)
     return ReversalOutcome(event, "OPEN", None, None, None)
@@ -192,7 +192,7 @@ def horizon_returns(bars, horizon: int = 20, bullish: bool = True) -> list:
 
 
 def _replay(bars, score_threshold, min_reversal_pct, degrees, bullish,
-            cycle_aligned, min_history, pt=None, sl=None, max_hold=None):
+            cycle_aligned, min_history, pt=None, sl=None, max_hold=None, cost=0.0):
     """Causal bar-by-bar replay -> list[ReversalOutcome]. If pt/sl/max_hold are
     given, exits use the triple-barrier method; else the legacy fixed target."""
     events: list[ReversalEvent] = []
@@ -211,17 +211,17 @@ def _replay(bars, score_threshold, min_reversal_pct, degrees, bullish,
             events.append(ReversalEvent(sub[-1][0], rep.score, zone,
                                         _invalidation(cands[0], bullish), close))
     if pt is not None and sl is not None and max_hold is not None:
-        return [_resolve_tb(e, bars, pt, sl, max_hold, bullish) for e in events]
+        return [_resolve_tb(e, bars, pt, sl, max_hold, bullish, cost) for e in events]
     return [_resolve(e, bars, min_reversal_pct, bullish) for e in events]
 
 
 def reversal_returns(bars, score_threshold: int = 4, min_reversal_pct: float = 0.05,
                      degrees=(0.03, 0.07), bullish: bool = True,
                      cycle_aligned: bool = False, min_history: int = 60,
-                     pt=None, sl=None, max_hold=None) -> list:
+                     pt=None, sl=None, max_hold=None, cost=0.0) -> list:
     """Per-event signed returns from a causal replay — feed to validation.cpcv_*
     for the honest out-of-sample edge verdict (docs/research/deep/08). Pass
     pt/sl/max_hold to use realistic triple-barrier exits."""
     outs = _replay(bars, score_threshold, min_reversal_pct, degrees, bullish,
-                   cycle_aligned, min_history, pt=pt, sl=sl, max_hold=max_hold)
+                   cycle_aligned, min_history, pt=pt, sl=sl, max_hold=max_hold, cost=cost)
     return [o.move_pct for o in outs if o.move_pct is not None]

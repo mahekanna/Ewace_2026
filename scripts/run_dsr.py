@@ -53,7 +53,7 @@ def main():
             for s in SYMBOLS:
                 pooled += wl.reversal_returns(bars_by_sym[s], score_threshold=st,
                                               degrees=DEGREES, min_history=60,
-                                              pt=pt, sl=sl, max_hold=MAX_HOLD)
+                                              pt=pt, sl=sl, max_hold=MAX_HOLD, cost=0.001)
             sr = wl.sharpe_ratio(pooled)
             sk, ku = wl.skew_kurt(pooled)
             n = len(pooled)
@@ -126,9 +126,9 @@ def main():
            else "But it does NOT clear the 95% PSR/DSR gates, so treat as inconclusive "
            "given the small, overlapping samples — not a validated edge."))),
         ">",
-        "> Remaining honesty caveats: event counts are still small and overlapping, the "
-        "sample is a single recent regime, and transaction costs/slippage are not "
-        "modelled. CPCV 5th-pctile PF (above) is the most robust single number.",
+        "> Returns are net of 0.1% round-trip cost. Remaining honesty caveats: event "
+        "counts are still small and overlapping, and the sample is a single recent "
+        "regime. CPCV 5th-pctile PF (above) is the most robust single number.",
         "",
         "_DSR needs the TRUE number of variants ever tried; the registry captures it "
         "prospectively so this number only grows more honest over time._",
