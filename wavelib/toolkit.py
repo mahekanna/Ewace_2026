@@ -30,22 +30,34 @@ PHI = 1.6180339887
 # a package; fall back to local definitions for standalone execution.
 # --------------------------------------------------------------------------- #
 try:
-    from .rules import Pivot, Wave           # package context (one canonical class)
+    from .rules import Pivot, Wave, Degree   # package context (one canonical class)
 except Exception:                            # standalone: define locally
+    from enum import Enum
+    from typing import Optional
+
+    class Degree(Enum):                      # minimal standalone mirror of rules.Degree
+        GRAND_SUPERCYCLE = 9; SUPERCYCLE = 8; CYCLE = 7; PRIMARY = 6
+        INTERMEDIATE = 5; MINOR = 4; MINUTE = 3; MINUETTE = 2; SUBMINUETTE = 1
+
     @dataclass
     class Pivot:
         t: float
         price: float
         kind: Literal["H", "L"]
+        confirmed_t: Optional[float] = None
+        degree: Optional["Degree"] = None
         @property
         def date(self) -> str:
             return datetime.fromtimestamp(self.t, tz=timezone.utc).strftime("%Y-%m-%d")
+        @property
+        def confirmed(self) -> bool: return self.confirmed_t is not None
 
     @dataclass
     class Wave:
         start: Pivot
         end: Pivot
         label: str = ""
+        degree: Optional["Degree"] = None
         @property
         def length(self): return abs(self.end.price - self.start.price)
         @property
@@ -106,6 +118,87 @@ def zigzag(bars, pct: float = 0.10) -> list[Pivot]:
                 out[-1] = p
         else:
             out.append(p)
+    return out
+
+
+def zigzag_causal(bars, pct: float = 0.10) -> list[Pivot]:
+    """
+    Causal ZigZag: detects the SAME pivots as `zigzag` but records, for each
+    pivot, the bar at which its reversal was CONFIRMED (`Pivot.confirmed_t`).
+
+    A pivot's price extreme (`Pivot.t`) is only *known to be* a pivot once price
+    has reversed `pct` past it; that later bar is the confirmation. Backtests
+    must use `confirmed_t`, never `t`, to avoid look-ahead bias (see
+    docs/research/04_automation_validation.md §2.5, Item 1).
+
+    The final extreme is still forming, so its `confirmed_t` is None (provisional).
+    """
+    bars = list(bars)
+    if not bars:
+        return []
+    piv: list[Pivot] = []
+    trend = 0                                  # +1 up, -1 down, 0 unseeded
+    et, ep = bars[0][0], bars[0][4]            # extreme time / price
+    for t, o, h, l, c in bars:
+        if trend > 0:                          # tracking a high
+            if h > ep:
+                et, ep = t, h
+            if l < ep * (1 - pct):             # reversal confirmed at THIS bar
+                piv.append(Pivot(et, ep, "H", confirmed_t=t))
+                trend, et, ep = -1, t, l
+        elif trend < 0:                        # tracking a low
+            if l < ep:
+                et, ep = t, l
+            if h > ep * (1 + pct):
+                piv.append(Pivot(et, ep, "L", confirmed_t=t))
+                trend, et, ep = 1, t, h
+        else:                                  # seed (mirror of zigzag)
+            if h > ep * (1 + pct):
+                piv.append(Pivot(et, ep, "L", confirmed_t=t)); trend, et, ep = 1, t, h
+            elif l < ep * (1 - pct):
+                piv.append(Pivot(et, ep, "H", confirmed_t=t)); trend, et, ep = -1, t, l
+            else:
+                if h > ep: et, ep = t, h
+                if l < bars[0][3]: pass
+    # final extreme: not yet confirmed by a reversal -> provisional
+    piv.append(Pivot(et, ep, "H" if trend > 0 else "L", confirmed_t=None))
+    # collapse consecutive same-kind pivots, keep the more extreme (with its timing)
+    out: list[Pivot] = []
+    for p in piv:
+        if out and out[-1].kind == p.kind:
+            if (p.kind == "H" and p.price > out[-1].price) or \
+               (p.kind == "L" and p.price < out[-1].price):
+                out[-1] = p
+        else:
+            out.append(p)
+    return out
+
+
+def swing_pivots(series, n_left: int = 2, n_right: int = 2) -> list[Pivot]:
+    """
+    N-bar confirmed fractal pivots on a `(t, value)` series.
+
+    Position i is a swing HIGH if `value[i]` is strictly greater than the
+    `n_left` values before AND the `n_right` values after it; a swing LOW if
+    strictly less. `confirmed_t` is the timestamp `n_right` bars later — the
+    earliest bar at which the pivot is knowable (causal confirmation lag).
+
+    Generic over any 1-D series (price highs/lows, RSI, ...), so the same helper
+    backs the SMC confirmation strands (03) and the monowave constructor (02).
+    Plateaus (ties on either side) are not pivots. Returns pivots in time order.
+    """
+    s = list(series)
+    n = len(s)
+    out: list[Pivot] = []
+    for i in range(n_left, n - n_right):
+        t_i, v_i = s[i][0], s[i][1]
+        window = [s[j][1] for j in range(i - n_left, i)] + \
+                 [s[j][1] for j in range(i + 1, i + 1 + n_right)]
+        conf_t = s[i + n_right][0]
+        if all(v_i > x for x in window):
+            out.append(Pivot(t_i, v_i, "H", confirmed_t=conf_t))
+        elif all(v_i < x for x in window):
+            out.append(Pivot(t_i, v_i, "L", confirmed_t=conf_t))
     return out
 
 

@@ -57,18 +57,22 @@ ones. **Discipline that applies throughout:** TDD with synthetic ground-truth fi
 eventual `chakra_quant` D-013 bridge (see Cycle Seam below).
 
 ### Phase 0 — Foundations (causal timing, de-dup, degree)
-- **F1. `Pivot.confirmed_t` + `zigzag_causal`** *(04-Item1 — CRITICAL prerequisite).*
+- **F1. `Pivot.confirmed_t` + `zigzag_causal`** *(04-Item1 — CRITICAL prerequisite).* ✅ **DONE.**
   Run ZigZag front-to-back, recording the bar where the reversal is *confirmed*, not the
   back-dated extreme. Without this every backtest silently uses look-ahead data.
-- **F2. De-duplicate shared utilities** *(04-§3).* `similarity_and_balance`,
-  `project_wave5`, terminal-retrace window all exist twice (`rules.py` + `toolkit.py`).
-  Pick `rules.py` as canonical; `toolkit.py` re-exports.
-- **F3. `Degree` enum + optional `degree` field on `Wave`/`Pivot`** *(01-Task4 — architectural).*
-  Nine levels (Grand Supercycle→Subminuette), backward-compatible (`Optional[Degree]`).
-  Minimum prerequisite for auto-labeling and Neely construction.
-- **F4. Shared `zigzag_pivots(series, n_left, n_right)` swing-pivot helper** *(03-P1).*
-  N-bar confirmed pivots — consumed by both the confirmation strands (Phase 3) and the
-  monowave constructor (Phase 2).
+  → `toolkit.py:zigzag_causal` (detection-parity with `zigzag`, adds `confirmed_t`;
+  final extreme provisional). Tests in `tests/test_foundations.py`.
+- **F2. De-duplicate shared utilities** *(04-§3).* ⏸ **DEFERRED** (deliberate refactor, not a
+  safe re-export). `similarity_and_balance`, `project_wave5`, terminal-retrace window exist
+  twice but the copies have **diverged APIs** (`SBResult` vs `RuleResult`; different dict
+  keys), so de-dup means choosing one API and updating the demos/examples — its own task.
+- **F3. `Degree` enum + optional `degree` field on `Wave`/`Pivot`** *(01-Task4 — architectural).* ✅ **DONE.**
+  Nine levels (Grand Supercycle→Subminuette) with `.abbr`/`.finer()`/`.coarser()`,
+  backward-compatible (`Optional[Degree] = None`). → `rules.py:Degree`.
+- **F4. Swing-pivot helper** *(03-P1, roadmap called it `zigzag_pivots`).* ✅ **DONE** as
+  `toolkit.py:swing_pivots(series, n_left, n_right)` — N-bar confirmed fractal pivots over
+  any `(t, value)` series, consumed by the confirmation strands (Phase 3) and the monowave
+  constructor (Phase 2).
 
 ### Phase 1 — Classifier correctness (single-degree fidelity)
 - **C1. Fix the flat dead-zone** *(01-Task1).* `ZIGZAG_B_MAX = 0.618`, `FLAT_B_MIN = 0.618`;

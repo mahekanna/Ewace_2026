@@ -18,7 +18,7 @@ Note: rules.py and toolkit.py each define a Pivot/Wave dataclass; they are
 structurally identical and duck-type-compatible across functions.
 """
 from .rules import (
-    Pivot, Wave, Status, RuleResult,
+    Pivot, Wave, Degree, Status, RuleResult,
     elliott_hard_rules, elliott_guidelines, project_wave5,
     classify_correction, diagonal_rules,
     similarity_and_balance, rule_of_proportion, retracement_logic,
@@ -27,7 +27,8 @@ from .rules import (
     validate_impulse, validate_correction, report,
 )
 from .toolkit import (
-    zigzag, pivots_to_waves, fib_extension, fib_retrace, wave_ratio,
+    zigzag, zigzag_causal, swing_pivots,
+    pivots_to_waves, fib_extension, fib_retrace, wave_ratio,
 )
 from .confluence import (
     score_reversal, classify_swing_sequence,

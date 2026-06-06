@@ -35,15 +35,61 @@ INV_PHI = 0.6180339887
 # =========================================================================== #
 # A. DATA STRUCTURES
 # =========================================================================== #
+class Degree(Enum):
+    """
+    Elliott wave degree hierarchy (Frost & Prechter), largest -> smallest.
+
+    Numeric values rank the degrees (higher = larger degree), so degrees compare
+    by `.value`. The field is OPTIONAL metadata on Pivot/Wave: `degree is None`
+    means "not yet assigned" — the bottom-up Neely constructor (roadmap Phase 2)
+    will populate it. See docs/research/01_elliott_wave.md §2.5.
+    """
+    GRAND_SUPERCYCLE = 9
+    SUPERCYCLE = 8
+    CYCLE = 7
+    PRIMARY = 6
+    INTERMEDIATE = 5
+    MINOR = 4
+    MINUTE = 3
+    MINUETTE = 2
+    SUBMINUETTE = 1
+
+    @property
+    def abbr(self) -> str:
+        """Short notation label for the degree."""
+        return {
+            "GRAND_SUPERCYCLE": "GSC", "SUPERCYCLE": "SC", "CYCLE": "C",
+            "PRIMARY": "P", "INTERMEDIATE": "I", "MINOR": "Mn",
+            "MINUTE": "mn", "MINUETTE": "mu", "SUBMINUETTE": "smu",
+        }[self.name]
+
+    def finer(self) -> Optional["Degree"]:
+        """The next-smaller degree, or None at SUBMINUETTE."""
+        return Degree(self.value - 1) if self.value > 1 else None
+
+    def coarser(self) -> Optional["Degree"]:
+        """The next-larger degree, or None at GRAND_SUPERCYCLE."""
+        return Degree(self.value + 1) if self.value < 9 else None
+
+
 @dataclass
 class Pivot:
     t: float
     price: float
     kind: str  # "H" or "L"
+    # confirmed_t: bar time at which this pivot's reversal was CONFIRMED (causal
+    # discipline — a pivot is only "known" once price reverses past the threshold).
+    # None => provisional / still forming (e.g. the final extreme of a series).
+    confirmed_t: Optional[float] = None
+    degree: Optional["Degree"] = None  # optional wave-degree annotation
 
     @property
     def date(self) -> str:
         return datetime.fromtimestamp(self.t, tz=timezone.utc).strftime("%Y-%m-%d")
+
+    @property
+    def confirmed(self) -> bool:
+        return self.confirmed_t is not None
 
 
 @dataclass
@@ -51,6 +97,7 @@ class Wave:
     start: Pivot
     end: Pivot
     label: str = ""
+    degree: Optional["Degree"] = None  # optional wave-degree annotation
 
     @property
     def length(self) -> float: return abs(self.end.price - self.start.price)
