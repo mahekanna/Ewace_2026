@@ -38,6 +38,20 @@ Also completed (previously deferred): **Gaussian-Fibonacci calibration**
 (`backtest.reversal_returns` → `validation.cpcv_profit_factor`, with an honest
 "needs ≥6 events" when under-powered).
 
+## Stage 7 — realistic validation (doc 08)
+
+| Item | Status | Where |
+|---|---|---|
+| Triple-barrier exits (+pt / -sl / time barrier) | ✅ done | `backtest._resolve_tb`, `reversal_returns(pt,sl,max_hold)` |
+| Buy-and-hold benchmark Sharpe | ✅ done | `backtest.horizon_returns` |
+| DSR report scored vs buy-and-hold, >=20-event headline | ✅ done | `scripts/run_dsr.py` → `reports/DSR_2026-06.md` |
+
+**Result with realistic exits: no edge over buy-and-hold** (best 47-event variant
+Sharpe 0.630 ≈ benchmark 0.633; DSR 1%). The apparent edge from the earlier toy
+fixed-target model vanished — the harness now produces a trustworthy verdict and
+correctly refuses to certify a data-mined result. Honest caveats remaining:
+small/overlapping samples, single regime, no transaction costs.
+
 ## The honest ceiling
 
 Both research passes converge on the same truth: a single, deterministic,
