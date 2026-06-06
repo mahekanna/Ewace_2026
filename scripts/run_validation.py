@@ -18,6 +18,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 import wavelib as wl
+from wavelib.report_chart import analyze_symbol, render_analysis_page
 
 LIVE = os.path.join(ROOT, "data", "live")
 CHARTS = os.path.join(ROOT, "charts")
@@ -25,8 +26,10 @@ REPORT = os.path.join(ROOT, "reports", "VALIDATION_2026-06.md")
 
 # documented structural reversal zones + bias (README / DOCUMENTATION)
 SYMBOLS = {
-    "AVGO": {"file": "avgo_1d_2026-06.json", "zone": (358, 410), "bullish": True},
-    "MRVL": {"file": "mrvl_1d_2026-06.json", "zone": (229, 266), "bullish": True},
+    "AVGO": {"file": "avgo_1d_2026-06.json", "zone": (358, 410), "bullish": True,
+             "desc": "Broadcom · NASDAQ:AVGO"},
+    "MRVL": {"file": "mrvl_1d_2026-06.json", "zone": (229, 266), "bullish": True,
+             "desc": "Marvell · NASDAQ:MRVL"},
 }
 
 
@@ -100,37 +103,42 @@ def section(sym, cfg, out):
             "svg": f"{sym.lower()}_1d_auto.svg"}
 
 
-def write_dashboard(summaries):
-    """Build a single self-contained HTML dashboard embedding the SVG charts."""
+def write_dashboard():
+    """Build a standalone rich analysis page per symbol + an index that links them."""
     today = datetime.date.today().isoformat()
-    blocks = []
-    for s in summaries:
-        with open(os.path.join(CHARTS, s["svg"])) as fh:
-            svg = fh.read()
-        tier = ("HIGH-CONFIDENCE" if s["score"] >= 4
-                else "BUILDING — not yet confirmed" if s["score"] >= 2
-                else "structurally allowed only")
-        blocks.append(
-            f'<section><h2>{s["sym"]} — last close {s["last"]:.2f}</h2>'
-            f'<p>Auto-detected best count: <b>{s["type"]}</b> '
-            f'(quality {s["fib"]:.0%}) at zone {s["zone"][0]}-{s["zone"][1]}. '
-            f'Reversal confluence: <b>{s["score"]}/7</b> ({tier}).</p>'
-            f'<div class="chart">{svg}</div></section>')
-    html = (
-        "<!doctype html><meta charset='utf-8'>"
-        "<title>wavelib — wave analysis dashboard</title>"
-        "<style>body{font-family:sans-serif;max-width:1000px;margin:24px auto;color:#222;"
-        "padding:0 16px}h1{margin-bottom:4px}.sub{color:#666;margin-top:0}"
-        "section{margin:28px 0;border-top:1px solid #eee;padding-top:12px}"
-        ".chart{border:1px solid #eee;border-radius:6px;overflow:auto}"
-        "p{line-height:1.5}</style>"
-        "<h1>Elliott Wave / NeoWave — analysis dashboard</h1>"
-        f"<p class='sub'>Regenerated {today} · data as of 2026-06-05 close · "
-        "analysis tooling only, not investment advice</p>"
-        + "".join(blocks))
+    cards = []
+    for sym, cfg in SYMBOLS.items():
+        bars = load_bars(cfg["file"])
+        data = analyze_symbol(sym, bars, cfg["zone"], bullish=cfg["bullish"],
+                              desc=cfg.get("desc", sym))
+        render_analysis_page(data, output_path=os.path.join(CHARTS, f"{sym.lower()}_analysis.html"))
+        cards.append(
+            f"<a class='tile' href='{sym.lower()}_analysis.html'>"
+            f"<div class='sym'>{sym}</div>"
+            f"<div class='meta'>{cfg.get('desc', sym)}</div>"
+            f"<div class='meta'>last ${data['price']:,.2f} · {data['change']}</div>"
+            f"<div class='open'>open chart &rarr;</div></a>")
+    index = ("<!DOCTYPE html><html><head><meta charset='utf-8'>"
+             "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+             "<title>wavelib — analysis dashboard</title><style>"
+             "body{background:#0a0d0f;color:#e8eef0;font-family:system-ui,sans-serif;padding:28px;margin:0}"
+             ".wrap{max-width:820px;margin:0 auto}h1{font-size:24px}.sub{color:#7c8a91;margin:6px 0 22px}"
+             ".tiles{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:640px){.tiles{grid-template-columns:1fr}}"
+             ".tile{display:block;background:#11161a;border:1px solid #1c252b;border-radius:12px;padding:20px;"
+             "text-decoration:none;color:#e8eef0}.tile:hover{border-color:#27e0c4}"
+             ".sym{font-size:22px;font-weight:700;color:#27e0c4}.meta{font-size:12.5px;color:#cdd6da;margin-top:6px}"
+             ".open{margin-top:12px;font-size:12px;color:#f2b134}.foot{color:#7c8a91;font-size:11px;margin-top:24px}"
+             "</style></head><body><div class='wrap'>"
+             "<h1>Elliott Wave / NeoWave — analysis dashboard</h1>"
+             f"<div class='sub'>Regenerated {today} · data as of 2026-06-05 close · "
+             "analysis tooling only, not investment advice</div>"
+             f"<div class='tiles'>{''.join(cards)}</div>"
+             "<div class='foot'>Each page: causal ZigZag pivots &rarr; Elliott/NeoWave rule checks "
+             "&rarr; Fibonacci target levels &rarr; live reversal-confluence score, drawn on the "
+             "daily price line.</div></div></body></html>")
     path = os.path.join(CHARTS, "analysis_2026-06.html")
     with open(path, "w", encoding="utf-8") as fh:
-        fh.write(html)
+        fh.write(index)
     return path
 
 
@@ -145,7 +153,7 @@ def main():
     for sym, cfg in SYMBOLS.items():
         summaries.append(section(sym, cfg, out))
         out.append("---\n")
-    dash = write_dashboard(summaries)
+    dash = write_dashboard()
     out.append("### How to reproduce\n")
     out.append("```\npython3 scripts/run_validation.py\npython3 -m unittest discover -s tests\n```")
     text = "\n".join(out) + "\n"
