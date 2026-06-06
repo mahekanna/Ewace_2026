@@ -24,7 +24,7 @@ from .rules import (Pivot, Wave, Status, RuleResult, Degree, elliott_hard_rules,
 from .toolkit import zigzag_causal
 
 _MOTIVE = {"IMPULSE", "DIAGONAL"}
-_CORRECTIVE = {"ZIGZAG", "FLAT", "TRIANGLE", "CORRECTION", "COMPLEX"}
+_CORRECTIVE = {"ZIGZAG", "FLAT", "TRIANGLE", "CORRECTION", "COMPLEX", "WXY"}
 _FIB = (0.382, 0.5, 0.618, 0.786, 1.0, 1.272, 1.618, 2.0, 2.618, 3.618)
 
 
@@ -205,6 +205,12 @@ def _correction_node(group, degree):
         return None
     pattern = ("ZIGZAG" if "ZIGZAG" in rr.rule else
                "FLAT" if "FLAT" in rr.rule else "CORRECTION")
+    # EWF ABC-vs-WXY discipline (docs/research/deep/09): a true zigzag (ABC, 5-3-5)
+    # requires motive A & C; if A/C are themselves corrective (3s) it is a WXY
+    # double-three combination, not a zigzag.
+    if degree >= 2 and pattern == "ZIGZAG" and not (
+            group[0].pattern in _MOTIVE and group[2].pattern in _MOTIVE):
+        pattern = "WXY"
     results = [rr, similarity_and_balance(waves[0], waves[2], context="A vs C")]
     # sub-structure expectation: zigzag = 5-3-5 (A,C motive), flat = 3-3-5 (C motive)
     m_idx, c_idx = ((0, 2), (1,)) if pattern == "ZIGZAG" else \
@@ -314,6 +320,7 @@ _LABELS = {
     "ZIGZAG": ["A", "B", "C"],
     "FLAT": ["A", "B", "C"],
     "CORRECTION": ["A", "B", "C"],
+    "WXY": ["W", "X", "Y"],
     "TRIANGLE": ["A", "B", "C", "D", "E"],
 }
 

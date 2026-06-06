@@ -8,7 +8,7 @@ Run:  python3 -m unittest tests.test_ewf -v
 """
 import unittest
 
-from wavelib import Pivot, Wave, Status, blue_box_zone, swing_sequence, is_running_triangle
+from wavelib import Pivot, Wave, Status, blue_box_zone, swing_sequence, is_running_triangle, divergence_at
 
 DAY = 86400.0
 
@@ -58,6 +58,48 @@ class TestRunningTriangle(unittest.TestCase):
         legs = [W(0, 100, 1, 80), W(1, 80, 2, 95), W(2, 95, 3, 84),
                 W(3, 84, 4, 92), W(4, 92, 5, 87)]
         self.assertEqual(is_running_triangle(legs).status, Status.NA)
+
+
+class TestABCvsWXY(unittest.TestCase):
+    """EWF: zigzag (ABC) needs motive A & C; corrective A/C -> WXY double three."""
+
+    @staticmethod
+    def _child(t0, p0, t1, p1, pattern):
+        from wavelib.wavetree import WaveNode
+        return WaveNode(Pivot(float(t0), float(p0), "L" if p1 > p0 else "H"),
+                        Pivot(float(t1), float(p1), "H" if p1 > p0 else "L"),
+                        1, "x", pattern)
+
+    def _legs(self, pattern):
+        # A down 100->80, B up to 90 (retr 50% -> zigzag), C down to 70
+        return [self._child(0, 100, 1, 80, pattern),
+                self._child(1, 80, 2, 90, "ZIGZAG"),
+                self._child(2, 90, 3, 70, pattern)]
+
+    def test_abc_when_motive_legs(self):
+        from wavelib.wavetree import _correction_node
+        node = _correction_node(self._legs("IMPULSE"), 2)
+        self.assertEqual(node.pattern, "ZIGZAG")
+
+    def test_wxy_when_corrective_legs(self):
+        from wavelib.wavetree import _correction_node
+        node = _correction_node(self._legs("ZIGZAG"), 2)
+        self.assertEqual(node.pattern, "WXY")
+
+
+class TestDivergenceAtWaves(unittest.TestCase):
+    def test_insufficient_history(self):
+        self.assertFalse(divergence_at([1, 2, 3], 0, 2).confirm)
+
+    def test_matches_definition(self):
+        from wavelib import rsi
+        closes = (list(range(100, 131)) +           # strong rally to 130
+                  list(range(129, 115, -1)) +        # pullback to 116
+                  list(range(117, 132)))             # slow grind to 131 (marginal HH)
+        i1, i2 = 30, len(closes) - 1                 # 130 peak vs 131 peak
+        r = rsi(closes)
+        expected = closes[i2] > closes[i1] and r[i2] < r[i1]
+        self.assertEqual(divergence_at(closes, i1, i2, bullish=False).confirm, expected)
 
 
 if __name__ == "__main__":

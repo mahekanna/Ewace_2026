@@ -562,6 +562,27 @@ def channel_break(
                   f"({'broke ✓' if broken else 'held'})")
 
 
+def divergence_at(closes, idx_prior, idx_recent, bullish=False) -> Strand:
+    """Wave-label-aware RSI divergence between two SPECIFIC pivots — e.g. the
+    labelled wave-3 and wave-5 tops (docs/research/deep/10). EWF: an impulse top
+    is *confirmed* by divergence here; its ABSENCE argues the move can extend.
+    bullish=False -> bearish top (price higher-high, RSI lower-high)."""
+    r = rsi(closes)
+    if not (0 <= idx_prior < len(r)) or not (0 <= idx_recent < len(r)) \
+            or r[idx_prior] is None or r[idx_recent] is None:
+        return Strand("RSI divergence @ waves", False, "insufficient RSI history")
+    pp, pr = closes[idx_prior], closes[idx_recent]
+    rp, rr = r[idx_prior], r[idx_recent]
+    if not bullish:
+        div = pr > pp and rr < rp
+        kind = f"price {pp:.1f}->{pr:.1f} (HH={pr > pp}), RSI {rp:.0f}->{rr:.0f} (LH={rr < rp})"
+    else:
+        div = pr < pp and rr > rp
+        kind = f"price {pp:.1f}->{pr:.1f} (LL={pr < pp}), RSI {rp:.0f}->{rr:.0f} (HL={rr > rp})"
+    return Strand("RSI divergence @ waves", div,
+                  ("divergence present — " if div else "no divergence — ") + kind)
+
+
 # --------------------------------------------------------------------------- #
 # Swing classifier (unchanged)
 # --------------------------------------------------------------------------- #

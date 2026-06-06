@@ -53,7 +53,7 @@ from .wavetree import (
 from .confluence import (
     score_reversal, classify_swing_sequence,
     in_zone, momentum_divergence, macd_turn, volume_capitulation,
-    choch, channel_break,
+    choch, channel_break, divergence_at,
     rsi, ema, macd, ConfluenceReport, Strand,
 )
 from .cycle_seam import CycleSignal
