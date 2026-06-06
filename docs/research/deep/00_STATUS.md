@@ -52,6 +52,20 @@ fixed-target model vanished — the harness now produces a trustworthy verdict a
 correctly refuses to certify a data-mined result. Honest caveats remaining:
 small/overlapping samples, single regime, no transaction costs.
 
+## Stage 8 — next-wave forecasting + costs
+
+| Item | Status | Where |
+|---|---|---|
+| Project the NEXT wave (direction, target zone, invalidation) | ✅ done | `forecast.forecast_waves` / `forecast_from_count` |
+| Forecast shown on charts + in the report | ✅ done | `report_chart` card + target lines; `run_validation` line |
+| Transaction costs in the backtest | ✅ done | `backtest._resolve_tb(cost=...)`; `run_dsr` uses 0.1% |
+
+Forecasting is the first piece that *projects* rather than *labels*: from the recent
+structure it states the expected next move with a bounded Fibonacci target zone and
+invalidation, at honest (often 26-48%) confidence, and explicitly flags when a large
+**unconfirmed** leg is in progress (so it doesn't over-claim). It is a probabilistic
+zone, not a prediction.
+
 ## The honest ceiling
 
 Both research passes converge on the same truth: a single, deterministic,
