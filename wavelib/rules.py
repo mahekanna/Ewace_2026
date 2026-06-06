@@ -166,10 +166,14 @@ def elliott_guidelines(w: Sequence[Wave]) -> list[RuleResult]:
     lens = {1: w1.length, 3: w3.length, 5: w5.length}
     ext = max(lens, key=lens.get)
     second = sorted(lens.values())[-2]
-    is_ext = lens[ext] > 1.3 * second
-    r.append(RuleResult("G extension present", Status.PASS if is_ext else Status.WARN,
-                        f"wave {ext} extends ({lens[ext]:.1f})" if is_ext
-                        else "no clear extension (rare: all ~equal)"))
+    ext_ratio = lens[ext] / second if second else float("nan")
+    if ext_ratio >= 1.618:
+        ext_st, ext_msg = Status.PASS, f"wave {ext} extends {ext_ratio:.2f}x (>=1.618 ok)"
+    elif ext_ratio >= 1.3:
+        ext_st, ext_msg = Status.WARN, f"wave {ext} mildly longer {ext_ratio:.2f}x (1.3-1.618)"
+    else:
+        ext_st, ext_msg = Status.WARN, f"no clear extension ({ext_ratio:.2f}x; all ~equal)"
+    r.append(RuleResult("G extension present", ext_st, ext_msg))
     # Equality: the two non-extended motive waves tend equal
     others = [k for k in lens if k != ext]
     a, b = lens[others[0]], lens[others[1]]
@@ -187,19 +191,30 @@ def elliott_guidelines(w: Sequence[Wave]) -> list[RuleResult]:
                         f"{d2:.0%} of wave1"))
     r.append(RuleResult("G wave4 depth 0.236-0.382", Status.PASS if 0.18 <= d4 <= 0.45 else Status.WARN,
                         f"{d4:.0%} of wave3"))
-    # Wave3 fib to wave1
+    # Wave3 fib to wave1 (canonical 1.618-3.618 band; tiered WARN outside it)
     r3 = w3.length / w1.length if w1.length else float("nan")
-    r.append(RuleResult("G wave3 ≈1.618-2.618×wave1", Status.PASS if 1.3 <= r3 <= 3.0 else Status.WARN,
-                        f"wave3 = {r3:.2f}×wave1"))
+    if 1.618 <= r3 <= 3.618:
+        r3_st, r3_msg = Status.PASS, f"wave3 = {r3:.2f}x wave1 (1.618-3.618 ok)"
+    elif 1.3 <= r3 < 1.618:
+        r3_st, r3_msg = Status.WARN, f"wave3 = {r3:.2f}x wave1 (short of 1.618)"
+    elif r3 > 3.618:
+        r3_st, r3_msg = Status.WARN, f"wave3 = {r3:.2f}x wave1 (>3.618 - check degree shift)"
+    else:
+        r3_st, r3_msg = Status.WARN, f"wave3 = {r3:.2f}x wave1 (<1.3 - weak third)"
+    r.append(RuleResult("G wave3 ~1.618-3.618x wave1", r3_st, r3_msg))
     return r
 
 
 def project_wave5(w1_len, w3_len, w4_end, prior_high) -> dict:
+    """Wave-5 targets: equality (w5=w1), 0.618xw3, extended fifth (1.618xw1),
+    and short fifth (0.382xw3). (docs/research/01 §4 Task 5.)"""
     eq = round(w4_end + w1_len, 2)
     ext = round(w4_end + INV_PHI * w3_len, 2)
+    ext_w1 = round(w4_end + PHI * w1_len, 2)        # extended fifth
+    short = round(w4_end + 0.382 * w3_len, 2)       # short fifth
     trunc = eq < prior_high * 1.03
-    return {"w5=w1": eq, "w5=0.618*w3": ext, "prior_high": prior_high,
-            "truncation_risk": trunc}
+    return {"w5=w1": eq, "w5=0.618*w3": ext, "w5=1.618*w1": ext_w1,
+            "w5=0.382*w3": short, "prior_high": prior_high, "truncation_risk": trunc}
 
 
 # =========================================================================== #
@@ -207,8 +222,19 @@ def project_wave5(w1_len, w3_len, w4_end, prior_high) -> dict:
 # =========================================================================== #
 # Corrections passed as 3 waves [A,B,C] (zigzag/flat) or 5 [a,b,c,d,e] (triangle).
 
+# Canonical correction thresholds (Frost & Prechter; docs/research/01_elliott_wave.md §4 Task 1)
+ZIGZAG_B_MAX = 0.618    # zigzag: B retraces <= 61.8% of A (sharp)
+REG_FLAT_B_MAX = 1.00   # regular flat: B within (0.618, 1.00]; expanded/running: B > 1.00
+BARRIER_FLAT_TOL = 0.03  # one triangle boundary "flat" within 3% of its mean price
+
+
 def classify_correction(w: Sequence[Wave]) -> RuleResult:
-    """Identify ZIGZAG / FLAT(regular/expanded/running) / TRIANGLE / (else combo)."""
+    """Identify ZIGZAG / FLAT(regular/expanded/running) / TRIANGLE / (else combo).
+
+    Flat subtype uses a directional ENDPOINT check (does C surpass A's extreme in
+    A's direction?) rather than a raw length ratio, and the zigzag/flat split sits
+    at the canonical 0.618 (no 0.618-0.90 dead zone). See docs/research/01 §4 Task 1.
+    """
     if len(w) == 5:
         return _classify_triangle(w)
     if len(w) != 3:
@@ -216,75 +242,122 @@ def classify_correction(w: Sequence[Wave]) -> RuleResult:
                           f"{len(w)} legs -> likely COMBINATION (W-X-Y / W-X-Y-X-Z); "
                           "needs sub-structure to resolve")
     A, B, C = w
-    b_retr = B.retr(A)         # how far B retraces A
+    b_retr = B.retr(A)                              # how far B retraces A
     c_vs_a = C.length / A.length if A.length else float("nan")
-    # ZIGZAG: sharp, B shallow (<= ~0.618 of A), C extends past A end
-    if b_retr <= 0.62:
+    a_down = A.end.price < A.start.price            # direction of leg A
+    # does C's endpoint surpass A's endpoint, in A's direction?
+    c_beyond_a_end = (C.end.price < A.end.price) if a_down else (C.end.price > A.end.price)
+    # ZIGZAG: sharp, B <= 61.8% of A (boundary inclusive)
+    if b_retr <= ZIGZAG_B_MAX + 1e-9:
         return RuleResult("correction = ZIGZAG (5-3-5)", Status.PASS,
-                          f"B retraces {b_retr:.0%} of A; C/A={c_vs_a:.2f}; sharp")
-    # FLAT family: B deep (>= ~0.9 of A), sideways
-    if b_retr >= 0.9:
-        bp = (B.end.price - A.start.price)
-        if b_retr > 1.0 and c_vs_a > 1.0:
-            kind = "EXPANDED FLAT (B>A, C>A)"
-        elif b_retr > 1.0 and c_vs_a <= 1.0:
-            kind = "RUNNING FLAT (B>A, C truncated)"
-        else:
-            kind = "REGULAR FLAT (B≈A, C≈A)"
-        return RuleResult(f"correction = {kind} (3-3-5)", Status.PASS,
-                          f"B retraces {b_retr:.0%} of A; C/A={c_vs_a:.2f}; sideways")
-    return RuleResult("correction = intermediate/complex", Status.WARN,
-                      f"B retraces {b_retr:.0%} of A (between zigzag & flat) -> "
-                      "check for double-three / flat variant")
+                          f"B retraces {b_retr:.0%} of A (<=61.8%); C/A={c_vs_a:.2f}; sharp")
+    # FLAT family: B > 61.8% of A (sideways)
+    if b_retr <= REG_FLAT_B_MAX:
+        note = "" if b_retr >= 0.81 else " (shallow B 0.618-0.81: verify vs combination)"
+        return RuleResult("correction = REGULAR FLAT (3-3-5)", Status.PASS,
+                          f"B retraces {b_retr:.0%} of A (61.8-100%); C/A={c_vs_a:.2f}{note}")
+    # B > 100% of A -> expanded vs running, decided by C's endpoint direction
+    if c_beyond_a_end:
+        return RuleResult("correction = EXPANDED FLAT (3-3-5)", Status.PASS,
+                          f"B {b_retr:.0%} (>100% of A); C surpasses A end -> expanded")
+    return RuleResult("correction = RUNNING FLAT (3-3-5)", Status.PASS,
+                      f"B {b_retr:.0%} (>100% of A); C falls short of A end -> running")
 
 
 def _classify_triangle(w: Sequence[Wave]) -> RuleResult:
-    """5-leg a-b-c-d-e triangle subtype by extreme progression."""
-    highs = [seg.end.price for seg in w]
-    # contracting: each swing smaller; expanding: each larger
+    """5-leg a-b-c-d-e triangle subtype by FULL leg-length progression.
+
+    Contracting: a>b>c>d>e; expanding: a<b<c<d<e; barrier: one boundary ~flat.
+    (docs/research/01 §4 Task 3.) Wave E commonly over/undershoots the a-c line.
+    """
     lens = [seg.length for seg in w]
-    contracting = lens[0] > lens[2] > lens[4]
-    expanding = lens[0] < lens[2] < lens[4]
+    contracting = all(lens[i] > lens[i + 1] for i in range(4))   # a>b>c>d>e
+    expanding = all(lens[i] < lens[i + 1] for i in range(4))     # a<b<c<d<e
+    # boundaries: side1 = ends of a,c,e ; side2 = ends of b,d
+    side1 = [w[0].end.price, w[2].end.price, w[4].end.price]
+    side2 = [w[1].end.price, w[3].end.price]
+
+    def _flat(vals):
+        m = sum(vals) / len(vals)
+        return bool(m) and (max(vals) - min(vals)) <= BARRIER_FLAT_TOL * abs(m)
+
+    barrier = _flat(side1) or _flat(side2)
     if contracting:
         kind = "CONTRACTING TRIANGLE (most common)"
     elif expanding:
         kind = "EXPANDING TRIANGLE"
-    else:
+    elif barrier:
         kind = "BARRIER/RUNNING TRIANGLE (one boundary flat)"
+    else:
+        return RuleResult("correction = TRIANGLE? irregular legs (3-3-3-3-3)", Status.WARN,
+                          f"leg lengths {[round(x, 1) for x in lens]} not monotonic and no flat "
+                          "boundary -> verify count / possible complex correction")
     return RuleResult(f"correction = {kind} (3-3-3-3-3)", Status.PASS,
-                      f"leg lengths {[round(x,1) for x in lens]}; appears in wave-4/B/X, "
-                      "precedes the final thrust")
+                      f"leg lengths {[round(x, 1) for x in lens]}; appears in wave-4/B/X, "
+                      "precedes the final thrust; wave E may over/undershoot the a-c line (REF)")
+
+
+def triangle_thrust(widest_leg: float, base: float, direction: int = 1) -> dict:
+    """Project the post-triangle thrust: 75%-125% of the widest leg from the
+    breakout base. direction=+1 up, -1 down. (docs/research/01 §4 Task 3.)"""
+    return {"min": round(base + direction * 0.75 * widest_leg, 2),
+            "max": round(base + direction * 1.25 * widest_leg, 2)}
 
 
 # =========================================================================== #
 # D. ELLIOTT — DIAGONALS
 # =========================================================================== #
-def diagonal_rules(w: Sequence[Wave], position: str = "ending") -> list[RuleResult]:
-    """
-    Leading (wave 1/A) or ending (wave 5/C) diagonal. 5 legs, wedge.
-    Defining trait: wave 4 OVERLAPS wave 1 (legal here, unlike a normal impulse).
-    """
-    if len(w) != 5:
-        return [RuleResult("diagonal arity", Status.NA, f"need 5 legs, got {len(w)}")]
+def _diagonal_common(w: Sequence[Wave]) -> tuple[list[RuleResult], bool]:
+    """Wedge-sizing checks shared by leading & ending diagonals; returns also the
+    w4/w1 overlap flag so each variant can judge overlap per its own expectation."""
     w1, w2, w3, w4, w5 = w
     up = w1.up
-    r = []
     overlap = (w4.end.price < w1.end.price) if up else (w4.end.price > w1.end.price)
-    r.append(RuleResult(f"{position} diagonal: w4/w1 overlap", _ok(overlap),
-                        f"wave4 {w4.end.price} vs wave1 {w1.end.price} "
-                        + ("(overlap ✓ — diagonal)" if overlap else "(no overlap — not a diagonal)")))
-    # diagonals follow wedge-sizing (contracting: w1>w3>w5), not the impulse
-    # "wave 3 not shortest" HARD rule -> surface as WARN, not FAIL
+    # diagonals follow wedge-sizing; "wave 3 not shortest" -> WARN here, not FAIL
     c2 = not (w3.length < w1.length and w3.length < w5.length)
-    r.append(RuleResult("diagonal: wave3 vs wedge sizing", Status.PASS if c2 else Status.WARN,
-                        f"1/3/5 = {w1.length:.1f}/{w3.length:.1f}/{w5.length:.1f}"
-                        + ("" if c2 else "  (w3 shortest -> irregular for a wedge)")))
-    # contracting wedge (ending diagonals usually contract)
     contracting = (w5.length < w3.length < w1.length)
-    r.append(RuleResult("diagonal: contracting wedge", Status.PASS if contracting else Status.WARN,
-                        "legs contract (textbook)" if contracting
-                        else "legs expand/irregular (rarer; allowed but non-ideal)"))
+    r = [
+        RuleResult("diagonal: wave3 vs wedge sizing", Status.PASS if c2 else Status.WARN,
+                   f"1/3/5 = {w1.length:.1f}/{w3.length:.1f}/{w5.length:.1f}"
+                   + ("" if c2 else "  (w3 shortest -> irregular for a wedge)")),
+        RuleResult("diagonal: contracting wedge", Status.PASS if contracting else Status.WARN,
+                   "legs contract (textbook)" if contracting
+                   else "legs expand/irregular (rarer; allowed but non-ideal)"),
+    ]
+    return r, overlap
+
+
+def ending_diagonal_rules(w: Sequence[Wave]) -> list[RuleResult]:
+    """Ending diagonal (wave 5 / wave C). Sub-structure 3-3-3-3-3; w4/w1 overlap
+    EXPECTED (absence -> WARN, not FAIL, since sub-waves aren't machine-checkable
+    at this degree). See docs/research/01 §4 Task 2."""
+    if len(w) != 5:
+        return [RuleResult("ending diagonal arity", Status.NA, f"need 5 legs, got {len(w)}")]
+    r, overlap = _diagonal_common(w)
+    r.append(RuleResult("ending diagonal: w4/w1 overlap expected",
+                        Status.PASS if overlap else Status.WARN,
+                        f"overlap {'present (expected)' if overlap else 'absent (atypical for ending)'}"))
+    r.append(RuleResult("ending diagonal: sub-structure 3-3-3-3-3", Status.REF,
+                        "each leg should subdivide as a three (needs sub-wave data; REF)"))
     return r
+
+
+def leading_diagonal_rules(w: Sequence[Wave]) -> list[RuleResult]:
+    """Leading diagonal (wave 1 / wave A). Sub-structure 5-3-5-3-5; w4/w1 overlap
+    COMMON but not required. See docs/research/01 §4 Task 2."""
+    if len(w) != 5:
+        return [RuleResult("leading diagonal arity", Status.NA, f"need 5 legs, got {len(w)}")]
+    r, overlap = _diagonal_common(w)
+    r.append(RuleResult("leading diagonal: w4/w1 overlap (informational)", Status.PASS,
+                        f"overlap {'present (common)' if overlap else 'absent (acceptable for leading)'}"))
+    r.append(RuleResult("leading diagonal: sub-structure 5-3-5-3-5", Status.REF,
+                        "motive legs should subdivide 5-3-5-3-5 (needs sub-wave data; REF)"))
+    return r
+
+
+def diagonal_rules(w: Sequence[Wave], position: str = "ending") -> list[RuleResult]:
+    """Back-compat dispatcher. Prefer ending_diagonal_rules / leading_diagonal_rules."""
+    return leading_diagonal_rules(w) if position == "leading" else ending_diagonal_rules(w)
 
 
 # =========================================================================== #
@@ -356,6 +429,26 @@ def throwover_test(w1_top: Pivot, w3_top: Pivot, w5_peak: float,
     flavour = "THROW-OVER (blow-off)" if over else "FELL SHORT (weak/truncated 5th)"
     return RuleResult("Channel: 1-3 upper / wave-5", Status.REF,
                       f"1-3 line ~{lv:.1f} at peak; wave5 {w5_peak:.1f} -> {flavour}")
+
+
+def base_channel_test(w0_origin: Pivot, w2_end: Pivot, w1_top: Pivot,
+                      current_t: float, current_price: float,
+                      uptrend: bool = True) -> RuleResult:
+    """
+    NeoWave/Elliott base (0-2) channel. Lower line runs through the wave-0 origin
+    and the wave-2 end; the upper parallel runs through the wave-1 top. Price
+    holding above the lower line during wave 3 confirms the motive count; a break
+    below it during wave 4 is an early warning. (docs/research/01 §4 Task 6.)
+
+    CAUSAL: w0/w1/w2 are already complete at the time of the check.
+    """
+    lv = line_value(w0_origin, w2_end, current_t)
+    holding = (current_price >= lv) if uptrend else (current_price <= lv)
+    st = Status.PASS if holding else Status.WARN
+    return RuleResult("Channel: 0-2 base line", st,
+                      f"0-2 line ~{lv:.1f} now; price {current_price:.1f} "
+                      + ("holding above (motive intact)" if holding
+                         else "broke below (wave-4 warning)"))
 
 
 # =========================================================================== #

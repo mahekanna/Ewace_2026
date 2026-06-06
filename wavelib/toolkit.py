@@ -329,10 +329,14 @@ def project_wave5(w1_len: float, w3_len: float, w4_low: float,
     """
     eq = round(w4_low + w1_len, 2)
     ext = round(w4_low + 0.618 * w3_len, 2)
+    ext_w1 = round(w4_low + PHI * w1_len, 2)       # extended fifth (1.618xw1)
+    short = round(w4_low + 0.382 * w3_len, 2)      # short fifth (0.382xw3)
     truncation = eq < prior_high * 1.03            # <3% above old high
     return {
         "w5_equality(w1)": eq,
         "w5_0.618xw3": ext,
+        "w5_1.618xw1": ext_w1,
+        "w5_0.382xw3": short,
         "prior_high": prior_high,
         "truncation_risk": truncation,
         "note": ("TRUNCATION RISK: w5 barely clears the prior high"
