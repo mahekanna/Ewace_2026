@@ -153,6 +153,10 @@ def main():
            "Analysis tooling only — not investment advice._", ""]
     summaries = []
     for sym, cfg in SYMBOLS.items():
+        if not os.path.exists(os.path.join(LIVE, cfg["file"])):
+            out.append(f"## {sym} — {cfg.get('desc', sym)}\n- _data not available; skipped._\n")
+            out.append("---\n")
+            continue
         summaries.append(section(sym, cfg, out))
         out.append("---\n")
     dash = write_dashboard(summaries)
