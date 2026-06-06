@@ -35,15 +35,61 @@ INV_PHI = 0.6180339887
 # =========================================================================== #
 # A. DATA STRUCTURES
 # =========================================================================== #
+class Degree(Enum):
+    """
+    Elliott wave degree hierarchy (Frost & Prechter), largest -> smallest.
+
+    Numeric values rank the degrees (higher = larger degree), so degrees compare
+    by `.value`. The field is OPTIONAL metadata on Pivot/Wave: `degree is None`
+    means "not yet assigned" — the bottom-up Neely constructor (roadmap Phase 2)
+    will populate it. See docs/research/01_elliott_wave.md §2.5.
+    """
+    GRAND_SUPERCYCLE = 9
+    SUPERCYCLE = 8
+    CYCLE = 7
+    PRIMARY = 6
+    INTERMEDIATE = 5
+    MINOR = 4
+    MINUTE = 3
+    MINUETTE = 2
+    SUBMINUETTE = 1
+
+    @property
+    def abbr(self) -> str:
+        """Short notation label for the degree."""
+        return {
+            "GRAND_SUPERCYCLE": "GSC", "SUPERCYCLE": "SC", "CYCLE": "C",
+            "PRIMARY": "P", "INTERMEDIATE": "I", "MINOR": "Mn",
+            "MINUTE": "mn", "MINUETTE": "mu", "SUBMINUETTE": "smu",
+        }[self.name]
+
+    def finer(self) -> Optional["Degree"]:
+        """The next-smaller degree, or None at SUBMINUETTE."""
+        return Degree(self.value - 1) if self.value > 1 else None
+
+    def coarser(self) -> Optional["Degree"]:
+        """The next-larger degree, or None at GRAND_SUPERCYCLE."""
+        return Degree(self.value + 1) if self.value < 9 else None
+
+
 @dataclass
 class Pivot:
     t: float
     price: float
     kind: str  # "H" or "L"
+    # confirmed_t: bar time at which this pivot's reversal was CONFIRMED (causal
+    # discipline — a pivot is only "known" once price reverses past the threshold).
+    # None => provisional / still forming (e.g. the final extreme of a series).
+    confirmed_t: Optional[float] = None
+    degree: Optional["Degree"] = None  # optional wave-degree annotation
 
     @property
     def date(self) -> str:
         return datetime.fromtimestamp(self.t, tz=timezone.utc).strftime("%Y-%m-%d")
+
+    @property
+    def confirmed(self) -> bool:
+        return self.confirmed_t is not None
 
 
 @dataclass
@@ -51,6 +97,7 @@ class Wave:
     start: Pivot
     end: Pivot
     label: str = ""
+    degree: Optional["Degree"] = None  # optional wave-degree annotation
 
     @property
     def length(self) -> float: return abs(self.end.price - self.start.price)
@@ -119,10 +166,14 @@ def elliott_guidelines(w: Sequence[Wave]) -> list[RuleResult]:
     lens = {1: w1.length, 3: w3.length, 5: w5.length}
     ext = max(lens, key=lens.get)
     second = sorted(lens.values())[-2]
-    is_ext = lens[ext] > 1.3 * second
-    r.append(RuleResult("G extension present", Status.PASS if is_ext else Status.WARN,
-                        f"wave {ext} extends ({lens[ext]:.1f})" if is_ext
-                        else "no clear extension (rare: all ~equal)"))
+    ext_ratio = lens[ext] / second if second else float("nan")
+    if ext_ratio >= 1.618:
+        ext_st, ext_msg = Status.PASS, f"wave {ext} extends {ext_ratio:.2f}x (>=1.618 ok)"
+    elif ext_ratio >= 1.3:
+        ext_st, ext_msg = Status.WARN, f"wave {ext} mildly longer {ext_ratio:.2f}x (1.3-1.618)"
+    else:
+        ext_st, ext_msg = Status.WARN, f"no clear extension ({ext_ratio:.2f}x; all ~equal)"
+    r.append(RuleResult("G extension present", ext_st, ext_msg))
     # Equality: the two non-extended motive waves tend equal
     others = [k for k in lens if k != ext]
     a, b = lens[others[0]], lens[others[1]]
@@ -140,19 +191,30 @@ def elliott_guidelines(w: Sequence[Wave]) -> list[RuleResult]:
                         f"{d2:.0%} of wave1"))
     r.append(RuleResult("G wave4 depth 0.236-0.382", Status.PASS if 0.18 <= d4 <= 0.45 else Status.WARN,
                         f"{d4:.0%} of wave3"))
-    # Wave3 fib to wave1
+    # Wave3 fib to wave1 (canonical 1.618-3.618 band; tiered WARN outside it)
     r3 = w3.length / w1.length if w1.length else float("nan")
-    r.append(RuleResult("G wave3 ≈1.618-2.618×wave1", Status.PASS if 1.3 <= r3 <= 3.0 else Status.WARN,
-                        f"wave3 = {r3:.2f}×wave1"))
+    if 1.618 <= r3 <= 3.618:
+        r3_st, r3_msg = Status.PASS, f"wave3 = {r3:.2f}x wave1 (1.618-3.618 ok)"
+    elif 1.3 <= r3 < 1.618:
+        r3_st, r3_msg = Status.WARN, f"wave3 = {r3:.2f}x wave1 (short of 1.618)"
+    elif r3 > 3.618:
+        r3_st, r3_msg = Status.WARN, f"wave3 = {r3:.2f}x wave1 (>3.618 - check degree shift)"
+    else:
+        r3_st, r3_msg = Status.WARN, f"wave3 = {r3:.2f}x wave1 (<1.3 - weak third)"
+    r.append(RuleResult("G wave3 ~1.618-3.618x wave1", r3_st, r3_msg))
     return r
 
 
 def project_wave5(w1_len, w3_len, w4_end, prior_high) -> dict:
+    """Wave-5 targets: equality (w5=w1), 0.618xw3, extended fifth (1.618xw1),
+    and short fifth (0.382xw3). (docs/research/01 §4 Task 5.)"""
     eq = round(w4_end + w1_len, 2)
     ext = round(w4_end + INV_PHI * w3_len, 2)
+    ext_w1 = round(w4_end + PHI * w1_len, 2)        # extended fifth
+    short = round(w4_end + 0.382 * w3_len, 2)       # short fifth
     trunc = eq < prior_high * 1.03
-    return {"w5=w1": eq, "w5=0.618*w3": ext, "prior_high": prior_high,
-            "truncation_risk": trunc}
+    return {"w5=w1": eq, "w5=0.618*w3": ext, "w5=1.618*w1": ext_w1,
+            "w5=0.382*w3": short, "prior_high": prior_high, "truncation_risk": trunc}
 
 
 # =========================================================================== #
@@ -160,8 +222,19 @@ def project_wave5(w1_len, w3_len, w4_end, prior_high) -> dict:
 # =========================================================================== #
 # Corrections passed as 3 waves [A,B,C] (zigzag/flat) or 5 [a,b,c,d,e] (triangle).
 
+# Canonical correction thresholds (Frost & Prechter; docs/research/01_elliott_wave.md §4 Task 1)
+ZIGZAG_B_MAX = 0.618    # zigzag: B retraces <= 61.8% of A (sharp)
+REG_FLAT_B_MAX = 1.00   # regular flat: B within (0.618, 1.00]; expanded/running: B > 1.00
+BARRIER_FLAT_TOL = 0.03  # one triangle boundary "flat" within 3% of its mean price
+
+
 def classify_correction(w: Sequence[Wave]) -> RuleResult:
-    """Identify ZIGZAG / FLAT(regular/expanded/running) / TRIANGLE / (else combo)."""
+    """Identify ZIGZAG / FLAT(regular/expanded/running) / TRIANGLE / (else combo).
+
+    Flat subtype uses a directional ENDPOINT check (does C surpass A's extreme in
+    A's direction?) rather than a raw length ratio, and the zigzag/flat split sits
+    at the canonical 0.618 (no 0.618-0.90 dead zone). See docs/research/01 §4 Task 1.
+    """
     if len(w) == 5:
         return _classify_triangle(w)
     if len(w) != 3:
@@ -169,88 +242,145 @@ def classify_correction(w: Sequence[Wave]) -> RuleResult:
                           f"{len(w)} legs -> likely COMBINATION (W-X-Y / W-X-Y-X-Z); "
                           "needs sub-structure to resolve")
     A, B, C = w
-    b_retr = B.retr(A)         # how far B retraces A
+    b_retr = B.retr(A)                              # how far B retraces A
     c_vs_a = C.length / A.length if A.length else float("nan")
-    # ZIGZAG: sharp, B shallow (<= ~0.618 of A), C extends past A end
-    if b_retr <= 0.62:
+    a_down = A.end.price < A.start.price            # direction of leg A
+    # does C's endpoint surpass A's endpoint, in A's direction?
+    c_beyond_a_end = (C.end.price < A.end.price) if a_down else (C.end.price > A.end.price)
+    # ZIGZAG: sharp, B <= 61.8% of A (boundary inclusive)
+    if b_retr <= ZIGZAG_B_MAX + 1e-9:
         return RuleResult("correction = ZIGZAG (5-3-5)", Status.PASS,
-                          f"B retraces {b_retr:.0%} of A; C/A={c_vs_a:.2f}; sharp")
-    # FLAT family: B deep (>= ~0.9 of A), sideways
-    if b_retr >= 0.9:
-        bp = (B.end.price - A.start.price)
-        if b_retr > 1.0 and c_vs_a > 1.0:
-            kind = "EXPANDED FLAT (B>A, C>A)"
-        elif b_retr > 1.0 and c_vs_a <= 1.0:
-            kind = "RUNNING FLAT (B>A, C truncated)"
-        else:
-            kind = "REGULAR FLAT (B≈A, C≈A)"
-        return RuleResult(f"correction = {kind} (3-3-5)", Status.PASS,
-                          f"B retraces {b_retr:.0%} of A; C/A={c_vs_a:.2f}; sideways")
-    return RuleResult("correction = intermediate/complex", Status.WARN,
-                      f"B retraces {b_retr:.0%} of A (between zigzag & flat) -> "
-                      "check for double-three / flat variant")
+                          f"B retraces {b_retr:.0%} of A (<=61.8%); C/A={c_vs_a:.2f}; sharp")
+    # FLAT family: B > 61.8% of A (sideways)
+    if b_retr <= REG_FLAT_B_MAX:
+        note = "" if b_retr >= 0.81 else " (shallow B 0.618-0.81: verify vs combination)"
+        return RuleResult("correction = REGULAR FLAT (3-3-5)", Status.PASS,
+                          f"B retraces {b_retr:.0%} of A (61.8-100%); C/A={c_vs_a:.2f}{note}")
+    # B > 100% of A -> expanded vs running, decided by C's endpoint direction
+    if c_beyond_a_end:
+        return RuleResult("correction = EXPANDED FLAT (3-3-5)", Status.PASS,
+                          f"B {b_retr:.0%} (>100% of A); C surpasses A end -> expanded")
+    return RuleResult("correction = RUNNING FLAT (3-3-5)", Status.PASS,
+                      f"B {b_retr:.0%} (>100% of A); C falls short of A end -> running")
 
 
 def _classify_triangle(w: Sequence[Wave]) -> RuleResult:
-    """5-leg a-b-c-d-e triangle subtype by extreme progression."""
-    highs = [seg.end.price for seg in w]
-    # contracting: each swing smaller; expanding: each larger
+    """5-leg a-b-c-d-e triangle subtype by FULL leg-length progression.
+
+    Contracting: a>b>c>d>e; expanding: a<b<c<d<e; barrier: one boundary ~flat.
+    (docs/research/01 §4 Task 3.) Wave E commonly over/undershoots the a-c line.
+    """
     lens = [seg.length for seg in w]
-    contracting = lens[0] > lens[2] > lens[4]
-    expanding = lens[0] < lens[2] < lens[4]
+    contracting = all(lens[i] > lens[i + 1] for i in range(4))   # a>b>c>d>e
+    expanding = all(lens[i] < lens[i + 1] for i in range(4))     # a<b<c<d<e
+    # boundaries: side1 = ends of a,c,e ; side2 = ends of b,d
+    side1 = [w[0].end.price, w[2].end.price, w[4].end.price]
+    side2 = [w[1].end.price, w[3].end.price]
+
+    def _flat(vals):
+        m = sum(vals) / len(vals)
+        return bool(m) and (max(vals) - min(vals)) <= BARRIER_FLAT_TOL * abs(m)
+
+    barrier = _flat(side1) or _flat(side2)
     if contracting:
         kind = "CONTRACTING TRIANGLE (most common)"
     elif expanding:
         kind = "EXPANDING TRIANGLE"
-    else:
+    elif barrier:
         kind = "BARRIER/RUNNING TRIANGLE (one boundary flat)"
+    else:
+        return RuleResult("correction = TRIANGLE? irregular legs (3-3-3-3-3)", Status.WARN,
+                          f"leg lengths {[round(x, 1) for x in lens]} not monotonic and no flat "
+                          "boundary -> verify count / possible complex correction")
     return RuleResult(f"correction = {kind} (3-3-3-3-3)", Status.PASS,
-                      f"leg lengths {[round(x,1) for x in lens]}; appears in wave-4/B/X, "
-                      "precedes the final thrust")
+                      f"leg lengths {[round(x, 1) for x in lens]}; appears in wave-4/B/X, "
+                      "precedes the final thrust; wave E may over/undershoot the a-c line (REF)")
+
+
+def triangle_thrust(widest_leg: float, base: float, direction: int = 1) -> dict:
+    """Project the post-triangle thrust: 75%-125% of the widest leg from the
+    breakout base. direction=+1 up, -1 down. (docs/research/01 §4 Task 3.)"""
+    return {"min": round(base + direction * 0.75 * widest_leg, 2),
+            "max": round(base + direction * 1.25 * widest_leg, 2)}
 
 
 # =========================================================================== #
 # D. ELLIOTT — DIAGONALS
 # =========================================================================== #
-def diagonal_rules(w: Sequence[Wave], position: str = "ending") -> list[RuleResult]:
-    """
-    Leading (wave 1/A) or ending (wave 5/C) diagonal. 5 legs, wedge.
-    Defining trait: wave 4 OVERLAPS wave 1 (legal here, unlike a normal impulse).
-    """
-    if len(w) != 5:
-        return [RuleResult("diagonal arity", Status.NA, f"need 5 legs, got {len(w)}")]
+def _diagonal_common(w: Sequence[Wave]) -> tuple[list[RuleResult], bool]:
+    """Wedge-sizing checks shared by leading & ending diagonals; returns also the
+    w4/w1 overlap flag so each variant can judge overlap per its own expectation."""
     w1, w2, w3, w4, w5 = w
     up = w1.up
-    r = []
     overlap = (w4.end.price < w1.end.price) if up else (w4.end.price > w1.end.price)
-    r.append(RuleResult(f"{position} diagonal: w4/w1 overlap", _ok(overlap),
-                        f"wave4 {w4.end.price} vs wave1 {w1.end.price} "
-                        + ("(overlap ✓ — diagonal)" if overlap else "(no overlap — not a diagonal)")))
-    # diagonals follow wedge-sizing (contracting: w1>w3>w5), not the impulse
-    # "wave 3 not shortest" HARD rule -> surface as WARN, not FAIL
+    # diagonals follow wedge-sizing; "wave 3 not shortest" -> WARN here, not FAIL
     c2 = not (w3.length < w1.length and w3.length < w5.length)
-    r.append(RuleResult("diagonal: wave3 vs wedge sizing", Status.PASS if c2 else Status.WARN,
-                        f"1/3/5 = {w1.length:.1f}/{w3.length:.1f}/{w5.length:.1f}"
-                        + ("" if c2 else "  (w3 shortest -> irregular for a wedge)")))
-    # contracting wedge (ending diagonals usually contract)
     contracting = (w5.length < w3.length < w1.length)
-    r.append(RuleResult("diagonal: contracting wedge", Status.PASS if contracting else Status.WARN,
-                        "legs contract (textbook)" if contracting
-                        else "legs expand/irregular (rarer; allowed but non-ideal)"))
+    r = [
+        RuleResult("diagonal: wave3 vs wedge sizing", Status.PASS if c2 else Status.WARN,
+                   f"1/3/5 = {w1.length:.1f}/{w3.length:.1f}/{w5.length:.1f}"
+                   + ("" if c2 else "  (w3 shortest -> irregular for a wedge)")),
+        RuleResult("diagonal: contracting wedge", Status.PASS if contracting else Status.WARN,
+                   "legs contract (textbook)" if contracting
+                   else "legs expand/irregular (rarer; allowed but non-ideal)"),
+    ]
+    return r, overlap
+
+
+def ending_diagonal_rules(w: Sequence[Wave]) -> list[RuleResult]:
+    """Ending diagonal (wave 5 / wave C). Sub-structure 3-3-3-3-3; w4/w1 overlap
+    EXPECTED (absence -> WARN, not FAIL, since sub-waves aren't machine-checkable
+    at this degree). See docs/research/01 §4 Task 2."""
+    if len(w) != 5:
+        return [RuleResult("ending diagonal arity", Status.NA, f"need 5 legs, got {len(w)}")]
+    r, overlap = _diagonal_common(w)
+    r.append(RuleResult("ending diagonal: w4/w1 overlap expected",
+                        Status.PASS if overlap else Status.WARN,
+                        f"overlap {'present (expected)' if overlap else 'absent (atypical for ending)'}"))
+    r.append(RuleResult("ending diagonal: sub-structure 3-3-3-3-3", Status.REF,
+                        "each leg should subdivide as a three (needs sub-wave data; REF)"))
     return r
+
+
+def leading_diagonal_rules(w: Sequence[Wave]) -> list[RuleResult]:
+    """Leading diagonal (wave 1 / wave A). Sub-structure 5-3-5-3-5; w4/w1 overlap
+    COMMON but not required. See docs/research/01 §4 Task 2."""
+    if len(w) != 5:
+        return [RuleResult("leading diagonal arity", Status.NA, f"need 5 legs, got {len(w)}")]
+    r, overlap = _diagonal_common(w)
+    r.append(RuleResult("leading diagonal: w4/w1 overlap (informational)", Status.PASS,
+                        f"overlap {'present (common)' if overlap else 'absent (acceptable for leading)'}"))
+    r.append(RuleResult("leading diagonal: sub-structure 5-3-5-3-5", Status.REF,
+                        "motive legs should subdivide 5-3-5-3-5 (needs sub-wave data; REF)"))
+    return r
+
+
+def diagonal_rules(w: Sequence[Wave], position: str = "ending") -> list[RuleResult]:
+    """Back-compat dispatcher. Prefer ending_diagonal_rules / leading_diagonal_rules."""
+    return leading_diagonal_rules(w) if position == "leading" else ending_diagonal_rules(w)
 
 
 # =========================================================================== #
 # E. NEOWAVE — CORE LOGIC RULES
 # =========================================================================== #
-def similarity_and_balance(a: Wave, b: Wave, lo=1/3, hi=3.0) -> RuleResult:
+def _within(a, b, lo, hi) -> bool:
+    r = a / b if b else float("nan")
+    return lo <= r <= hi
+
+
+def _group_similar(vals, lo=1/3, hi=3.0) -> bool:
+    return all(_within(vals[i], vals[i + 1], lo, hi) for i in range(len(vals) - 1)) if len(vals) > 1 else True
+
+
+def similarity_and_balance(a: Wave, b: Wave, lo=1/3, hi=3.0, context: str = "") -> RuleResult:
     """Adjacent corrective waves must relate in price AND time within lo..hi."""
     pr = a.length / b.length if b.length else float("nan")
     tr = a.days / b.days if b.days else float("nan")
     pok, tok = (lo <= pr <= hi), (lo <= tr <= hi)
     st = Status.PASS if (pok and tok) else Status.WARN
-    return RuleResult("NeoWave Similarity & Balance", st,
-                      f"price {pr:.2f}× (ok={pok}), time {tr:.2f}× (ok={tok})  band [{lo:.2f},{hi:.1f}]")
+    label = "NeoWave Similarity & Balance" + (f" ({context})" if context else "")
+    return RuleResult(label, st,
+                      f"price {pr:.2f}x (ok={pok}), time {tr:.2f}x (ok={tok})  band [{lo:.2f},{hi:.1f}]")
 
 
 def rule_of_proportion(parent: Wave, child: Wave, lo=1/3, hi=3.0) -> RuleResult:
@@ -297,6 +427,35 @@ def two_four_test(w2: Pivot, w4: Pivot, current_t: float, current_price: float,
                          else "holding -> impulse not yet confirmed complete"))
 
 
+def two_four_confirmation(w5: Wave, w2: Pivot, w4: Pivot, current_t: float,
+                          current_price: float, uptrend: bool = True) -> list[RuleResult]:
+    """
+    Two-stage impulse-completion confirmation (docs/research/02 §4 Task 4).
+
+    Stage 1: price has broken the 2-4 line AND did so in LESS time than wave 5 took
+             to build (a fast break confirms completion; a slow one is suspect).
+    Stage 2: the entire wave-5 price range has been retraced to its origin, within
+             <= wave-5 build time.
+    CAUSAL: uses only observed data (current_t, current_price).
+    """
+    lv = line_value(w2, w4, current_t)
+    broke = (current_price < lv) if uptrend else (current_price > lv)
+    elapsed = (current_t - w5.end.t) / 86400.0
+    w5_days = w5.days
+    fast = elapsed <= w5_days
+    stage1 = RuleResult("2-4 confirmation Stage 1 (break faster than w5)",
+                        Status.PASS if (broke and fast) else Status.WARN,
+                        f"2-4 line ~{lv:.1f}, price {current_price:.1f}, broken={broke}; "
+                        f"elapsed {elapsed:.0f}d vs w5 {w5_days:.0f}d -> fast={fast}")
+    w5_origin = w5.start.price
+    retraced = (current_price <= w5_origin) if uptrend else (current_price >= w5_origin)
+    stage2 = RuleResult("2-4 confirmation Stage 2 (w5 fully retraced)",
+                        Status.PASS if (retraced and fast) else Status.WARN,
+                        f"w5 origin {w5_origin:.1f}; price {current_price:.1f}; "
+                        f"retraced={retraced}; within w5 time={fast}")
+    return [stage1, stage2]
+
+
 def throwover_test(w1_top: Pivot, w3_top: Pivot, w5_peak: float,
                    peak_t: float, uptrend: bool = True) -> RuleResult:
     """
@@ -311,14 +470,37 @@ def throwover_test(w1_top: Pivot, w3_top: Pivot, w5_peak: float,
                       f"1-3 line ~{lv:.1f} at peak; wave5 {w5_peak:.1f} -> {flavour}")
 
 
+def base_channel_test(w0_origin: Pivot, w2_end: Pivot, w1_top: Pivot,
+                      current_t: float, current_price: float,
+                      uptrend: bool = True) -> RuleResult:
+    """
+    NeoWave/Elliott base (0-2) channel. Lower line runs through the wave-0 origin
+    and the wave-2 end; the upper parallel runs through the wave-1 top. Price
+    holding above the lower line during wave 3 confirms the motive count; a break
+    below it during wave 4 is an early warning. (docs/research/01 §4 Task 6.)
+
+    CAUSAL: w0/w1/w2 are already complete at the time of the check.
+    """
+    lv = line_value(w0_origin, w2_end, current_t)
+    holding = (current_price >= lv) if uptrend else (current_price <= lv)
+    st = Status.PASS if holding else Status.WARN
+    return RuleResult("Channel: 0-2 base line", st,
+                      f"0-2 line ~{lv:.1f} now; price {current_price:.1f} "
+                      + ("holding above (motive intact)" if holding
+                         else "broke below (wave-4 warning)"))
+
+
 # =========================================================================== #
 # F. NEOWAVE — TERMINALS & COMPLEX CORRECTIONS
 # =========================================================================== #
 def is_terminal(w: Sequence[Wave]) -> RuleResult:
-    """Terminal impulsion (NeoWave) / ending diagonal: 5 legs, w4/w1 overlap."""
+    """Terminal impulsion (NeoWave) / ending diagonal: 5 legs, w4/w1 overlap.
+    Detail reports the wave-2 retracement vs the 61.8% terminal limit and the
+    wedge shape; the fast-full-retrace expectation is a BIAS, not a price/time
+    forecast (see terminal_rules + docs/research/02 §2.7)."""
     if len(w) != 5:
         return RuleResult("terminal", Status.NA, f"need 5 legs, got {len(w)}")
-    w1, _, w3, w4, w5 = w
+    w1, w2, w3, w4, w5 = w
     up = w1.up
     overlap = (w4.end.price < w1.end.price) if up else (w4.end.price > w1.end.price)
     if not overlap:
@@ -326,10 +508,43 @@ def is_terminal(w: Sequence[Wave]) -> RuleResult:
         return RuleResult("terminal impulsion", Status.NA,
                           "no wave4/wave1 overlap -> directional impulse (not a terminal)")
     contracting = (w5.length < w3.length < w1.length)
+    w2_retr = w2.retr(w1)
+    limit_note = "" if w2_retr <= 0.618 + 1e-9 else " (>61.8% - atypical for a terminal)"
     return RuleResult("terminal impulsion", Status.PASS,
-                      "w4/w1 overlap ✓; " + ("contracting (textbook)" if contracting
+                      "w4/w1 overlap; " + ("contracting (textbook)" if contracting
                       else "expanding/irregular (rarer)") +
-                      " -> expect FAST FULL retrace to origin")
+                      f"; wave2 retraces {w2_retr:.0%} of wave1{limit_note}"
+                      " -> bias: fast full retrace toward origin")
+
+
+def terminal_rules(w: Sequence[Wave]) -> list[RuleResult]:
+    """Granular terminal-impulsion checks (docs/research/02 §4 Task 5): overlap,
+    wave-2 <= 61.8% retrace limit, wedge shape (contracting/expanding), and a REF
+    that each of the 5 legs should be corrective (:3) — checkable once monowave
+    structure labels exist (label_monowaves)."""
+    if len(w) != 5:
+        return [RuleResult("terminal arity", Status.NA, f"need 5 legs, got {len(w)}")]
+    w1, w2, w3, w4, w5 = w
+    up = w1.up
+    overlap = (w4.end.price < w1.end.price) if up else (w4.end.price > w1.end.price)
+    res = [RuleResult("terminal: w4/w1 overlap", Status.PASS if overlap else Status.NA,
+                      "overlap present (terminal/diagonal)" if overlap
+                      else "no overlap -> directional impulse, not a terminal")]
+    if not overlap:
+        return res
+    w2_retr = w2.retr(w1)
+    res.append(RuleResult("terminal: wave2 <= 61.8% of wave1",
+                          Status.PASS if w2_retr <= 0.618 + 1e-9 else Status.WARN,
+                          f"wave2 retraces {w2_retr:.0%} of wave1"))
+    contracting = (w5.length < w3.length < w1.length)
+    expanding = (w5.length > w3.length > w1.length)
+    shape = ("contracting (textbook)" if contracting
+             else "expanding (rarer)" if expanding else "irregular")
+    res.append(RuleResult("terminal: wedge shape",
+                          Status.PASS if contracting else Status.WARN, shape))
+    res.append(RuleResult("terminal: sub-waves each corrective (:3)", Status.REF,
+                          "each of the 5 legs should be a three (verify via monowave labels)"))
+    return res
 
 
 def terminal_retrace_window(build_days: float, top_t: float, fracs=(0.25, 0.33, 0.5)) -> dict:
@@ -339,11 +554,15 @@ def terminal_retrace_window(build_days: float, top_t: float, fracs=(0.25, 0.33, 
 
 def classify_complex_correction(legs: Sequence[Wave]) -> RuleResult:
     """
-    NeoWave corrective zoo by leg count & symmetry:
-      3  -> standard (zigzag/flat) — use classify_correction
+    NeoWave corrective zoo by leg count, gated on time-similarity (S&B):
+      3  -> standard (see classify_correction)
       5  -> triangle
-      7  -> diametric (a-g; symmetrical or bowtie) or symmetrical
-      8+ -> multi-X complex combination
+      7  -> diametric: diamond (middle leg longest) vs bowtie (middle shortest),
+            requiring adjacent-leg time similarity across all 7 legs
+      9  -> symmetrical: advancing legs similar to each other, declining legs
+            similar to each other
+      other -> multi-X complex combination (REF)
+    (docs/research/02 §4 Tasks 7, 8.)
     """
     n = len(legs)
     if n == 3:
@@ -352,28 +571,148 @@ def classify_complex_correction(legs: Sequence[Wave]) -> RuleResult:
         return _classify_triangle(legs)
     if n == 7:
         lens = [x.length for x in legs]
+        times = [x.days for x in legs]
+        time_sim = all(_within(times[i], times[i + 1], 1 / 3, 3.0) for i in range(6))
         mid = lens[3]
-        symmetric = max(lens) / min(lens) < 1.6
-        # diametric: expands to middle then contracts (bowtie) or vice-versa
-        expands_then_contracts = lens[0] < mid > lens[-1]
-        if symmetric:
-            kind = "SYMMETRICAL (7 legs, similar size)"
-        elif expands_then_contracts:
-            kind = "DIAMETRIC — bowtie (expand→contract)"
+        if mid == max(lens):
+            kind = "DIAMETRIC - diamond (middle leg longest)"
+        elif mid == min(lens):
+            kind = "DIAMETRIC - bowtie (middle leg shortest)"
         else:
-            kind = "DIAMETRIC — diamond/other (a-b-c-d-e-f-g)"
-        return RuleResult(f"NeoWave {kind}", Status.PASS,
-                          f"7 corrective legs; lens {[round(x,1) for x in lens]}")
+            kind = "DIAMETRIC - irregular middle"
+        return RuleResult(f"NeoWave {kind}", Status.PASS if time_sim else Status.WARN,
+                          f"7 legs; lens {[round(x, 1) for x in lens]}; adjacent-leg time "
+                          f"similarity {'ok' if time_sim else 'violated (verify count)'}")
+    if n == 9:
+        lens = [x.length for x in legs]
+        adv, dec = lens[0::2], lens[1::2]            # advancing vs declining groups
+        adv_sim, dec_sim = _group_similar(adv), _group_similar(dec)
+        ok = adv_sim and dec_sim
+        return RuleResult("NeoWave SYMMETRICAL (9 legs)", Status.PASS if ok else Status.WARN,
+                          f"9 legs; advancing-group similar={adv_sim}, declining-group similar={dec_sim}")
     return RuleResult("NeoWave complex combination", Status.REF,
                       f"{n} legs -> multi-X (W-X-Y-X-Z+) / neutral or extracting triangle; "
                       "resolve via sub-degree construction")
 
 
-def x_wave_check(p1_end: Wave, x: Wave, p2_start: Wave) -> RuleResult:
-    """x-waves join corrective patterns; typically < 61.8% of the prior pattern's depth."""
-    return RuleResult("NeoWave x-wave", Status.REF,
-                      "x-wave connects two corrections; should be smaller/sharper "
-                      "than the patterns it joins")
+def is_neutral_triangle(legs: Sequence[Wave]) -> RuleResult:
+    """NeoWave neutral triangle (docs/research/02 §4 Task 6): 5 legs where leg C
+    (index 2) is the longest; legs A and E tend to equality (each >= 38.2% of C);
+    C <= ~261.8% of A. Distinct from a contracting/expanding triangle."""
+    if len(legs) != 5:
+        return RuleResult("neutral triangle arity", Status.NA, f"need 5 legs, got {len(legs)}")
+    lens = [x.length for x in legs]
+    A, C, E = lens[0], lens[2], lens[4]
+    c_longest = C == max(lens)
+    a_e_equal = _within(A, E, 0.7, 1.43)             # A ~ E (within ~1.43x)
+    a_e_min = (A >= 0.382 * C) and (E >= 0.382 * C)
+    c_limit = C <= 2.618 * A + 1e-9
+    ok = c_longest and a_e_equal and a_e_min and c_limit
+    return RuleResult("NeoWave neutral triangle", Status.PASS if ok else Status.WARN,
+                      f"C longest={c_longest}; A~E={a_e_equal}; A,E>=38.2%C={a_e_min}; "
+                      f"C<=261.8%A={c_limit}")
+
+
+def x_wave_check(prior_correction: Wave, x: Wave) -> RuleResult:
+    """x-wave connecting two corrections (docs/research/02 §4 Task 9). Rule:
+    a small x-wave retraces < 61.8% of the prior correction (PASS); 61.8-100% is a
+    large x-wave (WARN); > 100% is not an x-wave -> structural error (FAIL)."""
+    rr = x.length / prior_correction.length if prior_correction.length else float("nan")
+    if rr < 0.618:
+        st, msg = Status.PASS, f"x = {rr:.0%} of prior correction (small x-wave)"
+    elif rr <= 1.0:
+        st, msg = Status.WARN, f"x = {rr:.0%} of prior correction (large x-wave)"
+    else:
+        st, msg = Status.FAIL, f"x = {rr:.0%} (>100%) -> not an x-wave; structural error"
+    return RuleResult("NeoWave x-wave", st, msg)
+
+
+# =========================================================================== #
+# F2. NEOWAVE — BOTTOM-UP CONSTRUCTION (monowave -> polywave)
+# =========================================================================== #
+# Structure labels (Neely): ':5'/':3' is the load-bearing motive/corrective core
+# (docs/research/02 §2.1); refinements (:F3/:c3/:L3/:L5/:s5/:sL3) need higher-
+# degree context and are left to future work. This module assigns the :5/:3 core
+# plus the retracement-rule number (§2.5), flagging edge monowaves provisional.
+_RETRACE_BREAKS = (0.382, 0.618, 1.0, 1.618, 2.618)  # Neely's 7-rule breakpoints
+
+
+def _retracement_rule(m2_over_m1: float) -> int:
+    """Neely retracement-rule number (1..7) for the m2/m1 ratio (docs/research/02 §2.5)."""
+    r = m2_over_m1
+    if r < 0.382:
+        return 1
+    if r < 0.618:
+        return 2
+    if r <= 1.0:
+        return 3          # rules 3/4 share the 61.8-100% band (overlap variant)
+    if r <= 1.618:
+        return 5
+    if r <= 2.618:
+        return 6
+    return 7
+
+
+def label_monowaves(pivots: Sequence[Pivot]) -> list[tuple[Wave, str]]:
+    """
+    Assign each monowave (between consecutive pivots) a NeoWave structure label.
+
+    The label combines the :5/:3 core (motive vs corrective, from m1 vs the prior
+    monowave m0 in price AND time) with the seven-retracement-rule number (from how
+    the next monowave m2 retraces m1). Edge monowaves (no full m0/m2 context) get
+    ':?' (provisional). Returns list of (Wave, label). (docs/research/02 §4 Task 1.)
+
+    CAUSAL-ONLY: m1's label uses m0 and m2, both already formed by the time m1 is
+    labelled; the final monowave is provisional until its successor confirms.
+    """
+    pivots = list(pivots)
+    waves = [Wave(pivots[i], pivots[i + 1]) for i in range(len(pivots) - 1)]
+    out: list[tuple[Wave, str]] = []
+    n = len(waves)
+    for i, m1 in enumerate(waves):
+        m0 = waves[i - 1] if i - 1 >= 0 else None
+        m2 = waves[i + 1] if i + 1 < n else None
+        if m0 is None or m2 is None:
+            out.append((m1, ":?"))           # edge: provisional, no full context
+            continue
+        retr_prior = m1.length / m0.length if m0.length else float("nan")
+        faster = m1.days < m0.days
+        if retr_prior > 1.0 and faster:
+            core = ":5"
+        elif retr_prior <= 0.618:
+            core = ":3"
+        elif retr_prior > 1.0:
+            core = ":5"
+        else:
+            core = ":5|:3"                   # ambiguous
+        rule = _retracement_rule(m2.length / m1.length if m1.length else float("nan"))
+        out.append((m1, f"{core}(R{rule})"))
+    return out
+
+
+def group_polywaves(labelled: Sequence[tuple]) -> list[list[tuple]]:
+    """
+    Slide windows of 3 and 5 over labelled monowaves; keep those that form a valid
+    standard correction (3 legs) or pass the impulse hard rules (5 legs) AND clear
+    Similarity & Balance on their corrective pair(s). Returns candidate groups
+    (overlap allowed). Depends on label_monowaves. (docs/research/02 §4 Task 2.)
+    """
+    items = list(labelled)
+    waves = [w for (w, _lab) in items]
+    candidates: list[list[tuple]] = []
+    for size in (3, 5):
+        for start in range(0, len(waves) - size + 1):
+            grp = waves[start:start + size]
+            if size == 3:
+                rr = classify_correction(grp)
+                sb = similarity_and_balance(grp[0], grp[2])           # A vs C
+                if rr.status is Status.PASS and sb.status in (Status.PASS, Status.WARN):
+                    candidates.append(items[start:start + size])
+            else:  # size == 5: a polywave impulse
+                hard = elliott_hard_rules(grp)
+                if not any(h.status is Status.FAIL for h in hard):
+                    candidates.append(items[start:start + size])
+    return candidates
 
 
 # =========================================================================== #
@@ -388,7 +727,7 @@ def validate_impulse(w: Sequence[Wave], diagonal: bool = False) -> list[RuleResu
     res += elliott_guidelines(w)
     # NeoWave overlays
     if len(w) == 5:
-        res.append(similarity_and_balance(w[1], w[3]))  # wave2 vs wave4
+        res.append(similarity_and_balance(w[1], w[3], context="wave2 vs wave4"))
         res.append(is_terminal(w))
     return res
 
@@ -397,6 +736,11 @@ def validate_correction(w: Sequence[Wave]) -> list[RuleResult]:
     res = [classify_correction(w)]
     if len(w) >= 2:
         res.append(retracement_logic(w[1].retr(w[0])))
+    if len(w) == 3:
+        res.append(similarity_and_balance(w[0], w[2], context="A vs C"))
+    if len(w) == 5:
+        for i in range(4):                                   # triangle adjacent legs
+            res.append(similarity_and_balance(w[i], w[i + 1], context=f"leg{i+1} vs leg{i+2}"))
     if len(w) in (5, 7) or len(w) > 7:
         res.append(classify_complex_correction(w))
     return res

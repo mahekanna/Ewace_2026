@@ -1,0 +1,30 @@
+name: tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run test suite (pure stdlib, no deps)
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Run module self-tests + examples
+        run: |
+          python wavelib/rules.py
+          python wavelib/toolkit.py
+          python wavelib/confluence.py
+          cd examples
+          for f in 01_validate_avgo.py 02_confluence_score.py 03_zigzag_pipeline.py 04_auto_label.py; do
+            echo "== $f =="; python "$f" >/dev/null
+          done

@@ -1,0 +1,151 @@
+"""
+backtest.py
+===========
+Causal bar-by-bar reversal-replay harness (docs/research/04 §4 Item 5).
+
+At each bar t, signals are generated from bars[0..t] ONLY — never bar[t+1] — so
+the measured hit-rate is honest. Walk-forward (IS/OOS) splitting is supported.
+
+Pure stdlib.
+"""
+from __future__ import annotations
+from dataclasses import dataclass
+
+from . import automation
+from .confluence import score_reversal
+
+
+@dataclass
+class ReversalEvent:
+    entry_t: float
+    score: int
+    zone: tuple
+    invalidation: float
+    entry_price: float
+
+
+@dataclass
+class ReversalOutcome:
+    event: ReversalEvent
+    outcome: str               # "REVERSAL" | "INVALIDATED" | "OPEN"
+    exit_t: float | None
+    exit_price: float | None
+    move_pct: float | None     # signed % from entry to exit
+
+
+@dataclass
+class BacktestStats:
+    n_signals: int
+    n_reversals: int
+    n_invalidations: int
+    n_open: int
+    hit_rate: float
+    profit_factor: float
+    wfe: float | None = None
+    is_period: tuple | None = None
+    oos_period: tuple | None = None
+
+
+def _zone_from_candidate(c) -> tuple:
+    """Reversal zone = price span of the candidate's last (corrective) leg."""
+    w = c.waves[-1]
+    return (min(w.start.price, w.end.price), max(w.start.price, w.end.price))
+
+
+def _invalidation(c, bullish: bool) -> float:
+    """Origin of the candidate's first wave — a break past it kills the count."""
+    return c.waves[0].start.price
+
+
+def _resolve(event: ReversalEvent, bars, min_reversal_pct: float, bullish: bool) -> ReversalOutcome:
+    """Walk forward from the signal bar to classify the outcome."""
+    entry = event.entry_price
+    target = entry * (1 + min_reversal_pct) if bullish else entry * (1 - min_reversal_pct)
+    after = [b for b in bars if b[0] > event.entry_t]
+    for b in after:
+        t, h, l, c = b[0], b[2], b[3], b[4]
+        # invalidation first (conservative)
+        if (bullish and l <= event.invalidation) or (not bullish and h >= event.invalidation):
+            move = (event.invalidation - entry) / entry * (1 if bullish else -1)
+            return ReversalOutcome(event, "INVALIDATED", t, event.invalidation, move)
+        if (bullish and h >= target) or (not bullish and l <= target):
+            move = (target - entry) / entry * (1 if bullish else -1)
+            return ReversalOutcome(event, "REVERSAL", t, target, move)
+    return ReversalOutcome(event, "OPEN", None, None, None)
+
+
+def _aggregate(outcomes, is_period=None, oos_period=None) -> BacktestStats:
+    rev = [o for o in outcomes if o.outcome == "REVERSAL"]
+    inv = [o for o in outcomes if o.outcome == "INVALIDATED"]
+    opn = [o for o in outcomes if o.outcome == "OPEN"]
+    decided = len(rev) + len(inv)
+    hit = len(rev) / decided if decided else 0.0
+    gains = sum(o.move_pct for o in rev if o.move_pct)
+    losses = sum(abs(o.move_pct) for o in inv if o.move_pct)
+    pf = (gains / losses) if losses else (float("inf") if gains else 0.0)
+    return BacktestStats(len(outcomes), len(rev), len(inv), len(opn), hit, pf,
+                         is_period=is_period, oos_period=oos_period)
+
+
+def _wfo_windows(n: int, train: int, test: int, step: int):
+    """Yield ((is_lo, is_hi), (oos_lo, oos_hi)) index ranges; OOS never overlaps IS."""
+    out = []
+    anchor = train
+    while anchor + test <= n:
+        out.append(((anchor - train, anchor), (anchor, anchor + test)))
+        anchor += step
+    return out
+
+
+def backtest_reversals(bars, score_threshold: int = 4, min_reversal_pct: float = 0.05,
+                       degrees=(0.03, 0.07), wfo_train_size=None, wfo_test_size=None,
+                       wfo_step_size=None, bullish: bool = True,
+                       cycle_aligned: bool = False, min_history: int = 60) -> BacktestStats:
+    """
+    Bar-by-bar causal replay (docs/research/04 §4 Item 5). bars = (t,o,h,l,c,v).
+
+    At each bar: auto-label causally, take the best clean candidate, and — if the
+    close sits inside its reversal zone — score the reversal on the trailing
+    window. Events with score >= threshold are walked forward for their outcome.
+
+    Walk-forward: if wfo_* are set, returns combined OOS stats with `wfe` = mean
+    OOS/IS profit-factor ratio across non-overlapping windows.
+    """
+    if wfo_train_size and wfo_test_size and wfo_step_size:
+        ratios, oos_all = [], []
+        first_is = last_oos = None
+        for (is_lo, is_hi), (oos_lo, oos_hi) in _wfo_windows(
+                len(bars), wfo_train_size, wfo_test_size, wfo_step_size):
+            is_stats = backtest_reversals(bars[is_lo:is_hi], score_threshold, min_reversal_pct,
+                                          degrees, bullish=bullish, cycle_aligned=cycle_aligned,
+                                          min_history=min_history)
+            oos_stats = backtest_reversals(bars[oos_lo:oos_hi], score_threshold, min_reversal_pct,
+                                           degrees, bullish=bullish, cycle_aligned=cycle_aligned,
+                                           min_history=min_history)
+            if is_stats.profit_factor not in (0.0, float("inf")):
+                ratios.append(oos_stats.profit_factor / is_stats.profit_factor)
+            first_is = first_is or (bars[is_lo][0], bars[is_hi - 1][0])
+            last_oos = (bars[oos_lo][0], bars[oos_hi - 1][0])
+        wfe = sum(ratios) / len(ratios) if ratios else None
+        agg = BacktestStats(0, 0, 0, 0, 0.0, 0.0, wfe=wfe,
+                            is_period=first_is, oos_period=last_oos)
+        return agg
+
+    events: list[ReversalEvent] = []
+    n = len(bars)
+    for t in range(min_history, n):
+        sub = bars[:t + 1]
+        cands = automation.label_and_validate(sub, degrees=degrees)
+        if not cands or cands[0].hard_fails > 0:
+            continue
+        zone = _zone_from_candidate(cands[0])
+        close = sub[-1][4]
+        if not (zone[0] <= close <= zone[1]):
+            continue
+        window = bars[max(0, t - min_history):t + 1]
+        rep = score_reversal("bt", window, zone, bullish=bullish, cycle_aligned=cycle_aligned)
+        if rep.score >= score_threshold:
+            events.append(ReversalEvent(sub[-1][0], rep.score, zone,
+                                        _invalidation(cands[0], bullish), close))
+    outcomes = [_resolve(e, bars, min_reversal_pct, bullish) for e in events]
+    return _aggregate(outcomes)
