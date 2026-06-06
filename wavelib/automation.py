@@ -157,3 +157,30 @@ def assign_degrees_neely(bars, base_scale: float = 0.03, max_degrees: int = 3, a
             break                              # no further compaction possible
         pivots = promoted
     return results
+
+
+_MOTIVE_SEQ = {5, 9, 13, 17, 21}
+_CORRECTIVE_SEQ = {3, 7, 11, 15, 19}
+
+
+def swing_sequence(bars=None, pivots=None, pct: float = 0.05):
+    """EWF swing-sequence count on confirmed ZigZag pivots (docs/research/deep/09,10).
+    Counts alternating swings: motive sequences complete at 5/9/13..., corrective at
+    3/7/11...; an in-between count is INCOMPLETE -> the move is expected to extend
+    (the actionable signal). Returns a dict with the count, status, and the next
+    motive/corrective targets. Causal (confirmed pivots only)."""
+    if pivots is None:
+        pivots = [p for p in zigzag_causal(bars or [], pct=pct) if p.confirmed_t is not None]
+    n = max(0, len(pivots) - 1)
+    if n in _MOTIVE_SEQ:
+        status = "MOTIVE-COMPLETE"
+    elif n in _CORRECTIVE_SEQ:
+        status = "CORRECTIVE-COMPLETE"
+    else:
+        status = "INCOMPLETE"
+    return {
+        "swings": n,
+        "status": status,
+        "next_motive": min((m for m in sorted(_MOTIVE_SEQ) if m >= n), default=None),
+        "next_corrective": min((c for c in sorted(_CORRECTIVE_SEQ) if c >= n), default=None),
+    }

@@ -264,6 +264,20 @@ def wave_ratio(a: Wave, b: Wave) -> float:
     return a.length / b.length if b.length else float("nan")
 
 
+def blue_box_zone(a_start: float, a_end: float, b_end: float,
+                  lo: float = 1.0, hi: float = 1.618) -> tuple:
+    """EWF 'Blue Box' — the Fibonacci-extension reaction zone where the next leg
+    (e.g. wave C) is expected to complete. Given swing A (a_start->a_end) and the
+    connecting leg's end b_end, project the lo..hi (100%-161.8%) extension of A's
+    length from b_end, continuing A's direction. Returns (low_price, high_price);
+    the far edge (161.8%) is the hard invalidation. (docs/research/deep/10.)"""
+    leg = abs(a_end - a_start)
+    direction = -1 if a_end < a_start else 1
+    p1 = b_end + direction * lo * leg
+    p2 = b_end + direction * hi * leg
+    return (min(p1, p2), max(p1, p2))
+
+
 # --------------------------------------------------------------------------- #
 # 3. NeoWave — Rule of Similarity & Balance
 # --------------------------------------------------------------------------- #

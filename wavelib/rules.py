@@ -629,6 +629,23 @@ def classify_complex_correction(legs: Sequence[Wave]) -> RuleResult:
                       "resolve via sub-degree construction")
 
 
+def is_running_triangle(legs: Sequence[Wave]) -> RuleResult:
+    """EWF running triangle (docs/research/deep/09): a (usually contracting)
+    triangle whose wave B terminates BEYOND the wave-A origin — it makes a new
+    extreme that mimics the start of a fresh impulse, so it is the highest
+    mislabel-risk pattern. Flag it explicitly. PASS = running; NA = ordinary."""
+    if len(legs) != 5:
+        return RuleResult("running triangle", Status.NA, f"need 5 legs, got {len(legs)}")
+    a, b = legs[0], legs[1]
+    origin = a.start.price
+    a_down = a.end.price < a.start.price
+    b_beyond = (b.end.price > origin) if a_down else (b.end.price < origin)
+    return RuleResult("running triangle", Status.PASS if b_beyond else Status.NA,
+                      f"wave B {'BREAKS BEYOND' if b_beyond else 'stays within'} the "
+                      f"wave-A origin {origin:.2f}" +
+                      (" -> looks like a new impulse (mislabel risk)" if b_beyond else ""))
+
+
 def is_neutral_triangle(legs: Sequence[Wave]) -> RuleResult:
     """NeoWave neutral triangle (docs/research/02 §4 Task 6): 5 legs where leg C
     (index 2) is the longest; legs A and E tend to equality (each >= 38.2% of C);
