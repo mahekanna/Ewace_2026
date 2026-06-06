@@ -143,7 +143,7 @@ class TestRenderChart(unittest.TestCase):
         svg = render_chart(self.WAVES, projections={"w5": [210, 230]}, zones=[(118, 125)])
         root = ET.fromstring(svg)
         lines = [e for e in root.iter() if self._tag(e) == "line"]
-        rects = [e for e in root.iter() if self._tag(e) == "rect"]
+        rects = [e for e in root.iter() if self._tag(e) == "rect" and e.get("class") == "zone"]
         self.assertEqual(len(lines), 2)                        # two projection targets
         self.assertEqual(len(rects), 1)                        # one zone
 

@@ -27,4 +27,3 @@ htmlcov/
 *.parquet
 *.csv
 scratch/
-charts/*.svg

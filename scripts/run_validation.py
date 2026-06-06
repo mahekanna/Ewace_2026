@@ -94,7 +94,44 @@ def section(sym, cfg, out):
     wl.render_chart(waves, zones=[cfg["zone"]], title=f"{sym} 1D — auto zigzag (pct=0.08)",
                     output_path=svg_path)
     out.append(f"**Chart:** `charts/{sym.lower()}_1d_auto.svg` ({len(waves)} legs)\n")
-    return bars
+    return {"sym": sym, "last": last[4], "zone": cfg["zone"], "score": rep.score,
+            "type": cands[0].count_type if cands else "-",
+            "fib": cands[0].fib_score if cands else 0.0,
+            "svg": f"{sym.lower()}_1d_auto.svg"}
+
+
+def write_dashboard(summaries):
+    """Build a single self-contained HTML dashboard embedding the SVG charts."""
+    today = datetime.date.today().isoformat()
+    blocks = []
+    for s in summaries:
+        with open(os.path.join(CHARTS, s["svg"])) as fh:
+            svg = fh.read()
+        tier = ("HIGH-CONFIDENCE" if s["score"] >= 4
+                else "BUILDING — not yet confirmed" if s["score"] >= 2
+                else "structurally allowed only")
+        blocks.append(
+            f'<section><h2>{s["sym"]} — last close {s["last"]:.2f}</h2>'
+            f'<p>Auto-detected best count: <b>{s["type"]}</b> '
+            f'(quality {s["fib"]:.0%}) at zone {s["zone"][0]}-{s["zone"][1]}. '
+            f'Reversal confluence: <b>{s["score"]}/7</b> ({tier}).</p>'
+            f'<div class="chart">{svg}</div></section>')
+    html = (
+        "<!doctype html><meta charset='utf-8'>"
+        "<title>wavelib — wave analysis dashboard</title>"
+        "<style>body{font-family:sans-serif;max-width:1000px;margin:24px auto;color:#222;"
+        "padding:0 16px}h1{margin-bottom:4px}.sub{color:#666;margin-top:0}"
+        "section{margin:28px 0;border-top:1px solid #eee;padding-top:12px}"
+        ".chart{border:1px solid #eee;border-radius:6px;overflow:auto}"
+        "p{line-height:1.5}</style>"
+        "<h1>Elliott Wave / NeoWave — analysis dashboard</h1>"
+        f"<p class='sub'>Regenerated {today} · data as of 2026-06-05 close · "
+        "analysis tooling only, not investment advice</p>"
+        + "".join(blocks))
+    path = os.path.join(CHARTS, "analysis_2026-06.html")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(html)
+    return path
 
 
 def main():
@@ -104,9 +141,11 @@ def main():
            f"_Regenerated {today} by `scripts/run_validation.py` on TradingView/tvremix "
            "daily snapshots in `data/live/` (price data as of 2026-06-05 close). "
            "Analysis tooling only — not investment advice._", ""]
+    summaries = []
     for sym, cfg in SYMBOLS.items():
-        section(sym, cfg, out)
+        summaries.append(section(sym, cfg, out))
         out.append("---\n")
+    dash = write_dashboard(summaries)
     out.append("### How to reproduce\n")
     out.append("```\npython3 scripts/run_validation.py\npython3 -m unittest discover -s tests\n```")
     text = "\n".join(out) + "\n"
@@ -115,6 +154,7 @@ def main():
         fh.write(text)
     print(text)
     print(f"\nwrote {REPORT}")
+    print(f"wrote {dash}")
 
 
 if __name__ == "__main__":
