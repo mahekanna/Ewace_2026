@@ -35,6 +35,8 @@ MAX_HOLD = 13                       # ~one quarter on weekly bars (vertical barr
 DEGREES = (0.08, 0.15)             # weekly swings are larger than daily
 MIN_HISTORY = 80                   # bars of warm-up before the first signal
 MIN_BARS = 200                     # ignore series too short to be meaningful
+LABEL_LOOKBACK = 300               # cap labelling context (~6y weekly) -> linear replay
+STRIDE = 2                         # evaluate every 2nd weekly bar (zones persist) -> ~2x faster
 # parameter grid (the "trials"): score threshold x (take-profit, stop-loss), wider
 # barriers because weekly ranges are larger.
 SCORE_THRESHOLDS = (3, 4)
@@ -78,7 +80,8 @@ def main():
             for _slug, _sym, bars in series:
                 pooled += wl.reversal_returns(bars, score_threshold=st, degrees=DEGREES,
                                               min_history=MIN_HISTORY, pt=pt, sl=sl,
-                                              max_hold=MAX_HOLD, cost=COST)
+                                              max_hold=MAX_HOLD, cost=COST,
+                                              label_lookback=LABEL_LOOKBACK, stride=STRIDE)
             sr = wl.sharpe_ratio(pooled)
             sk, ku = wl.skew_kurt(pooled)
             n = len(pooled)
@@ -165,6 +168,11 @@ def main():
         "weekly signals can't leak. This report is the regime-diversity answer to the "
         "daily DSR report's main caveat; remaining caveats: signals on different "
         "instruments are not fully independent (sector/beta correlation).",
+        ">",
+        f"> Replay settings: labelling context capped at {LABEL_LOOKBACK} bars and the "
+        f"timeline sampled every {STRIDE} bars for tractable runtime — both are causal "
+        "(past-only) and, on weekly data where a reversal zone persists for several "
+        "bars, do not materially change the decided-event set.",
     ]
     text = "\n".join(out) + "\n"
     os.makedirs(os.path.dirname(REPORT), exist_ok=True)

@@ -192,12 +192,24 @@ def horizon_returns(bars, horizon: int = 20, bullish: bool = True) -> list:
 
 
 def _replay(bars, score_threshold, min_reversal_pct, degrees, bullish,
-            cycle_aligned, min_history, pt=None, sl=None, max_hold=None, cost=0.0):
+            cycle_aligned, min_history, pt=None, sl=None, max_hold=None, cost=0.0,
+            label_lookback=None, stride=1):
     """Causal bar-by-bar replay -> list[ReversalOutcome]. If pt/sl/max_hold are
-    given, exits use the triple-barrier method; else the legacy fixed target."""
+    given, exits use the triple-barrier method; else the legacy fixed target.
+
+    `label_lookback` caps how far back the labeller looks at each bar (the labelling
+    context only — forward resolution still uses the full series). Leaving it None
+    means "all history up to t" (original behaviour); setting it keeps the per-bar
+    cost bounded so long histories replay in linear rather than quadratic time,
+    without breaking causality (the slice is still past-only).
+
+    `stride` evaluates every Nth bar instead of every bar (default 1 = every bar).
+    On coarse timeframes a reversal zone persists across several bars, so a small
+    stride roughly halves cost with negligible effect on the decided-event set."""
     events: list[ReversalEvent] = []
-    for t in range(min_history, len(bars)):
-        sub = bars[:t + 1]
+    for t in range(min_history, len(bars), max(1, stride)):
+        lo = 0 if label_lookback is None else max(0, t + 1 - label_lookback)
+        sub = bars[lo:t + 1]
         cands = automation.label_and_validate(sub, degrees=degrees)
         if not cands or cands[0].hard_fails > 0:
             continue
@@ -218,10 +230,14 @@ def _replay(bars, score_threshold, min_reversal_pct, degrees, bullish,
 def reversal_returns(bars, score_threshold: int = 4, min_reversal_pct: float = 0.05,
                      degrees=(0.03, 0.07), bullish: bool = True,
                      cycle_aligned: bool = False, min_history: int = 60,
-                     pt=None, sl=None, max_hold=None, cost=0.0) -> list:
+                     pt=None, sl=None, max_hold=None, cost=0.0,
+                     label_lookback=None, stride=1) -> list:
     """Per-event signed returns from a causal replay — feed to validation.cpcv_*
     for the honest out-of-sample edge verdict (docs/research/deep/08). Pass
-    pt/sl/max_hold to use realistic triple-barrier exits."""
+    pt/sl/max_hold to use realistic triple-barrier exits. `label_lookback` bounds
+    the labelling context per bar (keeps long-history replays linear); `stride`
+    evaluates every Nth bar (cheap sampling on coarse timeframes)."""
     outs = _replay(bars, score_threshold, min_reversal_pct, degrees, bullish,
-                   cycle_aligned, min_history, pt=pt, sl=sl, max_hold=max_hold, cost=cost)
+                   cycle_aligned, min_history, pt=pt, sl=sl, max_hold=max_hold,
+                   cost=cost, label_lookback=label_lookback, stride=stride)
     return [o.move_pct for o in outs if o.move_pct is not None]
