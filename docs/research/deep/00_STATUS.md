@@ -19,6 +19,25 @@ deep finding to what is now built in `wavelib`, what is deferred, and why.
 | 08 validation | Trials registry (capture n_trials prospectively) | ✅ done | `validation.log_trial` / `registry/trials.jsonl` |
 | 08 validation | CPCV falsification gate (purged/embargoed) | ✅ done | `validation.cpcv_splits`, `cpcv_profit_factor` |
 
+## Stage 6 — EWF (elliottwave-forecast.com) integration (docs 09, 10)
+
+A dedicated harvest of elliottwave-forecast.com (their server 403s automated
+fetches, so search-sourced) produced docs `09`/`10`. Implemented:
+
+| EWF idea | Status | Where |
+|---|---|---|
+| Blue Box (100–161.8% Fib-extension reaction zone) | ✅ done | `toolkit.blue_box_zone` |
+| Swing-sequence count (3/7/11 corr, 5/9/13 motive) | ✅ done | `automation.swing_sequence` (in report) |
+| Running triangle (wave-B beyond origin) | ✅ done | `rules.is_running_triangle` |
+| ABC-vs-WXY discipline (5-3-5 vs 3-3-3) | ✅ done | `wavetree._correction_node` → `WXY` |
+| Wave-label-aware RSI divergence | ✅ done | `confluence.divergence_at` |
+| Members-only videos / seminar PDF / proprietary pivot algo | ⛔ inaccessible | 403 / paywall — noted in 09/10 |
+
+Also completed (previously deferred): **Gaussian-Fibonacci calibration**
+(`wavetree._fib_close` smooth kernel) and **CPCV wired into the per-symbol report**
+(`backtest.reversal_returns` → `validation.cpcv_profit_factor`, with an honest
+"needs ≥6 events" when under-powered).
+
 ## The honest ceiling
 
 Both research passes converge on the same truth: a single, deterministic,
