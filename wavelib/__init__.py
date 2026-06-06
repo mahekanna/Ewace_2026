@@ -39,6 +39,10 @@ from .automation import (
 from .backtest import (
     backtest_reversals, ReversalEvent, ReversalOutcome, BacktestStats,
 )
+from .validation import (
+    sharpe_ratio, skew_kurt, probabilistic_sharpe_ratio, min_track_record_length,
+    deflated_sharpe_ratio, expected_max_sharpe, log_trial, count_trials,
+)
 from .charting import render_chart
 from .wavetree import (
     WaveNode, build_wave_tree, build_tree_from_pivots, format_tree, deepest_degree,

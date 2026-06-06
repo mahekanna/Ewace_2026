@@ -13,6 +13,8 @@ from dataclasses import dataclass
 
 from . import automation
 from .confluence import score_reversal
+from .validation import (sharpe_ratio, skew_kurt, probabilistic_sharpe_ratio,
+                         min_track_record_length)
 
 
 @dataclass
@@ -41,9 +43,17 @@ class BacktestStats:
     n_open: int
     hit_rate: float
     profit_factor: float
+    sharpe: float = 0.0
+    psr: float = 0.0              # P(true Sharpe > 0) given sample size + shape
+    min_trl: float | None = None  # observations needed to confirm edge at 95%
     wfe: float | None = None
     is_period: tuple | None = None
     oos_period: tuple | None = None
+
+    @property
+    def underpowered(self) -> bool:
+        """True if there aren't enough events to confirm the edge (MinTRL > n)."""
+        return self.min_trl is not None and self.min_trl > self.n_signals
 
 
 def _zone_from_candidate(c) -> tuple:
@@ -83,7 +93,14 @@ def _aggregate(outcomes, is_period=None, oos_period=None) -> BacktestStats:
     gains = sum(o.move_pct for o in rev if o.move_pct)
     losses = sum(abs(o.move_pct) for o in inv if o.move_pct)
     pf = (gains / losses) if losses else (float("inf") if gains else 0.0)
+    # statistical power of the result (Bailey & Lopez de Prado)
+    rets = [o.move_pct for o in outcomes if o.move_pct is not None]
+    sr = sharpe_ratio(rets)
+    sk, ku = skew_kurt(rets)
+    psr = probabilistic_sharpe_ratio(sr, 0.0, len(rets), sk, ku) if len(rets) >= 2 else 0.0
+    mtrl = min_track_record_length(sr, 0.0, sk, ku) if len(rets) >= 2 else None
     return BacktestStats(len(outcomes), len(rev), len(inv), len(opn), hit, pf,
+                         sharpe=sr, psr=psr, min_trl=mtrl,
                          is_period=is_period, oos_period=oos_period)
 
 
