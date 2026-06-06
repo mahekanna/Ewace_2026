@@ -30,9 +30,16 @@ from .rules import (
     validate_impulse, validate_correction, report,
 )
 from .toolkit import (
-    zigzag, zigzag_causal, swing_pivots,
+    zigzag, zigzag_causal, zigzag_multiscale, swing_pivots,
     pivots_to_waves, fib_extension, fib_retrace, wave_ratio,
 )
+from .automation import (
+    CandidateCount, label_and_validate, assign_degrees_neely,
+)
+from .backtest import (
+    backtest_reversals, ReversalEvent, ReversalOutcome, BacktestStats,
+)
+from .charting import render_chart
 from .confluence import (
     score_reversal, classify_swing_sequence,
     in_zone, momentum_divergence, macd_turn, volume_capitulation,

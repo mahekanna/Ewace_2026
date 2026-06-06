@@ -121,41 +121,69 @@ def zigzag(bars, pct: float = 0.10) -> list[Pivot]:
     return out
 
 
-def zigzag_causal(bars, pct: float = 0.10) -> list[Pivot]:
+def _causal_atr(bars, n: int) -> list:
+    """Wilder ATR, right-aligned (atr[i] uses bars[:i+1]); None until i+1>=n. Causal."""
+    atr = [None] * len(bars)
+    prev_c = None
+    trs = []
+    for i, bar in enumerate(bars):
+        h, l, c = bar[2], bar[3], bar[4]
+        tr = (h - l) if prev_c is None else max(h - l, abs(h - prev_c), abs(l - prev_c))
+        trs.append(tr)
+        prev_c = c
+        if i + 1 == n:
+            atr[i] = sum(trs[:n]) / n
+        elif i + 1 > n:
+            atr[i] = (atr[i - 1] * (n - 1) + tr) / n
+    return atr
+
+
+def zigzag_causal(bars, pct: float = 0.10, atr_n=None) -> list[Pivot]:
     """
-    Causal ZigZag: detects the SAME pivots as `zigzag` but records, for each
-    pivot, the bar at which its reversal was CONFIRMED (`Pivot.confirmed_t`).
+    Causal ZigZag: detects the SAME pivots as `zigzag` (in percentage mode) but
+    records, for each pivot, the bar at which its reversal was CONFIRMED
+    (`Pivot.confirmed_t`).
 
     A pivot's price extreme (`Pivot.t`) is only *known to be* a pivot once price
-    has reversed `pct` past it; that later bar is the confirmation. Backtests
-    must use `confirmed_t`, never `t`, to avoid look-ahead bias (see
-    docs/research/04_automation_validation.md §2.5, Item 1).
+    has reversed past it; that later bar is the confirmation. Backtests must use
+    `confirmed_t`, never `t`, to avoid look-ahead bias (docs/research/04 §2.5,
+    Item 1). The final extreme is still forming -> `confirmed_t` is None.
 
-    The final extreme is still forming, so its `confirmed_t` is None (provisional).
+    pct    : reversal threshold. In percentage mode (atr_n=None) the threshold is
+             `ep * pct`; in ATR mode (atr_n set) it is `ATR(atr_n) * pct` — an
+             absolute, volatility-adaptive distance. Both are causal.
     """
     bars = list(bars)
     if not bars:
         return []
+    atr = _causal_atr(bars, atr_n) if atr_n else None
+
+    def thr(ep_val, i):
+        if atr is not None and atr[i] is not None:
+            return atr[i] * pct
+        return ep_val * pct
+
     piv: list[Pivot] = []
     trend = 0                                  # +1 up, -1 down, 0 unseeded
     et, ep = bars[0][0], bars[0][4]            # extreme time / price
-    for t, o, h, l, c in bars:
+    for i, bar in enumerate(bars):
+        t, h, l = bar[0], bar[2], bar[3]
         if trend > 0:                          # tracking a high
             if h > ep:
                 et, ep = t, h
-            if l < ep * (1 - pct):             # reversal confirmed at THIS bar
+            if l < ep - thr(ep, i):            # reversal confirmed at THIS bar
                 piv.append(Pivot(et, ep, "H", confirmed_t=t))
                 trend, et, ep = -1, t, l
         elif trend < 0:                        # tracking a low
             if l < ep:
                 et, ep = t, l
-            if h > ep * (1 + pct):
+            if h > ep + thr(ep, i):
                 piv.append(Pivot(et, ep, "L", confirmed_t=t))
                 trend, et, ep = 1, t, h
         else:                                  # seed (mirror of zigzag)
-            if h > ep * (1 + pct):
+            if h > ep + thr(ep, i):
                 piv.append(Pivot(et, ep, "L", confirmed_t=t)); trend, et, ep = 1, t, h
-            elif l < ep * (1 - pct):
+            elif l < ep - thr(ep, i):
                 piv.append(Pivot(et, ep, "H", confirmed_t=t)); trend, et, ep = -1, t, l
             else:
                 if h > ep: et, ep = t, h
@@ -172,6 +200,15 @@ def zigzag_causal(bars, pct: float = 0.10) -> list[Pivot]:
         else:
             out.append(p)
     return out
+
+
+def zigzag_multiscale(bars, scales=(0.03, 0.07, 0.15, 0.30), atr_n=None) -> dict:
+    """
+    One causal Pivot stream per scale (docs/research/04 §4 Item 2). Smaller scales
+    = finer degree (Minor); larger = coarser (Primary+). Keys are the scale values.
+    Pivot count is non-increasing as scale grows.
+    """
+    return {s: zigzag_causal(bars, pct=s, atr_n=atr_n) for s in scales}
 
 
 def swing_pivots(series, n_left: int = 2, n_right: int = 2) -> list[Pivot]:

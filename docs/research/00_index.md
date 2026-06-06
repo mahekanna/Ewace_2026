@@ -8,9 +8,14 @@ Glenn Neely *Mastering Elliott Wave*, the ForexTalker / LiteFinance NeoWave seri
 Investopedia / SMC) and audited the current engine module-by-module. This index
 sequences their findings into one dependency-ordered roadmap.
 
-> **Status of this pass:** documentation only — **no `wavelib` code was changed.**
-> All self-tests (`python3 wavelib/rules.py`, `toolkit.py`, the three `examples/`)
-> still pass. Coding starts from the roadmap below.
+> **Update (build complete):** the research pass below has now been *implemented*.
+> Phases 0–4 of the roadmap are built and tested (Phase 0 F1/F3/F4; F2 deferred).
+> The engine now has causal pivots, a Degree hierarchy, corrected classifiers, the
+> NeoWave bottom-up constructor + logic, hardened confirmation strands with the typed
+> `CycleSignal` seam, and the automation layer (auto-label, auto-degree, causal
+> backtest, SVG charting). **90 unit tests pass** (`python3 -m unittest discover -s
+> tests`), plus all module self-tests and `examples/01..04`. The chakra_quant bridge
+> remains a documented seam only.
 
 ---
 
@@ -74,7 +79,7 @@ eventual `chakra_quant` D-013 bridge (see Cycle Seam below).
   any `(t, value)` series, consumed by the confirmation strands (Phase 3) and the monowave
   constructor (Phase 2).
 
-### Phase 1 — Classifier correctness (single-degree fidelity)
+### Phase 1 — Classifier correctness (single-degree fidelity)  ✅ DONE
 - **C1. Fix the flat dead-zone** *(01-Task1).* `ZIGZAG_B_MAX = 0.618`, `FLAT_B_MIN = 0.618`;
   replace C-wave length-ratio with a directional **endpoint** check (does C surpass A's
   extreme?) to separate expanded vs running flats. Removes the 0.618–0.90 misclassification.
@@ -90,7 +95,7 @@ eventual `chakra_quant` D-013 bridge (see Cycle Seam below).
 - **C5. Base 0-2 channel test** *(01-Task6 / 02 channeling).* The 0-2 line (and wave-2
   endpoint correction via a 0-2 break) is absent; only 2-4 and 1-3 exist.
 
-### Phase 2 — NeoWave construction & logic (the deepest gap)
+### Phase 2 — NeoWave construction & logic (the deepest gap)  ✅ DONE
 - **N1. `label_monowaves` — Neely's seven retracement rules** *(02-Task1 — KEYSTONE).*
   Breakpoints at 38.2 / 61.8 / 100 / 161.8 / 261.8 %, conditions a–d, rollback endpoint
   correction, and structure labels (`:5`/`:3`/`:F3`/`:L5`/…). Unlocks all bottom-up degree.
@@ -107,7 +112,7 @@ eventual `chakra_quant` D-013 bridge (see Cycle Seam below).
   (C longest, A≈E, 161.8% C limit), diametric time-similarity across all 7 legs,
   9-leg symmetrical, and a computed `x_wave_check` (the 61.8% rule, currently a REF stub).
 
-### Phase 3 — Confirmation strand hardening
+### Phase 3 — Confirmation strand hardening  ✅ DONE
 - **S1. Rewrite `momentum_divergence`** *(03-P1).* Paired confirmed swing pivots (regular
   + hidden), ≥50-bar guard, ≥3 RSI-point amplitude filter.
 - **S2. Rewrite `choch`** *(03-P2).* Track structural trend direction; require body-close
@@ -116,7 +121,7 @@ eventual `chakra_quant` D-013 bridge (see Cycle Seam below).
 - **S4. Harden the rest** *(03-P4/5/6).* 20-bar volume window + range filter; a real
   two-pivot **trendline** channel break (not EMA9); a minimum-bar guard in `score_reversal`.
 
-### Phase 4 — Automation & validation (the "start coding further" target)
+### Phase 4 — Automation & validation (the "start coding further" target)  ✅ DONE
 - **A1. Multi-scale pivot streams** *(04-Item2).* ATR-adaptive ZigZag at several multipliers
   feeding the degree hierarchy.
 - **A2. `label_and_validate(bars, degrees, …) -> list[CandidateCount]`** *(04-Item3 / 02-Task10).*
