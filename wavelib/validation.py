@@ -8,6 +8,7 @@ a short, multiply-tested backtest. Pure stdlib (math + statistics.NormalDist).
 See docs/research/deep/08_institutional_validation.md for derivations + sources.
 """
 from __future__ import annotations
+import itertools
 import json
 import math
 import os
@@ -80,6 +81,54 @@ def deflated_sharpe_ratio(sr, n, skew, kurt, n_trials, sr_variance) -> float:
     the multiple-testing-corrected probability that the edge is real."""
     sr0 = expected_max_sharpe(n_trials, sr_variance)
     return probabilistic_sharpe_ratio(sr, sr0, n, skew, kurt)
+
+
+def cpcv_splits(n, n_groups=6, n_test=2, embargo=0):
+    """Combinatorial purged cross-validation index splits (Lopez de Prado).
+    Split [0,n) into n_groups contiguous groups; every combination of n_test
+    groups is a test fold, the rest train, with an `embargo` of indices purged
+    around each test group to prevent leakage from overlapping-label outcomes.
+    Yields (train_idx, test_idx)."""
+    bounds = [round(i * n / n_groups) for i in range(n_groups + 1)]
+    groups = [list(range(bounds[i], bounds[i + 1])) for i in range(n_groups)]
+    for combo in itertools.combinations(range(n_groups), n_test):
+        test = sorted(i for g in combo for i in groups[g])
+        tset = set(test)
+        purged = set()
+        for g in combo:                         # embargo around each test group
+            lo, hi = bounds[g], bounds[g + 1]
+            purged.update(range(max(0, lo - embargo), lo))
+            purged.update(range(hi, min(n, hi + embargo)))
+        train = [i for i in range(n) if i not in tset and i not in purged]
+        yield train, test
+
+
+def _pf(returns):
+    gains = sum(x for x in returns if x > 0)
+    losses = sum(-x for x in returns if x < 0)
+    if losses > 0:
+        return gains / losses
+    return float("inf") if gains > 0 else 0.0
+
+
+def cpcv_profit_factor(returns, n_groups=6, n_test=2, pctile=5):
+    """The honest edge verdict (docs/research/deep/08): the lower-percentile
+    out-of-sample profit factor across all combinatorial test folds of the
+    per-event return series. < 1.0 at the 5th percentile => no provable edge.
+    Returns (low_pf, median_pf, n_folds) or None if too few events."""
+    r = [x for x in returns if x is not None]
+    if len(r) < n_groups:
+        return None
+    bounds = [round(i * len(r) / n_groups) for i in range(n_groups + 1)]
+    groups = [r[bounds[i]:bounds[i + 1]] for i in range(n_groups)]
+    pfs = [_pf([x for g in combo for x in groups[g]])
+           for combo in itertools.combinations(range(n_groups), n_test)]
+    if not pfs:
+        return None
+    pfs.sort()
+    lo_idx = min(len(pfs) - 1, max(0, math.ceil(pctile / 100 * len(pfs)) - 1))
+    median = pfs[len(pfs) // 2]
+    return pfs[lo_idx], median, len(pfs)
 
 
 def log_trial(record: dict, path="registry/trials.jsonl") -> None:

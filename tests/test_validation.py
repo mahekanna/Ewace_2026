@@ -9,7 +9,7 @@ import unittest
 
 from wavelib import (
     sharpe_ratio, skew_kurt, probabilistic_sharpe_ratio, min_track_record_length,
-    deflated_sharpe_ratio, expected_max_sharpe,
+    deflated_sharpe_ratio, expected_max_sharpe, cpcv_splits, cpcv_profit_factor,
 )
 
 
@@ -45,6 +45,26 @@ class TestValidationMath(unittest.TestCase):
 
     def test_expected_max_sharpe_grows_with_trials(self):
         self.assertGreater(expected_max_sharpe(100, 0.04), expected_max_sharpe(5, 0.04))
+
+
+class TestCPCV(unittest.TestCase):
+    def test_splits_train_test_disjoint_and_cover(self):
+        for train, test in cpcv_splits(60, n_groups=6, n_test=2, embargo=2):
+            self.assertEqual(set(train) & set(test), set())     # disjoint
+            self.assertEqual(len(test), 20)                     # 2 of 6 groups
+            # purged indices (embargo) belong to neither train nor test
+            self.assertLessEqual(len(train) + len(test), 60)
+
+    def test_profit_factor_edge_vs_noise(self):
+        winners = [0.05, 0.06, 0.04, 0.05, 0.05, 0.06, 0.04, 0.05] * 3   # consistent edge
+        lo, med, k = cpcv_profit_factor(winners, n_groups=6, n_test=2)
+        self.assertEqual(lo, float("inf"))                      # no losses -> inf PF (all wins)
+        noise = [0.05, -0.05, 0.04, -0.06, 0.05, -0.05, 0.03, -0.04] * 3  # no edge
+        lo2, med2, k2 = cpcv_profit_factor(noise, n_groups=6, n_test=2)
+        self.assertLess(lo2, 1.5)                               # weak/noise -> low PF
+
+    def test_too_few_events_returns_none(self):
+        self.assertIsNone(cpcv_profit_factor([0.01, 0.02], n_groups=6, n_test=2))
 
 
 class TestSkewKurt(unittest.TestCase):

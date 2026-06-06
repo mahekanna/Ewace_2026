@@ -42,6 +42,7 @@ from .backtest import (
 from .validation import (
     sharpe_ratio, skew_kurt, probabilistic_sharpe_ratio, min_track_record_length,
     deflated_sharpe_ratio, expected_max_sharpe, log_trial, count_trials,
+    cpcv_splits, cpcv_profit_factor,
 )
 from .charting import render_chart
 from .wavetree import (
