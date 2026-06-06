@@ -16,6 +16,7 @@ per-node confidence.
 CAUSAL: built only from confirmed ZigZag pivots (confirmed_t set). Pure stdlib.
 """
 from __future__ import annotations
+import math
 from dataclasses import dataclass, field
 
 from .rules import (Pivot, Wave, Status, RuleResult, Degree, elliott_hard_rules,
@@ -27,11 +28,14 @@ _CORRECTIVE = {"ZIGZAG", "FLAT", "TRIANGLE", "CORRECTION", "COMPLEX"}
 _FIB = (0.382, 0.5, 0.618, 0.786, 1.0, 1.272, 1.618, 2.0, 2.618, 3.618)
 
 
-def _fib_close(r) -> float:
-    """0..1 closeness of ratio r to the nearest Fibonacci level (1 = exact)."""
+def _fib_close(r, sigma: float = 0.2) -> float:
+    """Gaussian proximity (0..1) of ratio r to the nearest Fibonacci level — a
+    smooth, calibrated kernel (docs/research/deep/07) instead of a linear tent.
+    sigma is the relative-distance scale (~20%)."""
     if r != r or r <= 0:
         return 0.0
-    return max(0.0, 1.0 - min(min(abs(r - t) / t for t in _FIB), 1.0))
+    d = min(abs(r - t) / t for t in _FIB)
+    return math.exp(-(d * d) / (2 * sigma * sigma))
 
 
 def _impulse_quality(waves) -> float:

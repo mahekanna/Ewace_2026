@@ -51,10 +51,17 @@ def section(sym, cfg, out):
     zone = tuple(data["zone"])
     macro = data["macro"]
 
-    # bounded causal backtest on the recent window (full-history bar-by-bar is too slow)
+    # bounded causal replay on the recent window (full-history bar-by-bar is too slow)
     bt = bars[-BACKTEST_WINDOW:]
-    flat = wl.backtest_reversals(bt, score_threshold=4, min_reversal_pct=0.05,
-                                 degrees=(0.05, 0.10), bullish=True, min_history=60)
+    rets = wl.reversal_returns(bt, score_threshold=4, min_reversal_pct=0.05,
+                               degrees=(0.05, 0.10), bullish=True, min_history=60)
+    n_ev = len(rets)
+    hit = (sum(1 for r in rets if r > 0) / n_ev) if n_ev else 0.0
+    sr = wl.sharpe_ratio(rets)
+    sk, ku = wl.skew_kurt(rets)
+    psr = wl.probabilistic_sharpe_ratio(sr, 0.0, n_ev, sk, ku) if n_ev >= 2 else 0.0
+    cp = wl.cpcv_profit_factor(rets)
+    swseq = wl.swing_sequence(bars=bt, pct=0.10)   # current developing sequence (recent window)
 
     out.append(f"## {sym} — {cfg.get('desc', sym)}")
     out.append(f"- **{len(bars)} daily bars**, last close ${data['price']:,.2f}")
@@ -65,13 +72,13 @@ def section(sym, cfg, out):
                    f"{macro['degree_label']}, **honest confidence {macro['score']:.0%}** "
                    f"(covers {macro['coverage']:.0%}){alt} — multi-year counts are ambiguous")
     out.append(f"- Recent best count: **{data['best_recent'] or 'n/a'}**; reversal zone "
-               f"{zone}; live confluence **{data['score']}/7**")
-    power = ("UNDERPOWERED — too few events to claim edge" if flat.underpowered or flat.n_signals < 3
-             else f"PSR {flat.psr:.0%}, MinTRL {flat.min_trl:.0f}" if flat.min_trl else "n/a")
+               f"{zone}; live confluence **{data['score']}/7**; "
+               f"EWF swing-sequence: {swseq['swings']} ({swseq['status']})")
+    power = "UNDERPOWERED — too few events to claim edge" if n_ev < 6 else f"PSR {psr:.0%}"
+    cpline = (f"CPCV 5th-pctile OOS profit-factor {cp[0]:.2f} ({cp[2]} folds)" if cp
+              else f"CPCV needs ≥6 events (have {n_ev})")
     out.append(f"- Causal backtest (last {len(bt)} bars, score≥4, +5% target): "
-               f"signals={flat.n_signals} reversals={flat.n_reversals} "
-               f"invalidations={flat.n_invalidations} hit_rate={flat.hit_rate:.0%}; "
-               f"statistical power: {power}")
+               f"decided events={n_ev} hit_rate={hit:.0%}; statistical power: {power}; {cpline}")
     out.append(f"- Chart: `charts/{sym.lower()}_analysis.html`\n")
     return {"sym": sym, "desc": cfg.get("desc", sym), "price": data["price"],
             "change": data["change"], "macro": macro}

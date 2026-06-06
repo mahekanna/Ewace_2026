@@ -148,9 +148,16 @@ def backtest_reversals(bars, score_threshold: int = 4, min_reversal_pct: float =
                             is_period=first_is, oos_period=last_oos)
         return agg
 
+    return _aggregate(_replay(bars, score_threshold, min_reversal_pct, degrees,
+                              bullish, cycle_aligned, min_history))
+
+
+def _replay(bars, score_threshold, min_reversal_pct, degrees, bullish,
+            cycle_aligned, min_history):
+    """Causal bar-by-bar replay -> list[ReversalOutcome]. Shared by the aggregate
+    stats and by reversal_returns()."""
     events: list[ReversalEvent] = []
-    n = len(bars)
-    for t in range(min_history, n):
+    for t in range(min_history, len(bars)):
         sub = bars[:t + 1]
         cands = automation.label_and_validate(sub, degrees=degrees)
         if not cands or cands[0].hard_fails > 0:
@@ -164,5 +171,14 @@ def backtest_reversals(bars, score_threshold: int = 4, min_reversal_pct: float =
         if rep.score >= score_threshold:
             events.append(ReversalEvent(sub[-1][0], rep.score, zone,
                                         _invalidation(cands[0], bullish), close))
-    outcomes = [_resolve(e, bars, min_reversal_pct, bullish) for e in events]
-    return _aggregate(outcomes)
+    return [_resolve(e, bars, min_reversal_pct, bullish) for e in events]
+
+
+def reversal_returns(bars, score_threshold: int = 4, min_reversal_pct: float = 0.05,
+                     degrees=(0.03, 0.07), bullish: bool = True,
+                     cycle_aligned: bool = False, min_history: int = 60) -> list:
+    """Per-event signed returns from a causal replay — feed to validation.cpcv_*
+    for the honest out-of-sample edge verdict (docs/research/deep/08)."""
+    outs = _replay(bars, score_threshold, min_reversal_pct, degrees, bullish,
+                   cycle_aligned, min_history)
+    return [o.move_pct for o in outs if o.move_pct is not None]
