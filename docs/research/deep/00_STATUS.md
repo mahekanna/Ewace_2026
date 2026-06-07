@@ -132,32 +132,37 @@ scale-out + move-to-breakeven, conviction filter, one position at a time, causal
 
 **A first run reported a fake edge (74% win / 14R / PF~50).** It was a bug, caught
 because it was too good to be true: the stop had collapsed to a hard-coded 1%
-(making R-multiples meaningless and capping losses) and the same setup was
-re-entered every bar (fake 100% PSR from non-independent samples). Both are fixed
-(structural stop = leg depth; setup de-duplication).
+(meaningless R, capped losses) and the same setup was re-entered every bar (fake
+100% PSR). Both fixed (structural stop = leg depth; setup de-duplication). A second
+(corrected) pass on a CONSERVATIVE break-of-structure entry looked *faintly*
+positive — but on only ~147 trades, far too few to trust. So a second entry model
+(EWF reaction-zone pullback) was added to get a properly-powered sample, run across
+BOTH timeframes:
 
-Corrected verdict (weekly, 25 instruments, 1987→2026):
+Powered verdict (weekly 1987→2026 + daily 2006→2026; `reports/FORECAST_BACKTEST_2026-06.md`):
 
-| conf≥ | RR≥ | trades | win% | avg R | PF | Sharpe | PSR vs B&H | CPCV PF |
-|---|---|---|---|---|---|---|---|---|
-| 0.15 | 1.5 | 48 | 56% | 0.84 | 3.13 | 0.393 | 91% | 1.82 |
-| 0.25 | 1.5 | 41 | 61% | 1.01 | 4.38 | 0.539 | 99% | 1.44 |
-| 0.25 | 2.5 | 27 | 63% | 1.38 | 6.68 | 0.625 | 100% | 1.77 |
+| timeframe | entry | trades | win% | avg R | Sharpe | PSR vs B&H |
+|---|---|---|---|---|---|---|
+| 1W | zone (powered) | 2,049–3,338 | 16–19% | **−0.72 / −0.67** | −0.85 | 0% |
+| 1W | bos (tiny) | 41–48 | 56–61% | +0.84 / +1.01 | 0.39–0.54 | 91–99% |
+| 1D | zone (powered) | 3,108–3,919 | 20–22% | **−0.66 / −0.63** | −0.79 | 0% |
+| 1D | bos (tiny) | 31–34 | 68% | +1.11 / +1.12 | 0.66 | 99% |
 
-**Encouraging but NOT validated — too few trades.** Unlike the reversal-score
-strategy (no edge), the *forecast-driven* version shows **positive expectancy across
-all four variants (0.84–1.38 R)**, and crucially the **confidence filter behaves
-correctly** — raising it 0.15→0.25 lifts mean Sharpe 0.34→0.58. But the whole study
-is only **147 trades over 39 years** (~1–2 per instrument per decade): wildly
-under-powered. It is a *promising lead*, not a validated edge. The trade count is
-low because a conservative break-of-structure entry + structural stop makes most
-setups fail the R:R filter (median RR ≈ 0.6) — the result is entry-model dependent
-(a tighter *zone* entry is the natural next experiment). Report:
-`reports/FORECAST_BACKTEST_2026-06.md`.
+**Verdict: no durable edge.** The break-of-structure model looked positive only
+because it was under-powered (31–48 trades); the moment the zone-entry model
+produces a real sample (2,000–3,900 trades) on EITHER timeframe, expectancy is
+clearly **negative** (−0.6 to −0.7 R, 16–22% win) — the forecast's predicted
+reaction zones are *not* where price reliably turns. No configuration is both
+powered and positive. Trading the prediction does not beat buy-and-hold on weekly
+or daily. (Honest nuance: the zone stop is tight, which contributes to the low win
+rate — results are entry/stop-model dependent, the EW discretion ceiling — but the
+direction of the conclusion is unambiguous across the powered cells.)
 
-This refines the cycle-integration gate: there is now a *faint, conviction-monotone*
-predictive signal worth strengthening (more trades via a zone-entry model, then
-re-test) before the chakra_quant "when" layer is wired in.
+This confirms the cycle-integration gate is RED: across the reversal-score test
+(Stage 10) and now the prediction test on two timeframes, there is no validated
+standalone edge for the chakra_quant "when" layer to enhance. The engine's honest
+role is *context* ("where a reversal is structurally permitted"), not a standalone
+systematic predictor — exactly the ceiling the research predicted.
 
 ## The honest ceiling
 

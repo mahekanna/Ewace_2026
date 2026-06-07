@@ -27,3 +27,11 @@
 {"strategy": "forecast_driven_weekly", "conf_min": 0.15, "min_rr": 2.5, "events": 31, "sharpe": 0.2864003782830093, "expectancy_r": 1.0786583129009353}
 {"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 1.5, "events": 41, "sharpe": 0.5390180023210231, "expectancy_r": 1.0092968741756332}
 {"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 2.5, "events": 27, "sharpe": 0.6246206267884509, "expectancy_r": 1.3824491867101092}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "zone", "conf_min": 0.15, "events": 3338, "sharpe": -0.8528885363171057, "expectancy_r": -0.7191372821244445}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "zone", "conf_min": 0.25, "events": 2049, "sharpe": -0.7901473645388762, "expectancy_r": -0.6706702041558219}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "bos", "conf_min": 0.15, "events": 48, "sharpe": 0.3930159036853929, "expectancy_r": 0.841810662427866}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "bos", "conf_min": 0.25, "events": 41, "sharpe": 0.5390180023210231, "expectancy_r": 1.0092968741756332}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "zone", "conf_min": 0.15, "events": 3919, "sharpe": -0.7879666605204756, "expectancy_r": -0.6568532838521886}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "zone", "conf_min": 0.25, "events": 3108, "sharpe": -0.7489190817886193, "expectancy_r": -0.6317711987121274}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "bos", "conf_min": 0.15, "events": 34, "sharpe": 0.6624657467188301, "expectancy_r": 1.124988531461176}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "bos", "conf_min": 0.25, "events": 31, "sharpe": 0.6684453154483017, "expectancy_r": 1.1078368841684667}
