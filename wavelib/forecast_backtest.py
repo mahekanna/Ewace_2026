@@ -33,7 +33,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from .forecast import trade_plan
+from .forecast import forecast_from_count
+from .wavetree import wave_counts
 
 
 @dataclass
@@ -103,62 +104,84 @@ def _manage(bars, i_entry, entry, stop, t1, t2, dirn, partial, max_hold, cost):
     return None
 
 
+def _setup_at(bars_upto, conf_min, window):
+    """Build a risk-defined trade setup from the count+forecast at the last bar of
+    `bars_upto` (causal). Returns (dirn, entry, stop, targets, confidence,
+    confirm_bars) or None. The stop is the CORRECTIVE-LEG EXTREME (real structural
+    risk), entry is a break-of-structure beyond the leg, not the pivot itself —
+    so risk = the leg's actual depth, never a hard-coded %."""
+    recent = bars_upto[-window:] if len(bars_upto) > window else bars_upto
+    counts = wave_counts(recent, (0.03, 0.05, 0.08), max_alternates=0)
+    if not counts or counts[0].confidence < conf_min:
+        return None
+    pc = counts[0]
+    fc = forecast_from_count(pc, recent[-1][4])
+    if fc is None or not fc.targets:
+        return None
+    legs = [n for _l, n in pc.labels]
+    if not legs:
+        return None
+    last = legs[-1]
+    hi, lo = max(last.start.price, last.end.price), min(last.start.price, last.end.price)
+    dirn = 1 if fc.direction == "up" else -1
+    # break-of-structure: long reclaims the leg HIGH (stop below the leg LOW);
+    # short breaks the leg LOW (stop above the leg HIGH). Risk = the leg depth.
+    entry, stop = (hi, lo) if dirn == 1 else (lo, hi)
+    t1, t2 = _valid_targets(fc.targets, entry, dirn)
+    if t1 is None:
+        return None
+    leg_bars = sum(1 for b in recent if last.start.t <= b[0] <= last.end.t)
+    return dirn, entry, stop, (t1, t2), pc.confidence, max(leg_bars, 1)
+
+
 def forecast_trades(bars, *, conf_min: float = 0.20, min_rr: float = 1.5,
                     max_hold: int = 13, confirm_cap: int = 8, cost: float = 0.001,
                     window: int = 300, min_history: int = 80, stride: int = 1,
                     partial: float = 0.5, min_risk: float = 0.01) -> list:
     """Causal, institution-style replay trading the wave FORECAST. At each bar a
-    plan is built from bars[..t]; if it clears the conviction and R:R filters and
-    then CONFIRMS (trigger break within the time window), the trade is managed with
-    scale-out/breakeven exits. One position at a time. Returns list[ForecastTrade]."""
+    risk-defined setup is built from bars[..t] (stop = corrective-leg extreme); if
+    it clears the conviction and R:R filters and then CONFIRMS (break of structure
+    within the time window), the trade is managed with scale-out/breakeven exits.
+    One position at a time, and the SAME setup is never re-traded (dedup by
+    direction+levels) until the structure changes. Returns list[ForecastTrade]."""
     trades: list = []
     n = len(bars)
     t = max(min_history, 1)
+    last_setup = None                       # (dirn, entry, stop) of the last setup acted on
     while t < n:
-        plan = trade_plan(bars[:t + 1], window=window)
-        if plan is None or plan.confidence < conf_min:
+        setup = _setup_at(bars[:t + 1], conf_min, window)
+        if setup is None:
             t += stride
             continue
-        dirn = 1 if plan.direction == "long" else -1
-        entry_level = plan.entry_level
-        stop = plan.stop_level
-        # stop must be on the protective side; risk must be meaningful
-        if dirn * (entry_level - stop) <= 0:
-            t += stride
+        dirn, entry, stop, (t1, t2), conf, confirm_bars = setup
+        risk_frac = abs(entry - stop) / entry
+        rr = abs(t2 - entry) / abs(entry - stop)
+        sig = (dirn, round(entry, 4), round(stop, 4))
+        if risk_frac < min_risk or rr < min_rr or sig == last_setup:
+            t += stride                     # filtered, or a duplicate of the active setup
             continue
-        risk_frac = abs(entry_level - stop) / entry_level
-        if risk_frac < min_risk:
-            t += stride
-            continue
-        t1, t2 = _valid_targets(plan.targets, entry_level, dirn)
-        if t1 is None:
-            t += stride
-            continue
-        rr = abs(t2 - entry_level) / abs(entry_level - stop)
-        if rr < min_rr:
-            t += stride
-            continue
-        # --- wait for CONFIRMATION: trigger break in the forecast direction,
-        #     within min(plan window, cap) bars. No break -> setup expires. ---
-        cwin = max(1, min(plan.confirm_window_bars, confirm_cap))
+        # --- wait for CONFIRMATION: break of structure in the forecast direction,
+        #     within min(leg-time, cap) bars. No break -> setup expires. ---
+        cwin = max(1, min(confirm_bars, confirm_cap))
         i_entry = None
         for j in range(t + 1, min(t + 1 + cwin, n)):
             hb, lb = bars[j][2], bars[j][3]
-            if (dirn == 1 and hb >= entry_level) or (dirn == -1 and lb <= entry_level):
+            if (dirn == 1 and hb >= entry) or (dirn == -1 and lb <= entry):
                 i_entry = j
                 break
         if i_entry is None:
-            t += cwin                       # setup expired; jump past the window
+            last_setup = sig                # remember so we don't re-test it every bar
+            t += cwin
             continue
-        res = _manage(bars, i_entry, entry_level, stop, t1, t2, dirn,
-                      partial, max_hold, cost)
+        last_setup = sig
+        res = _manage(bars, i_entry, entry, stop, t1, t2, dirn, partial, max_hold, cost)
         if res is None:
             t = i_entry + 1
             continue
         exit_t, exit_px, pct, outcome = res
         trades.append(ForecastTrade(
-            bars[i_entry][0], entry_level, plan.direction, stop, t1, t2,
-            exit_t, exit_px, pct, pct / risk_frac, outcome, plan.confidence, rr))
+            bars[i_entry][0], entry, "long" if dirn == 1 else "short", stop, t1, t2,
+            exit_t, exit_px, pct, pct / risk_frac, outcome, conf, rr))
         # one position at a time: resume AFTER this trade's exit
         nxt = i_entry + 1
         while nxt < n and bars[nxt][0] < exit_t:
