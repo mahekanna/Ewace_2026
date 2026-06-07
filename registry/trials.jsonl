@@ -15,3 +15,15 @@
 {"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 3, "pt": 0.15, "sl": 0.1, "events": 632, "sharpe": 0.16449549964496366}
 {"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 4, "pt": 0.1, "sl": 0.07, "events": 104, "sharpe": 0.08740757512839646}
 {"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 4, "pt": 0.15, "sl": 0.1, "events": 104, "sharpe": 0.11879512512901962}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.15, "min_rr": 1.5, "events": 2720, "sharpe": 0.587342359904214, "expectancy_r": 13.893076786239954}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.15, "min_rr": 2.5, "events": 2697, "sharpe": 0.5897130408725396, "expectancy_r": 14.0317000807876}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 1.5, "events": 1807, "sharpe": 0.5610878356310223, "expectancy_r": 13.266543601836704}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 2.5, "events": 1783, "sharpe": 0.5655966837646864, "expectancy_r": 13.471215954413635}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.15, "min_rr": 1.5, "events": 48, "sharpe": 0.3930159036853929, "expectancy_r": 0.841810662427866}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.15, "min_rr": 2.5, "events": 31, "sharpe": 0.2864003782830093, "expectancy_r": 1.0786583129009353}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 1.5, "events": 41, "sharpe": 0.5390180023210231, "expectancy_r": 1.0092968741756332}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 2.5, "events": 27, "sharpe": 0.6246206267884509, "expectancy_r": 1.3824491867101092}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.15, "min_rr": 1.5, "events": 48, "sharpe": 0.3930159036853929, "expectancy_r": 0.841810662427866}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.15, "min_rr": 2.5, "events": 31, "sharpe": 0.2864003782830093, "expectancy_r": 1.0786583129009353}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 1.5, "events": 41, "sharpe": 0.5390180023210231, "expectancy_r": 1.0092968741756332}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 2.5, "events": 27, "sharpe": 0.6246206267884509, "expectancy_r": 1.3824491867101092}

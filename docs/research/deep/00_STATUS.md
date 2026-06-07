@@ -121,6 +121,44 @@ cap + `stride` for tractable runtime — both past-only.) This directly gates th
 chakra_quant cycle integration: there is no validated standalone edge yet for the
 "when" layer to enhance.
 
+## Stage 11 — prediction-driven backtest (testing EW/NeoWave's *predictive* claim)
+
+The multi-regime test (Stage 10) and all prior backtests traded a reversal SCORE
+with fixed barriers — they never used the engine's wave FORECAST. `wavelib/
+forecast_backtest.py` + `scripts/run_forecast_backtest.py` fix that: they trade
+`forecast`/the count the institutional way — break-of-structure confirmation entry,
+stop at the corrective-leg extreme (real structural risk), asymmetric R:R filter,
+scale-out + move-to-breakeven, conviction filter, one position at a time, causal.
+
+**A first run reported a fake edge (74% win / 14R / PF~50).** It was a bug, caught
+because it was too good to be true: the stop had collapsed to a hard-coded 1%
+(making R-multiples meaningless and capping losses) and the same setup was
+re-entered every bar (fake 100% PSR from non-independent samples). Both are fixed
+(structural stop = leg depth; setup de-duplication).
+
+Corrected verdict (weekly, 25 instruments, 1987→2026):
+
+| conf≥ | RR≥ | trades | win% | avg R | PF | Sharpe | PSR vs B&H | CPCV PF |
+|---|---|---|---|---|---|---|---|---|
+| 0.15 | 1.5 | 48 | 56% | 0.84 | 3.13 | 0.393 | 91% | 1.82 |
+| 0.25 | 1.5 | 41 | 61% | 1.01 | 4.38 | 0.539 | 99% | 1.44 |
+| 0.25 | 2.5 | 27 | 63% | 1.38 | 6.68 | 0.625 | 100% | 1.77 |
+
+**Encouraging but NOT validated — too few trades.** Unlike the reversal-score
+strategy (no edge), the *forecast-driven* version shows **positive expectancy across
+all four variants (0.84–1.38 R)**, and crucially the **confidence filter behaves
+correctly** — raising it 0.15→0.25 lifts mean Sharpe 0.34→0.58. But the whole study
+is only **147 trades over 39 years** (~1–2 per instrument per decade): wildly
+under-powered. It is a *promising lead*, not a validated edge. The trade count is
+low because a conservative break-of-structure entry + structural stop makes most
+setups fail the R:R filter (median RR ≈ 0.6) — the result is entry-model dependent
+(a tighter *zone* entry is the natural next experiment). Report:
+`reports/FORECAST_BACKTEST_2026-06.md`.
+
+This refines the cycle-integration gate: there is now a *faint, conviction-monotone*
+predictive signal worth strengthening (more trades via a zone-entry model, then
+re-test) before the chakra_quant "when" layer is wired in.
+
 ## The honest ceiling
 
 Both research passes converge on the same truth: a single, deterministic,
