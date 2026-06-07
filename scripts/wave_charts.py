@@ -94,43 +94,54 @@ def build_chart(slug, name, tf_label, tag, scales, outpath):
     if use_log:
         ax.set_yscale("log")
 
-    # --- FULL-RANGE swing count (NeoWave): a coarse causal zigzag spanning the
-    #     entire history, every swing labelled :5/:3/:c3/... so the count is present
-    #     start->end (what wave_counts' DP fails to do — it picks a sub-range). ---
+    # --- NeoWave per-swing labels (BELOW each pivot, cyan): :5/:3/:c3/... over a
+    #     coarse causal zigzag spanning the entire history start->end. ---
     piv = adaptive_zigzag(bars)
     if len(piv) >= 3:
         zx = [dt(p.t) for p in piv]
         zy = [p.price for p in piv]
-        ax.plot(zx, zy, color=RED, lw=1.7, alpha=0.95, zorder=5,
-                label="full-range swing count (NeoWave)")
-        ax.scatter(zx, zy, color=RED, s=16, zorder=6)
+        ax.plot(zx, zy, color=RED, lw=1.5, alpha=0.9, zorder=5,
+                label="major-swing path (full range)")
+        ax.scatter(zx, zy, color=RED, s=14, zorder=6)
         lab = wl.label_monowaves(piv)
         for (w, l) in lab:
-            up = w.end.price >= w.start.price
             ax.annotate(l.split("(")[0], (dt(w.end.t), w.end.price),
-                        textcoords="offset points", xytext=(0, 8 if up else -12),
-                        ha="center", color=CYAN, fontsize=8, alpha=0.9, zorder=7)
+                        textcoords="offset points", xytext=(0, -15),
+                        ha="center", color=CYAN, fontsize=8, alpha=0.95, zorder=7)
 
-    cov = conf = 0.0
-    patt = degl = "n/a"
-    if pc and pc.labels:
-        patt, degl, conf, cov = pc.pattern, pc.degree_label, pc.confidence, pc.coverage
-        # Elliott primary count overlaid in GOLD where the engine places it
-        for (lab, node) in pc.labels:
-            up = node.end.price >= node.start.price
-            ax.scatter([dt(node.end.t)], [node.end.price], color=GOLD, s=46,
-                       zorder=8, edgecolor=BG, linewidth=1)
-            ax.annotate(lab, (dt(node.end.t), node.end.price),
-                        textcoords="offset points", xytext=(0, 15 if up else -19),
-                        ha="center", color=GOLD, fontsize=15, fontweight="bold", zorder=9)
-        # Fibonacci retracement of the dominant leg (labels on the LEFT edge)
-        dom = max(pc.labels, key=lambda ln: abs(ln[1].end.price - ln[1].start.price))[1]
-        a, b = dom.start.price, dom.end.price
+    # --- ELLIOTT WAVE count (ABOVE each pivot, gold): full-range nested count from
+    #     the wave tree — top-degree segments (Ⓐ Ⓑ Ⓒ …) + their sub-waves
+    #     (1-2-3-4-5 / A-B-C / W-X-Y). Spans start->end, unlike wave_counts' DP. ---
+    TOP = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    if len(piv) >= 3:
+        for k, node in enumerate(wl.build_tree_from_pivots(piv)):
+            ax.scatter([dt(node.end.t)], [node.end.price], color=GOLD, s=36, zorder=8,
+                       edgecolor=BG, linewidth=1)
+            ax.annotate(TOP[k] if k < len(TOP) else "+",
+                        (dt(node.end.t), node.end.price), textcoords="offset points",
+                        xytext=(0, 27), ha="center", va="center", color=GOLD, fontsize=11,
+                        fontweight="bold", zorder=9,
+                        bbox=dict(boxstyle="circle,pad=0.18", fc="#11161a", ec=GOLD, lw=1.2))
+            if len(node.children) >= 2:
+                seq = subseq(node.pattern, len(node.children))
+                for i, ch in enumerate(node.children):
+                    ax.annotate(seq[i], (dt(ch.end.t), ch.end.price),
+                                textcoords="offset points", xytext=(0, 11), ha="center",
+                                color="#ffd479", fontsize=9.5, fontweight="bold", zorder=8)
+        # Fib retracement of the largest full-range swing (labels on the LEFT edge)
+        seg = max(((piv[i], piv[i + 1]) for i in range(len(piv) - 1)),
+                  key=lambda pr: abs(pr[1].price - pr[0].price))
+        a, b = seg[0].price, seg[1].price
         for r in (0.382, 0.5, 0.618):
             lv = b - (b - a) * r
             ax.axhline(lv, color=GREEN, lw=0.8, ls=":", alpha=0.4)
             ax.annotate(f"{r:.3f}  {lv:,.1f}", (dates[0], lv), color=GREEN,
                         fontsize=8, ha="left", va="bottom", alpha=0.75)
+
+    cov = conf = 0.0
+    patt = degl = "n/a"
+    if pc and pc.labels:
+        patt, degl, conf, cov = pc.pattern, pc.degree_label, pc.confidence, pc.coverage
 
     # forecast next move
     fc = None
@@ -145,25 +156,25 @@ def build_chart(slug, name, tf_label, tag, scales, outpath):
         ftxt = ("FORECAST  " + fc.next_wave + "\n"
                 + "  ".join(f"{l} {p:,.1f}" for l, p in fc.targets)
                 + f"\ninvalidation {fc.invalidation:,.1f}   conf {fc.confidence:.0%}")
-        ax.text(0.015, 0.04, ftxt, transform=ax.transAxes, color=INK, fontsize=9,
-                va="bottom", ha="left",
+        ax.text(0.985, 0.035, ftxt, transform=ax.transAxes, color=INK, fontsize=9,
+                va="bottom", ha="right",
                 bbox=dict(boxstyle="round,pad=0.5", fc="#11161a", ec=GOLD, alpha=0.9))
 
     span = f"{dates[0].date()} → {dates[-1].date()}"
     ax.set_title(f"{name}   ·   {tf_label}   ·   {span}   ·   {len(bars)} bars\n"
-                 f"engine primary count: {patt} @ {degl}   ·   confidence {conf:.0%}"
-                 f"   ·   coverage {cov:.0%}"
+                 f"Elliott + NeoWave wave count (full range)   ·   engine's best single "
+                 f"Elliott read: {patt} @ {degl}, conf {conf:.0%} / coverage {cov:.0%}"
                  + ("   [LOG scale]" if use_log else ""),
-                 color=INK, fontsize=14, pad=14)
+                 color=INK, fontsize=13, pad=14)
     ax.tick_params(colors="#7c8a91", labelsize=9)
     for s in ax.spines.values():
         s.set_color(GRID)
     ax.grid(color=GRID, lw=0.5, alpha=0.5)
     ax.legend(loc="upper left", facecolor="#11161a", edgecolor=GRID,
               labelcolor=INK, fontsize=9)
-    sub = ("Red = full-range NeoWave swing count (cyan :5/:3/:c3… per swing)   ·   "
-           "Gold = Elliott primary count labels (engine's best single count)   ·   "
-           "dotted green = Fib retracement   ·   gold arrow = forecast")
+    sub = ("ABOVE pivots = ELLIOTT count (gold circled letters = top degree · "
+           "1-2-3-4-5 / A-B-C = sub-waves)   ·   BELOW pivots = NeoWave swing labels "
+           "(cyan :5/:3/:c3…)   ·   dotted green = Fib   ·   gold arrow = forecast")
     fig.text(0.5, 0.012, sub, ha="center", color="#7c8a91", fontsize=8.5)
     fig.text(0.99, 0.012, "analysis tooling only — not advice", ha="right",
              color="#4a565c", fontsize=7)
