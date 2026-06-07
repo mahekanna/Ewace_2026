@@ -62,7 +62,7 @@ from .forecast import (
     WaveForecast, forecast_waves, forecast_from_count, TradePlan, trade_plan,
 )
 from .forecast_backtest import (
-    ForecastTrade, forecast_trades, forecast_returns, expectancy,
+    ForecastTrade, forecast_trades, forecast_returns, expectancy, compute_setups,
 )
 from .cycle_seam import CycleSignal
 
