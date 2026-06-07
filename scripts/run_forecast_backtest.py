@@ -42,7 +42,8 @@ MIN_RR = 1.5
 CONF_MINS = (0.15, 0.25)
 ENTRY_MODES = ("zone", "bos")
 # (timeframe label, file glob tag, bar stride, time-barrier bars)
-TIMEFRAMES = (("1W", "1w", 2, 13), ("1D", "1d", 5, 40))
+TIMEFRAMES = (("1W", "1w", 2, 13), ("1D", "1d", 5, 40), ("4H", "4h", 6, 30),
+              ("1H", "1h", 10, 48), ("15M", "15m", 10, 48))
 
 
 def load(path):
@@ -75,6 +76,23 @@ def run_timeframe(tag, stride, max_hold):
     span = (fdate(min(b[0][0] for b, _c in series)),
             fdate(max(b[-1][0] for b, _c in series)))
 
+    # near-free DIRECTION-SKILL check off the same cache: signed return over the
+    # horizon, no stop/target/management — isolates whether the forecast even
+    # picks the right way (the cleanest test of the predictive claim).
+    dpool = []
+    for bars, cache in series:
+        cl = [b[4] for b in bars]
+        nb = len(bars)
+        for ti, setup in cache.items():
+            if setup is None or ti + max_hold >= nb:
+                continue
+            dpool.append((cl[ti + max_hold] - cl[ti]) / cl[ti] * setup[0])
+    direction = {"n": len(dpool),
+                 "mean": (sum(dpool) / len(dpool)) if dpool else 0.0,
+                 "sharpe": wl.sharpe_ratio(dpool) if len(dpool) >= 2 else 0.0,
+                 "win": (sum(1 for r in dpool if r > 0) / len(dpool)) if dpool else 0.0,
+                 "bench_mean": (sum(bench) / len(bench)) if bench else 0.0}
+
     rows = []
     for mode in ENTRY_MODES:
         for conf in CONF_MINS:
@@ -98,15 +116,19 @@ def run_timeframe(tag, stride, max_hold):
             wl.log_trial({"strategy": "forecast_driven", "tf": tag, "mode": mode,
                           "conf_min": conf, "events": n, "sharpe": sr,
                           "expectancy_r": summ["avg_r"]}, path=REGISTRY)
-    return rows, bench_sr, span, len(series)
+    return rows, bench_sr, span, len(series), direction
 
 
 def main():
     all_rows = []
     sections = []
+    directions = {}
     for label, tag, stride, max_hold in TIMEFRAMES:
-        rows, bench_sr, span, n_inst = run_timeframe(tag, stride, max_hold)
+        rows, bench_sr, span, n_inst, direction = run_timeframe(tag, stride, max_hold)
+        if not rows:
+            continue
         all_rows += rows
+        directions[label] = direction
         sec = [f"## {label} — {n_inst} instruments, {span[0]}→{span[1]} "
                f"(buy-and-hold {max_hold}-bar Sharpe **{bench_sr:.3f}**)",
                "| entry | conf≥ | trades | win% | avg R | PF | Sharpe | PSR vs B&H | CPCV PF |",
@@ -125,6 +147,11 @@ def main():
                    + ", ".join(f"{r['avg_r']:.2f}R@conf{r['conf']}" for r in zone)
                    + " — " + ("POSITIVE." if zpos else "**not positive** (the powered "
                               "sample shows no edge)."))
+        dsk = "BEATS always-long" if direction["mean"] > direction["bench_mean"] else "does NOT beat always-long"
+        sec.append(f"- Direction skill (no stop/target, {direction['n']} signals): "
+                   f"signed mean {direction['mean'] * 100:+.2f}% vs buy-and-hold "
+                   f"{direction['bench_mean'] * 100:+.2f}%, win {direction['win']:.0%}, "
+                   f"Sharpe {direction['sharpe']:+.3f} — **{dsk}**.")
         sections.append("\n".join(sec))
 
     # honest headline: prefer the POWERED zone variants for the verdict
