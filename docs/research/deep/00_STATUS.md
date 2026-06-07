@@ -158,11 +158,21 @@ or daily. (Honest nuance: the zone stop is tight, which contributes to the low w
 rate — results are entry/stop-model dependent, the EW discretion ceiling — but the
 direction of the conclusion is unambiguous across the powered cells.)
 
+**Decisive confirmation — the pure DIRECTION test** (`scripts/forecast_direction_test.py`,
+no stop/target/management, just "enter next bar in the forecast direction, hold 13
+weeks"): over **19,784** forecast-directed trades the signed mean is **−0.82%**
+(Sharpe −0.04, **win rate 48.6%** — below a coin flip), versus buy-and-hold +5.28%.
+This removes the entry/stop-model caveat entirely: the forecast direction itself
+carries **no skill** — it is marginally *anti*-predictive. The negative backtest is
+not an artifact of how trades were managed; the prediction has no directional edge
+to begin with.
+
 This confirms the cycle-integration gate is RED: across the reversal-score test
-(Stage 10) and now the prediction test on two timeframes, there is no validated
-standalone edge for the chakra_quant "when" layer to enhance. The engine's honest
-role is *context* ("where a reversal is structurally permitted"), not a standalone
-systematic predictor — exactly the ceiling the research predicted.
+(Stage 10) and now the prediction test on two timeframes PLUS the mechanics-free
+direction test, there is no standalone edge for the chakra_quant "when" layer to
+enhance. The engine's honest role is *context* ("where a reversal is structurally
+permitted"), not a standalone systematic predictor — exactly the ceiling the
+research predicted.
 
 ## The honest ceiling
 
