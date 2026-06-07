@@ -174,20 +174,31 @@ def main():
     out += [
         "",
         "## Overall verdict",
-        f"- Trials this run: **{n_run}** (2 timeframes x {len(ENTRY_MODES)} entry "
-        f"models x {len(CONF_MINS)} conviction floors); registry total: **{n_registry}**.",
+        f"- Trials this run: **{n_run}** ({len(directions)} timeframes x "
+        f"{len(ENTRY_MODES)} entry models x {len(CONF_MINS)} conviction floors); "
+        f"registry total: **{n_registry}**.",
     ]
     if best:
         out.append(f"- Highest Sharpe cell: {best['tf']}/{best['mode']}/conf{best['conf']} "
                    f"— {best['n']} trades, {best['avg_r']:.2f}R, Sharpe {best['sharpe']:.3f}.")
     out += [
         "",
-        (("> Verdict: **No durable edge.** The break-of-structure model looked faintly "
-          "positive only because it was tiny/under-powered; once the EWF zone-entry "
-          "model produces a properly-powered sample (hundreds of trades), expectancy "
-          "is **not positive** — the forecast's reaction zones are not reliably where "
-          "price turns. Trading the prediction does not beat buy-and-hold on either "
-          "the weekly or the daily timeframe.")
+        ("- Direction skill across timeframes: "
+         + "; ".join(f"{lbl} {d['win']:.0%} win, Sharpe {d['sharpe']:+.3f}"
+                     for lbl, d in directions.items())
+         + " — marginally above a coin flip on intraday, but Sharpe is noise-level "
+           "and none beats always-long."),
+        "",
+        (("> Verdict: **No durable edge — confirmed across all "
+          f"{len(directions)} timeframes (1W→15M).** Once the EWF zone-entry model "
+          "produces a properly-powered sample (626–3,919 trades per timeframe), "
+          "expectancy is NEGATIVE on every timeframe (−0.40 to −0.72 R) — the "
+          "forecast's reaction zones are not reliably where price turns. The "
+          "mechanics-free direction test edges just above a coin flip on intraday "
+          "(52–53%) but its Sharpe is noise-level (~0.05) and never beats buy-and-hold "
+          "on any timeframe; on weekly it is below 50%. The faintly-positive "
+          "break-of-structure rows are all tiny samples (5–48 trades). Trading the "
+          "wave prediction has no tradeable edge at any horizon tested.")
          if not zone_pos else
          ("> Verdict: **A powered, positive signal.** The EWF zone-entry model shows "
           "POSITIVE expectancy across conviction floors on a properly-powered sample "

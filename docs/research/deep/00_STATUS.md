@@ -167,8 +167,16 @@ carries **no skill** — it is marginally *anti*-predictive. The negative backte
 not an artifact of how trades were managed; the prediction has no directional edge
 to begin with.
 
+**Robustness across timeframes.** The forecast-driven test was then swept over
+**five timeframes — 1W, 1D, 4H, 1H, 15M** (`reports/FORECAST_BACKTEST_2026-06.md`).
+The zone-entry model is NEGATIVE on every one (−0.40 to −0.72 R, 626–3,919 trades
+each); the per-timeframe direction test edges marginally above a coin flip on
+intraday (52–53% win) but at noise-level Sharpe (~0.05) and never beats buy-and-hold
+on any horizon (below 50% on weekly). The faint positive is confined to tiny
+break-of-structure samples (5–48 trades). No tradeable edge at any horizon tested.
+
 This confirms the cycle-integration gate is RED: across the reversal-score test
-(Stage 10) and now the prediction test on two timeframes PLUS the mechanics-free
+(Stage 10) and the prediction test on FIVE timeframes PLUS the mechanics-free
 direction test, there is no standalone edge for the chakra_quant "when" layer to
 enhance. The engine's honest role is *context* ("where a reversal is structurally
 permitted"), not a standalone systematic predictor — exactly the ceiling the
