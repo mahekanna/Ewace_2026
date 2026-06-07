@@ -123,6 +123,8 @@ def _setup_at(bars_upto, conf_min, window):
         return None
     last = legs[-1]
     hi, lo = max(last.start.price, last.end.price), min(last.start.price, last.end.price)
+    if hi <= lo:                            # degenerate zero-depth leg -> no risk defined
+        return None
     dirn = 1 if fc.direction == "up" else -1
     # break-of-structure: long reclaims the leg HIGH (stop below the leg LOW);
     # short breaks the leg LOW (stop above the leg HIGH). Risk = the leg depth.
@@ -154,6 +156,9 @@ def forecast_trades(bars, *, conf_min: float = 0.20, min_rr: float = 1.5,
             t += stride
             continue
         dirn, entry, stop, (t1, t2), conf, confirm_bars = setup
+        if entry == stop or entry == 0:                     # defensive: no risk defined
+            t += stride
+            continue
         risk_frac = abs(entry - stop) / entry
         rr = abs(t2 - entry) / abs(entry - stop)
         sig = (dirn, round(entry, 4), round(stop, 4))
