@@ -23,6 +23,7 @@ fine micro-thresholds this module approximates. Rules marked REF are descriptive
 references requiring discretionary confirmation; rules marked CHECK are computed.
 """
 from __future__ import annotations
+import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -101,6 +102,16 @@ class Wave:
 
     @property
     def length(self) -> float: return abs(self.end.price - self.start.price)
+    @property
+    def log_length(self) -> float:
+        """Wave magnitude in LOG price — the correct measure for Fibonacci/ratio
+        comparisons on any instrument spanning >2x (Neely, neowave.com QA #38).
+        For small moves log_length ≈ the relative move, so it is safe to use
+        everywhere. Falls back to linear if prices are non-positive."""
+        s, e = self.start.price, self.end.price
+        if s > 0 and e > 0:
+            return abs(math.log(e / s))
+        return abs(e - s)
     @property
     def signed(self) -> float: return self.end.price - self.start.price
     @property
@@ -407,8 +418,9 @@ def _group_similar(vals, lo=1/3, hi=3.0) -> bool:
 
 
 def similarity_and_balance(a: Wave, b: Wave, lo=1/3, hi=3.0, context: str = "") -> RuleResult:
-    """Adjacent corrective waves must relate in price AND time within lo..hi."""
-    pr = a.length / b.length if b.length else float("nan")
+    """Adjacent corrective waves must relate in price AND time within lo..hi.
+    Price is compared in LOG magnitude (correct on large-range instruments)."""
+    pr = a.log_length / b.log_length if b.log_length else float("nan")
     tr = a.days / b.days if b.days else float("nan")
     pok, tok = (lo <= pr <= hi), (lo <= tr <= hi)
     st = Status.PASS if (pok and tok) else Status.WARN

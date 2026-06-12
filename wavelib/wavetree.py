@@ -16,6 +16,7 @@ per-node confidence.
 CAUSAL: built only from confirmed ZigZag pivots (confirmed_t set). Pure stdlib.
 """
 from __future__ import annotations
+import bisect
 import math
 from dataclasses import dataclass, field
 
@@ -38,26 +39,88 @@ def _fib_close(r, sigma: float = 0.2) -> float:
     return math.exp(-(d * d) / (2 * sigma * sigma))
 
 
-def _impulse_quality(waves) -> float:
-    """Fibonacci adherence of an impulse's key ratios (0..1)."""
+# --------------------------------------------------------------------------- #
+# Momentum gate (Elliott Wave Oscillator) — how professionals CONFIRM wave 3.
+# Tom Joseph's EWO = SMA(close,5) - SMA(close,35): a real wave 3 carries the
+# highest in-trend reading; wave 4 pulls it toward zero; wave 5 diverges.
+# (docs/research/practitioner/01 + 02.)
+# --------------------------------------------------------------------------- #
+def _ewo(closes, fast: int = 5, slow: int = 35):
+    def sma(n):
+        out = [None] * len(closes)
+        run = 0.0
+        for i, c in enumerate(closes):
+            run += c
+            if i >= n:
+                run -= closes[i - n]
+            if i >= n - 1:
+                out[i] = run / n
+        return out
+    f, s = sma(fast), sma(slow)
+    return [(f[i] - s[i]) if (f[i] is not None and s[i] is not None) else None
+            for i in range(len(closes))]
+
+
+def momentum_lookup(bars):
+    """Return a causal callable t -> EWO value at the most recent bar <= t (or None
+    if EWO not yet defined). Used to gate wave identity in the tree scoring."""
+    ts = [b[0] for b in bars]
+    ewo = _ewo([b[4] for b in bars])
+
+    def at(t):
+        i = bisect.bisect_right(ts, t) - 1
+        if i < 0:
+            return None
+        return ewo[min(i, len(ewo) - 1)]
+    return at
+
+
+def _momentum_multiplier(waves, mom) -> float:
+    """Confidence multiplier (≈0.65–1.45) from the EWO momentum profile of a 5-wave
+    group. Boosts a momentum-confirmed impulse (W3 strongest, W5 divergent, W4 to
+    zero) and penalises one whose 'wave 3' is not the momentum peak — the single
+    check professionals say catches most mislabelled impulses."""
     w1, w2, w3, w4, w5 = waves
-    parts = [_fib_close(w3.length / w1.length if w1.length else 0),
-             _fib_close(w2.length / w1.length if w1.length else 0),
-             _fib_close(w4.length / w3.length if w3.length else 0)]
-    return sum(parts) / len(parts)
+    e1, e3, e4, e5 = mom(w1.end.t), mom(w3.end.t), mom(w4.end.t), mom(w5.end.t)
+    if e1 is None or e3 is None or e5 is None:
+        return 1.0
+    sgn = 1.0 if w1.up else -1.0                 # orient so + = in trend direction
+    a1, a3, a5 = sgn * e1, sgn * e3, sgn * e5
+    mult = 1.25 if (a3 >= a1 and a3 >= a5) else 0.7     # W3 must be the momentum peak
+    beyond = (w5.end.price > w3.end.price) if w1.up else (w5.end.price < w3.end.price)
+    if beyond and a5 < a3:                        # W5 makes new price extreme on weaker momentum
+        mult *= 1.12
+    if e4 is not None and abs(e4) < abs(e3):      # W4 pulls EWO toward zero
+        mult *= 1.05
+    return mult
+
+
+def _impulse_quality(waves) -> float:
+    """Fibonacci adherence of an impulse's key ratios (0..1). Ratios are computed
+    in LOG magnitude (`log_length`) — the correct measure on large-range
+    instruments, where linear price differences make valid proportions invisible
+    (docs/research/audit/04). W3 vs W1 is the headline relationship (W3 commonly
+    1.618-2.618x W1), so it is weighted double."""
+    w1, w2, w3, w4, w5 = waves
+    q31 = _fib_close(w3.log_length / w1.log_length if w1.log_length else 0)
+    q21 = _fib_close(w2.log_length / w1.log_length if w1.log_length else 0)
+    q43 = _fib_close(w4.log_length / w3.log_length if w3.log_length else 0)
+    return (2 * q31 + q21 + q43) / 4.0
 
 
 def _correction_quality(pattern, waves) -> float:
-    """Quality of a 3-leg correction; shallow-B flats are dubious -> low."""
+    """Quality of a 3-leg correction (LOG magnitude). Bases are deliberately below
+    a clean impulse's quality so a momentum-confirmed 5-wave impulse outranks a
+    3-wave parse of the same data (docs/research/audit/01 M1/M7)."""
     A, B, C = waves
-    b = B.length / A.length if A.length else 0.0
-    cca = C.length / A.length if A.length else 0.0
+    b = B.log_length / A.log_length if A.log_length else 0.0
+    cca = C.log_length / A.log_length if A.log_length else 0.0
     if pattern == "ZIGZAG":
-        base = 0.8
+        base = 0.65
     elif pattern == "FLAT":
-        base = 0.7 if b >= 0.8 else 0.45        # shallow-B "flat" is really ambiguous
+        base = 0.58 if b >= 0.8 else 0.40        # shallow-B "flat" is really ambiguous
     else:
-        base = 0.6
+        base = 0.5
     return base * (0.6 + 0.4 * _fib_close(cca))
 
 
@@ -104,7 +167,7 @@ def _confidence(results, children, motive_idx, corr_idx) -> float:
     return max(0.0, min(1.0, conf))
 
 
-def _impulse_node(group, degree):
+def _impulse_node(group, degree, momentum=None):
     waves = [n.as_wave() for n in group]
     if not _alternating(waves):
         return None
@@ -122,6 +185,8 @@ def _impulse_node(group, degree):
             return None
     results = hard + [similarity_and_balance(waves[1], waves[3], context="w2 vs w4")]
     conf = _confidence(results, group, (0, 2, 4), (1, 3)) * (0.4 + 0.6 * _impulse_quality(waves))
+    if momentum is not None:                    # EWO wave-3 confirmation gate
+        conf = max(0.0, min(1.0, conf * _momentum_multiplier(waves, momentum)))
     return WaveNode(group[0].start, group[-1].end, degree, "motive", "IMPULSE",
                     list(group), results, conf)
 
@@ -158,8 +223,8 @@ def _diagonal_node(group, degree):
     net_dir = (w5.end.price > w1.start.price) if up else (w5.end.price < w1.start.price)
     if not net_dir:
         return None                            # must be net-directional (a wedge, not a triangle)
-    contracting = w1.length > w3.length > w5.length
-    expanding = w1.length < w3.length < w5.length
+    contracting = w1.log_length > w3.log_length > w5.log_length
+    expanding = w1.log_length < w3.log_length < w5.log_length
     if not (contracting or expanding):
         return None
     hard = elliott_hard_rules(waves)            # R1, R2 must still hold (R3/overlap is expected)
@@ -220,7 +285,7 @@ def _correction_node(group, degree):
                     list(group), results, conf)
 
 
-def _build_level(nodes, degree):
+def _build_level(nodes, degree, momentum=None):
     """One bottom-up compaction pass via dynamic programming: choose the
     segmentation of `nodes` into 5-groups (impulse, else triangle) and 3-groups
     (correction) — plus carried singletons — that MAXIMISES total validated
@@ -231,7 +296,7 @@ def _build_level(nodes, degree):
     def seg(i, k):
         grp = nodes[i:i + k]
         if k == 5:
-            return (_impulse_node(grp, degree) or _diagonal_node(grp, degree)
+            return (_impulse_node(grp, degree, momentum) or _diagonal_node(grp, degree)
                     or _triangle_node(grp, degree))
         if k == 3:
             return _correction_node(grp, degree)
@@ -239,8 +304,10 @@ def _build_level(nodes, degree):
 
     def value(node):
         # reward coverage (children consumed) x quality, with a motive bonus so a
-        # clean 5-wave impulse/diagonal outscores splitting it into corrections
-        bonus = 0.5 if node.pattern == "IMPULSE" else 0.3 if node.pattern == "DIAGONAL" else 0.0
+        # clean 5-wave impulse/diagonal outscores splitting it into corrections.
+        # Bonus raised (audit 01 M1): a momentum-confirmed impulse must beat two
+        # overlapping 3-wave corrections that would otherwise win on node count.
+        bonus = 1.5 if node.pattern == "IMPULSE" else 0.8 if node.pattern == "DIAGONAL" else 0.0
         return len(node.children) * node.confidence + bonus
 
     best = [None] * (n + 1)
@@ -261,8 +328,9 @@ def _build_level(nodes, degree):
     return new, changed
 
 
-def build_tree_from_pivots(pivots, max_levels: int = 6):
-    """Compact a confirmed-pivot list into wave-tree roots (usually 1-3 nodes)."""
+def build_tree_from_pivots(pivots, max_levels: int = 6, momentum=None):
+    """Compact a confirmed-pivot list into wave-tree roots (usually 1-3 nodes).
+    `momentum` (from `momentum_lookup`) gates impulse confidence by EWO when given."""
     pivots = list(pivots)
     if len(pivots) < 2:
         return []
@@ -270,17 +338,19 @@ def build_tree_from_pivots(pivots, max_levels: int = 6):
              for i in range(len(pivots) - 1)]
     degree = 1
     while degree <= max_levels:
-        nodes, changed = _build_level(nodes, degree)
+        nodes, changed = _build_level(nodes, degree, momentum)
         if not changed:
             break
         degree += 1
     return nodes
 
 
-def build_wave_tree(bars, base_pct: float = 0.03, max_levels: int = 6):
-    """Causal entry point: ZigZag -> confirmed pivots -> recursive wave tree."""
+def build_wave_tree(bars, base_pct: float = 0.03, max_levels: int = 6, use_momentum: bool = True):
+    """Causal entry point: ZigZag -> confirmed pivots -> recursive wave tree. By
+    default the EWO momentum gate is applied (the professional wave-3 confirmation)."""
     pivots = [p for p in zigzag_causal(bars, pct=base_pct) if p.confirmed_t is not None]
-    return build_tree_from_pivots(pivots, max_levels)
+    mom = momentum_lookup(bars) if use_momentum and len(bars) >= 40 else None
+    return build_tree_from_pivots(pivots, max_levels, momentum=mom)
 
 
 def format_tree(nodes, indent: int = 0) -> str:
@@ -350,27 +420,36 @@ def _count_monowaves(node) -> int:
     return 1 if not node.children else sum(_count_monowaves(c) for c in node.children)
 
 
-def anchored_degree(node) -> Degree:
-    """Estimate Elliott degree from the monowave complexity the count subsumes
-    (Neely's 13-55 window; 21-34 ideal). Heuristic — see docs/research/deep/05,07."""
-    m = _count_monowaves(node)
-    if m < 13:
-        return Degree.MINUETTE
-    if m <= 55:
-        return Degree.MINUTE
-    if m <= 144:
-        return Degree.MINOR
-    return Degree.INTERMEDIATE
+_DEGREE_BY_YEARS = [  # (max calendar years, Degree) — Frost & Prechter approx. durations
+    (14 / 365, Degree.SUBMINUETTE), (45 / 365, Degree.MINUETTE), (0.30, Degree.MINUTE),
+    (1.2, Degree.MINOR), (3.5, Degree.INTERMEDIATE), (9.0, Degree.PRIMARY),
+    (27.0, Degree.CYCLE), (80.0, Degree.SUPERCYCLE)]
 
 
-def _anchored_from(top, confidence, coverage) -> AnchoredCount:
+def anchored_degree(node, series_monowaves: int = None) -> Degree:
+    """Estimate Elliott degree from the CALENDAR SPAN of the structure. Previously
+    this used monowave complexity, which (a) was measured on the partial node and
+    (b) was hard-capped at INTERMEDIATE (audit 02 R4) — and complexity also scales
+    with bar count, so an intraday series wrongly reached Supercycle. Degree in EW
+    is tied to duration (Grand Supercycle = centuries … Subminuette = minutes), so
+    we map the structure's time span to the standard ladder. `series_monowaves` is
+    accepted for backward-compatibility and ignored."""
+    years = (node.end.t - node.start.t) / (365.25 * 86400.0)
+    for hi, deg in _DEGREE_BY_YEARS:
+        if years < hi:
+            return deg
+    return Degree.GRAND_SUPERCYCLE
+
+
+def _anchored_from(top, confidence, coverage, series_monowaves=None) -> AnchoredCount:
     labs = _LABELS.get(top.pattern, [])
     labels = list(zip(labs, top.children)) if len(top.children) == len(labs) else []
     confidence = max(0.0, min(1.0, confidence))      # confidence is a probability in [0,1]
     note = ("primary count; watch the wave-1/A origin for invalidation" if confidence >= 0.4
             else "LOW confidence — one of several plausible counts; not a committed call")
+    deg = anchored_degree(top, series_monowaves)
     return AnchoredCount(top.pattern, top.degree, labels, confidence, coverage,
-                         anchored_degree(top).name.replace("_", " ").title(), note)
+                         deg.name.replace("_", " ").title(), note)
 
 
 def _scale_score(roots):
@@ -399,7 +478,9 @@ def wave_counts(bars, scales=(0.04, 0.07, 0.12, 0.20), max_alternates: int = 3):
         if key in seen:
             continue
         seen.add(key)
-        out.append((score, _anchored_from(top, conf, _span(top) / total)))
+        # degree reflects the FULL series complexity, not just the partial top node
+        series_mw = sum(_count_monowaves(r) for r in roots)
+        out.append((score, _anchored_from(top, conf, _span(top) / total, series_mw)))
     out.sort(key=lambda x: -x[0])
     return [ac for _, ac in out][:1 + max_alternates]
 
