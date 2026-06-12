@@ -19,6 +19,7 @@ from __future__ import annotations
 import bisect
 import math
 from dataclasses import dataclass, field
+from itertools import combinations
 
 from .rules import (Pivot, Wave, Status, RuleResult, Degree, elliott_hard_rules,
                     classify_correction, similarity_and_balance)
@@ -463,11 +464,125 @@ def _scale_score(roots):
     return top, conf, score
 
 
-def wave_counts(bars, scales=(0.04, 0.07, 0.12, 0.20), max_alternates: int = 3):
-    """Return a RANKED list of AnchoredCounts (primary first) — one committed
-    count plus plausible alternates across scales, instead of fragmented roots.
-    Addresses the single-count problem (docs/research/deep/07)."""
+# =========================================================================== #
+# TOP-DOWN anchoring — how professionals count (docs/research/practitioner/01).
+# Bottom-up compaction cannot turn 3 macro legs into a 5-wave impulse; pros anchor
+# the dominant high<->low span and search for the best 5-wave partition of the
+# ENTIRE move (full coverage by construction), then drill down. This is the pass
+# that lets a secular advance read as a 5-wave IMPULSE rather than an A-B-C.
+# =========================================================================== #
+def _coarse_pivots(bars, target: int = 15):
+    """Confirmed zigzag pivots at a threshold chosen so the full history reduces to
+    ~`target` MAJOR swings (the degree the macro count lives at)."""
+    best = []
+    for pct in (0.05, 0.07, 0.10, 0.14, 0.20, 0.28, 0.40, 0.55):
+        piv = [p for p in zigzag_causal(bars, pct=pct) if p.confirmed_t is not None]
+        if not best or abs(len(piv) - target) < abs(len(best) - target):
+            best = piv
+        if len(piv) <= target:
+            break
+    return best
+
+
+def _impulse_partitions(piv, a, b, mom):
+    """All valid 5-wave impulse partitions of piv[a..b] -> (confidence, 'IMPULSE', idx)."""
+    out = []
+    for i1, i2, i3, i4 in combinations(range(a + 1, b), 4):
+        idx = [a, i1, i2, i3, i4, b]
+        waves = [Wave(piv[idx[k]], piv[idx[k + 1]]) for k in range(5)]
+        if not _alternating(waves):
+            continue
+        hard = elliott_hard_rules(waves)
+        if any(h.status is Status.FAIL for h in hard):
+            continue                            # overlap (diagonal) / rule break -> not an impulse
+        q = 0.4 + 0.6 * _impulse_quality(waves)
+        if mom is not None:
+            q *= _momentum_multiplier(waves, mom)
+        out.append((max(0.0, min(1.0, q)), "IMPULSE", idx))
+    return out
+
+
+def _correction_partitions(piv, a, b):
+    """All valid 3-wave correction partitions of piv[a..b] -> (confidence, pattern, idx)."""
+    out = []
+    for i1, i2 in combinations(range(a + 1, b), 2):
+        idx = [a, i1, i2, b]
+        waves = [Wave(piv[idx[k]], piv[idx[k + 1]]) for k in range(3)]
+        if waves[0].up == waves[1].up or waves[0].up != waves[2].up:
+            continue
+        rr = classify_correction(waves)
+        if rr.status is not Status.PASS:
+            continue
+        pattern = ("ZIGZAG" if "ZIGZAG" in rr.rule else
+                   "FLAT" if "FLAT" in rr.rule else "CORRECTION")
+        out.append((_correction_quality(pattern, waves), pattern, idx))
+    return out
+
+
+def _child_node(piv, a, b, mom):
+    """Recursively count the sub-structure of one top-degree leg (piv[a..b])."""
+    if b - a <= 1:
+        return WaveNode(piv[a], piv[b], 0, "leg", "MONOWAVE")
+    roots = build_tree_from_pivots(piv[a:b + 1], momentum=mom)
+    if len(roots) == 1:
+        return roots[0]
+    return WaveNode(piv[a], piv[b], 1, "leg", "CORRECTION", list(roots))
+
+
+def top_down_count(bars, target: int = 15, momentum=None, max_pivots: int = 22):
+    """Anchor the dominant low<->high span and return the best full-range top-degree
+    WaveNode (a 5-wave impulse where the structure supports it, else the best
+    correction). Full coverage by construction. Returns None if nothing valid."""
+    piv = _coarse_pivots(bars, target)
+    if len(piv) < 6 or len(piv) > max_pivots:    # too few to be 5 waves / too many to search
+        if len(piv) > max_pivots:
+            piv = piv[-max_pivots:]              # most recent major swings
+        if len(piv) < 4:
+            return None
+    mom = momentum if momentum is not None else (
+        momentum_lookup(bars) if len(bars) >= 40 else None)
+    prices = [p.price for p in piv]
+    lo_i = min(range(len(piv)), key=lambda i: prices[i])
+    hi_i = max(range(len(piv)), key=lambda i: prices[i])
+    cands = []
+    if lo_i < hi_i and hi_i - lo_i >= 5:         # up impulse: low ... later high
+        cands += _impulse_partitions(piv, lo_i, hi_i, mom)
+    if hi_i < lo_i and lo_i - hi_i >= 5:         # down impulse: high ... later low
+        cands += _impulse_partitions(piv, hi_i, lo_i, mom)
+    cands += _correction_partitions(piv, 0, len(piv) - 1)
+    if not cands:
+        return None
+    # prefer a motive (impulse) reading when it is close — the professional bias
+    score, pattern, idx = max(cands, key=lambda c: c[0] + (0.2 if c[1] in _MOTIVE else 0.0))
+    # HONESTY: we picked the best of many partitions (selection bias) — if many
+    # score nearly as high the count is genuinely ambiguous, so haircut confidence.
+    # And no Elliott count is ever certain: hard-cap at 0.85.
+    same = [c[0] for c in cands if (c[1] in _MOTIVE) == (pattern in _MOTIVE)]
+    top_raw = max(same) or 1.0
+    n_close = sum(1 for v in same if v >= 0.9 * top_raw)
+    decisiveness = 1.0 / (1.0 + 0.25 * (n_close - 1))
+    conf = min(0.85, min(1.0, score) * decisiveness)
+    children = [_child_node(piv, idx[k], idx[k + 1], mom) for k in range(len(idx) - 1)]
+    deg = max((c.degree for c in children), default=0) + 1
+    role = "motive" if pattern in _MOTIVE else "corrective"
+    return WaveNode(piv[idx[0]], piv[idx[-1]], deg, role, pattern, children, [], conf)
+
+
+def wave_counts(bars, scales=(0.04, 0.07, 0.12, 0.20), max_alternates: int = 3,
+                top_down: bool = True):
+    """Return a RANKED list of AnchoredCounts (primary first). A TOP-DOWN full-range
+    count (the professional anchoring) is computed first and becomes primary when it
+    is a valid structure; bottom-up multi-scale counts supply alternates."""
     out, seen = [], set()
+    if top_down:
+        td = top_down_count(bars)
+        if td is not None and td.confidence >= 0.25:
+            mw = _count_monowaves(td)
+            ac = _anchored_from(td, td.confidence, 1.0, mw)
+            # rank ahead of bottom-up fragments; motive gets the professional bias
+            sel = td.confidence * (1.3 if td.pattern in _MOTIVE else 1.0) + 0.4
+            out.append((sel, ac))
+            seen.add((td.pattern, int(td.start.t), int(td.end.t)))
     for s in scales:
         roots = build_wave_tree(bars, base_pct=s)
         if not roots:

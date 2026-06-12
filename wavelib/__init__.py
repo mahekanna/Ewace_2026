@@ -50,7 +50,7 @@ from .charting import render_chart
 from .wavetree import (
     WaveNode, build_wave_tree, build_tree_from_pivots, format_tree, deepest_degree,
     best_count, tree_confidence, anchor_count, AnchoredCount,
-    wave_counts, anchored_degree,
+    wave_counts, anchored_degree, top_down_count, momentum_lookup,
 )
 from .confluence import (
     score_reversal, classify_swing_sequence,

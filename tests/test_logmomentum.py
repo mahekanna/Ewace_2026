@@ -11,7 +11,7 @@ import unittest
 
 from wavelib import Pivot, Wave
 from wavelib.wavetree import (_momentum_multiplier, anchored_degree, _impulse_quality,
-                              WaveNode, momentum_lookup)
+                              WaveNode, momentum_lookup, top_down_count, wave_counts)
 
 DAY = 86400.0
 YEAR = 365.25 * DAY
@@ -89,6 +89,33 @@ class TestMomentumLookup(unittest.TestCase):
         self.assertIsNotNone(at(50 * DAY))             # EWO defined after warmup
         # uses the most recent bar <= t (causal)
         self.assertEqual(at(50 * DAY), at(50 * DAY + 3600))
+
+
+class TestTopDownImpulse(unittest.TestCase):
+    def _impulse_bars(self):
+        # a clean 5-wave impulse with deep (zigzag-detectable) corrections + a
+        # trailing leg so the wave-5 high confirms as a pivot; wave 3 is biggest.
+        # lead-in (120->100 confirms the impulse low), then 1-2-3-4-5, then a trail
+        pts = [120, 100, 140, 116, 190, 150, 210, 180]
+        bars, t = [], 0
+        for a, b in zip(pts, pts[1:]):
+            for k in range(1, 41):                 # 40 bars/leg -> EWO warms up
+                p = a + (b - a) * k / 40
+                bars.append((float(t), p, p * 1.003, p * 0.997, float(p), 1000.0))
+                t += 1
+        return bars
+
+    def test_top_down_finds_full_range_impulse(self):
+        td = top_down_count(self._impulse_bars(), target=8)
+        self.assertIsNotNone(td)
+        self.assertEqual(td.pattern, "IMPULSE")
+        self.assertEqual(len(td.children), 5)
+        self.assertTrue(0.0 < td.confidence <= 0.85)     # honest, never certain
+
+    def test_confidence_is_capped_and_honest(self):
+        cs = wave_counts(self._impulse_bars(), scales=(0.05, 0.10), max_alternates=1)
+        self.assertTrue(cs)
+        self.assertLessEqual(cs[0].confidence, 0.85)      # no 100% counts
 
 
 if __name__ == "__main__":
