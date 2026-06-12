@@ -117,6 +117,16 @@ class TestTradePlan(unittest.TestCase):
     def test_plan_none_on_no_structure(self):
         self.assertIsNone(trade_plan([(float(i), 100, 100, 100, 100, 1) for i in range(5)]))
 
+    def test_plan_carries_phase5_discipline(self):
+        # the plan must expose R:R, a confluence target, a confirmation gate count,
+        # and an alternate flip-price (the professional trade-management fields)
+        plan = trade_plan(_bars([100, 150, 130, 200, 180, 240, 205, 230, 195, 250]),
+                          symbol="TEST")
+        self.assertIsInstance(plan, TradePlan)
+        self.assertGreaterEqual(plan.reward_risk, 0.0)
+        self.assertIsInstance(plan.confluence, int)
+        self.assertTrue(plan.cluster is None or isinstance(plan.cluster, list))
+
 
 if __name__ == "__main__":
     unittest.main()

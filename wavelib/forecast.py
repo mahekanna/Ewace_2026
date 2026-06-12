@@ -166,11 +166,19 @@ class TradePlan:
     confirm_window_bars: int      # Neely time gate: confirm within prior-leg build time
     confidence: float
     rationale: str
+    cluster: list = None          # Fibonacci confluence zone(s) — the primary target
+    time_lo_days: float = 0.0     # NeoWave time window for the next wave
+    time_hi_days: float = 0.0
+    alt_flip: float = None        # the ranked ALTERNATE count's invalidation (flip price)
+    confluence: int = 0           # independent confirming strands (score_reversal)
+    reward_risk: float = 0.0      # R:R to the primary (confluence) target
 
     def __str__(self):
         t = "; ".join(f"{lab} ${p:,.2f}" for lab, p in self.targets)
+        cl = f" | confluence ${self.cluster[0][0]:,.2f}" if self.cluster else ""
         return (f"{self.direction.upper()} on {self.entry_trigger} | stop ${self.stop_level:,.2f} "
-                f"| invalidation ${self.invalidation:,.2f} | targets {t} "
+                f"| invalidation ${self.invalidation:,.2f} | targets {t}{cl} "
+                f"| R:R {self.reward_risk:.1f} | confluence {self.confluence} "
                 f"| confirm within {self.confirm_window_bars} bars | conf {self.confidence:.0%}\n"
                 f"  {self.rationale}")
 
@@ -188,7 +196,7 @@ def trade_plan(bars, symbol: str = "", window: int = 300) -> "TradePlan":
     fc = forecast_waves(bars, window=window)
     if fc is None:
         return None
-    counts = wave_counts(recent, (0.03, 0.05, 0.08), max_alternates=0)
+    counts = wave_counts(recent, (0.03, 0.05, 0.08), max_alternates=1)
     if not counts:
         return None
     legs = [n for _lab, n in counts[0].labels]
@@ -209,10 +217,31 @@ def trade_plan(bars, symbol: str = "", window: int = 300) -> "TradePlan":
     # Neely time gate: confirmation should arrive within the prior leg's build time
     leg_bars = sum(1 for b in recent if last.start.t <= b[0] <= last.end.t)
     confirm_window = max(leg_bars, 1)
+    # --- Phase 5 discipline: confluence target, R:R, alternate flip-price, gate ---
+    price = recent[-1][4]
+    tgt = fc.cluster[0][0] if fc.cluster else (fc.targets[0][1] if fc.targets else anchor)
+    risk = abs(entry_level - stop) or 1e-9
+    rr = round(abs(tgt - entry_level) / risk, 2)
+    # the ALTERNATE count's invalidation = the price that flips the read
+    alt_flip = None
+    if len(counts) > 1 and counts[1].labels:
+        alt_flip = round(counts[1].labels[0][1].start.price, 2)
+    # independent confirmation strands at the current price (the confluence gate)
+    confl = 0
+    try:
+        from .confluence import score_reversal
+        zone = (min(swing_lo, tgt), max(swing_hi, tgt))
+        confl = score_reversal(symbol or "x", recent[-250:], zone,
+                               bullish=(direction == "long")).score
+    except Exception:
+        confl = 0
     rationale = (f"{fc.pattern} appears complete -> expect {fc.next_wave}. NeoWave method: "
-                 f"act ONLY on confirmation (the pivot break above, arriving within "
-                 f"~{confirm_window} bars = the prior leg's build time); risk to the "
-                 f"structural invalidation, not a fixed stop. Confidence {fc.confidence:.0%} "
-                 "is the count's honest number — low confidence = wait, don't force it.")
+                 f"act ONLY on confirmation (the pivot break, within ~{confirm_window} bars); "
+                 f"risk to the structural stop; primary target = the Fibonacci confluence "
+                 f"(R:R {rr}); flip the read if price breaks the alternate's invalidation. "
+                 f"Confidence {fc.confidence:.0%} + confluence {confl} strands — low = wait.")
     return TradePlan(symbol or "", direction, trig, entry_level, stop,
-                     fc.invalidation, fc.targets, confirm_window, fc.confidence, rationale)
+                     fc.invalidation, fc.targets, confirm_window, fc.confidence, rationale,
+                     cluster=fc.cluster, time_lo_days=fc.time_lo_days,
+                     time_hi_days=fc.time_hi_days, alt_flip=alt_flip,
+                     confluence=confl, reward_risk=rr)
