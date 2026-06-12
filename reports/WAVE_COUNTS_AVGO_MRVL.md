@@ -23,7 +23,9 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): running triangle
 
-**FORECAST**: new impulse (down) → 0.618x last leg $60.92, 1.000x last leg $41.51, 1.618x last leg $10.11 · invalidation $92.32 · conf 11%
+**FORECAST**: corrective A-B-C (down) → 0.382 retrace $257.24, 0.500 retrace $208.63, 0.618 retrace $160.01 · invalidation $2.64 · conf 29%
+- Fibonacci confluence: **$160.01** (1 projections overlap)
+- time: next wave likely completes in ~385-3465 days (NeoWave S&B vs the 1155-day prior wave)
 
 ### AVGO · 1D — 4234 bars, 2009-08-06→2026-06-05, last $385.73
 
@@ -44,7 +46,9 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): running triangle
 
-**FORECAST**: corrective A-B-C (down) → 0.382 retrace $358.66, 0.500 retrace $316.55, 0.618 retrace $274.44 · invalidation $138.10 · conf 47%
+**FORECAST**: corrective A-B-C (down) → 0.382 retrace $257.24, 0.500 retrace $208.63, 0.618 retrace $160.01 · invalidation $2.64 · conf 29%
+- Fibonacci confluence: **$160.01** (1 projections overlap)
+- time: next wave likely completes in ~385-3462 days (NeoWave S&B vs the 1154-day prior wave)
 
 ### AVGO · 4H — 5000 bars, 2016-06-13→2026-06-05, last $385.74
 
@@ -65,7 +69,9 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): no overlap -> directional impulse, not a terminal
 - Special structures (last 5 legs): running triangle
 
-**FORECAST**: new impulse (down) → 0.618x last leg $411.98, 1.000x last leg $360.66, 1.618x last leg $277.64 · invalidation $495.00 · conf 46%
+**FORECAST**: corrective A-B-C (down) → 0.382 retrace $262.17, 0.500 retrace $215.08, 0.618 retrace $168.00 · invalidation $15.57 · conf 67%
+- Fibonacci confluence: **$128.50** (1 projections overlap)
+- time: next wave likely completes in ~164-1477 days (NeoWave S&B vs the 492-day prior wave)
 
 ### AVGO · 1H — 5000 bars, 2023-07-27→2026-06-05, last $385.74
 
@@ -86,7 +92,9 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): none
 
-**FORECAST**: new impulse (down) → 0.618x last leg $406.80, 1.000x last leg $394.66, 1.618x last leg $375.01 · invalidation $426.45 · conf 32%
+**FORECAST**: corrective A-B-C (down) → 0.382 retrace $355.00, 0.500 retrace $311.75, 0.618 retrace $268.50 · invalidation $128.50 · conf 80%
+- Fibonacci confluence: **$196.23** (1 projections overlap)
+- time: next wave likely completes in ~164-1476 days (NeoWave S&B vs the 492-day prior wave)
 
 ### AVGO · 15M — 5000 bars, 2025-08-28→2026-06-05, last $385.74
 
@@ -104,7 +112,9 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): none
 
-**FORECAST**: new impulse (up) → 0.618x last leg $486.47, 1.000x last leg $495.00, 1.618x last leg $508.79 · invalidation $472.68 · conf 21%
+**FORECAST**: new impulse (down) → 1.000x (equal legs) $307.24, 1.618x (Blue Box top) $191.20 · invalidation $495.00 · conf 41%
+- Fibonacci confluence: **$191.20** (1 projections overlap)
+- time: next wave likely completes in ~31-279 days (NeoWave S&B vs the 93-day prior wave)
 
 ---
 
@@ -126,8 +136,6 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): running triangle
 
-**FORECAST**: new impulse (down) → 0.618x last leg $81.60, 1.000x last leg $81.18, 1.618x last leg $80.49 · invalidation $82.29 · conf 10%
-
 ### MRVL · 1D — 5000 bars, 2006-07-21→2026-06-05, last $263.47
 
 **ELLIOTT WAVE**
@@ -147,7 +155,9 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): neutral triangle, running triangle
 
-**FORECAST**: corrective A-B-C (down) → 0.382 retrace $81.50, 0.500 retrace $74.93, 0.618 retrace $68.36 · invalidation $47.09 · conf 78%
+**FORECAST**: corrective A-B-C (down) → 0.382 retrace $80.49 · invalidation $4.48 · conf 57%
+- Fibonacci confluence: **$80.49** (1 projections overlap)
+- time: next wave likely completes in ~249-2244 days (NeoWave S&B vs the 748-day prior wave)
 
 ### MRVL · 4H — 5000 bars, 2016-06-09→2026-06-05, last $263.47
 
@@ -168,7 +178,9 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): neutral triangle, running triangle
 
-**FORECAST**: new impulse (down) → 0.618x last leg $223.58, 1.000x last leg $163.08, 1.618x last leg $65.20 · invalidation $321.46 · conf 65%
+**FORECAST**: corrective A-B-C (down) → 0.382 retrace $84.24 · invalidation $14.35 · conf 67%
+- Fibonacci confluence: **$84.24** (1 projections overlap)
+- time: next wave likely completes in ~311-2799 days (NeoWave S&B vs the 933-day prior wave)
 
 ### MRVL · 1H — 5000 bars, 2023-07-27→2026-06-05, last $263.47
 
@@ -186,7 +198,9 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): running triangle
 
-**FORECAST**: corrective A-B-C (down) → 0.382 retrace $256.44, 0.500 retrace $235.53, 0.618 retrace $214.61 · invalidation $146.89 · conf 48%
+**FORECAST**: new impulse (up) → 1.000x (equal legs) $98.12, 1.618x (Blue Box top) $115.08, 2.618x extension $142.53 · invalidation $70.67 · conf 24%
+- Fibonacci confluence: **$87.63** (1 projections overlap)
+- time: next wave likely completes in ~30-273 days (NeoWave S&B vs the 91-day prior wave)
 
 ### MRVL · 15M — 5000 bars, 2025-08-28→2026-06-05, last $263.47
 
@@ -206,6 +220,8 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): no overlap -> directional impulse, not a terminal
 - Special structures (last 5 legs): none
 
-**FORECAST**: corrective A-B-C (down) → 0.382 retrace $274.71, 0.500 retrace $259.43, 0.618 retrace $244.15 · invalidation $194.70 · conf 59%
+**FORECAST**: new impulse (up) → 1.000x (equal legs) $102.75, 1.618x (Blue Box top) $122.58, 2.618x extension $154.66 · invalidation $70.67 · conf 31%
+- Fibonacci confluence: **$90.50** (1 projections overlap)
+- time: next wave likely completes in ~21-189 days (NeoWave S&B vs the 63-day prior wave)
 
 ---
