@@ -109,39 +109,38 @@ def build_chart(slug, name, tf_label, tag, scales, outpath):
                         textcoords="offset points", xytext=(0, -15),
                         ha="center", color=CYAN, fontsize=8, alpha=0.95, zorder=7)
 
-    # --- ELLIOTT WAVE count (ABOVE each pivot, gold): full-range nested count from
-    #     the wave tree — top-degree segments (Ⓐ Ⓑ Ⓒ …) + their sub-waves
-    #     (1-2-3-4-5 / A-B-C / W-X-Y). Spans start->end, unlike wave_counts' DP. ---
-    TOP = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    if len(piv) >= 3:
-        for k, node in enumerate(wl.build_tree_from_pivots(piv)):
-            ax.scatter([dt(node.end.t)], [node.end.price], color=GOLD, s=36, zorder=8,
-                       edgecolor=BG, linewidth=1)
-            ax.annotate(TOP[k] if k < len(TOP) else "+",
-                        (dt(node.end.t), node.end.price), textcoords="offset points",
-                        xytext=(0, 27), ha="center", va="center", color=GOLD, fontsize=11,
-                        fontweight="bold", zorder=9,
-                        bbox=dict(boxstyle="circle,pad=0.18", fc="#11161a", ec=GOLD, lw=1.2))
-            if len(node.children) >= 2:
-                seq = subseq(node.pattern, len(node.children))
-                for i, ch in enumerate(node.children):
+    # --- ELLIOTT WAVE count (ABOVE pivots, gold): the engine's PRIMARY top-down
+    #     count — its labelled top-degree legs (1-2-3-4-5 / A-B-C / A-E) drawn as a
+    #     bold path, with each leg's sub-waves where they subdivide. ---
+    cov = conf = 0.0
+    patt = degl = "n/a"
+    if pc and pc.labels:
+        patt, degl, conf, cov = pc.pattern, pc.degree_label, pc.confidence, pc.coverage
+        nodes = [n for _l, n in pc.labels]
+        ex = [dt(nodes[0].start.t)] + [dt(n.end.t) for n in nodes]
+        ey = [nodes[0].start.price] + [n.end.price for n in nodes]
+        ax.plot(ex, ey, color=GOLD, lw=2.4, alpha=0.95, zorder=8,
+                label=f"primary count: {patt} @ {degl}")
+        ax.scatter(ex, ey, color=GOLD, s=42, zorder=9, edgecolor=BG, linewidth=1)
+        for lab, n in pc.labels:
+            ax.annotate(lab, (dt(n.end.t), n.end.price), textcoords="offset points",
+                        xytext=(0, 22), ha="center", va="center", color=GOLD,
+                        fontsize=13, fontweight="bold", zorder=10,
+                        bbox=dict(boxstyle="circle,pad=0.16", fc="#11161a", ec=GOLD, lw=1.3))
+            if len(n.children) >= 2:                # sub-wave labels for this leg
+                seq = subseq(n.pattern, len(n.children))
+                for i, ch in enumerate(n.children):
                     ax.annotate(seq[i], (dt(ch.end.t), ch.end.price),
-                                textcoords="offset points", xytext=(0, 11), ha="center",
-                                color="#ffd479", fontsize=9.5, fontweight="bold", zorder=8)
-        # Fib retracement of the largest full-range swing (labels on the LEFT edge)
-        seg = max(((piv[i], piv[i + 1]) for i in range(len(piv) - 1)),
-                  key=lambda pr: abs(pr[1].price - pr[0].price))
-        a, b = seg[0].price, seg[1].price
+                                textcoords="offset points", xytext=(0, 12), ha="center",
+                                color="#ffd479", fontsize=9, fontweight="bold", zorder=8)
+        # Fib retracement of the dominant leg of the primary count (LEFT-edge labels)
+        dom = max(nodes, key=lambda n: abs(n.end.price - n.start.price))
+        a, b = dom.start.price, dom.end.price
         for r in (0.382, 0.5, 0.618):
             lv = b - (b - a) * r
             ax.axhline(lv, color=GREEN, lw=0.8, ls=":", alpha=0.4)
             ax.annotate(f"{r:.3f}  {lv:,.1f}", (dates[0], lv), color=GREEN,
                         fontsize=8, ha="left", va="bottom", alpha=0.75)
-
-    cov = conf = 0.0
-    patt = degl = "n/a"
-    if pc and pc.labels:
-        patt, degl, conf, cov = pc.pattern, pc.degree_label, pc.confidence, pc.coverage
 
     # forecast next move
     fc = None
@@ -172,9 +171,9 @@ def build_chart(slug, name, tf_label, tag, scales, outpath):
     ax.grid(color=GRID, lw=0.5, alpha=0.5)
     ax.legend(loc="upper left", facecolor="#11161a", edgecolor=GRID,
               labelcolor=INK, fontsize=9)
-    sub = ("ABOVE pivots = ELLIOTT count (gold circled letters = top degree · "
-           "1-2-3-4-5 / A-B-C = sub-waves)   ·   BELOW pivots = NeoWave swing labels "
-           "(cyan :5/:3/:c3…)   ·   dotted green = Fib   ·   gold arrow = forecast")
+    sub = ("GOLD path = ELLIOTT primary count (top-down): circled 1-2-3-4-5 / A-B-C "
+           "top-degree legs + smaller sub-waves   ·   BELOW pivots = NeoWave swing "
+           "labels (cyan :5/:3/:c3…)   ·   dotted green = Fib   ·   gold arrow = forecast")
     fig.text(0.5, 0.012, sub, ha="center", color="#7c8a91", fontsize=8.5)
     fig.text(0.99, 0.012, "analysis tooling only — not advice", ha="right",
              color="#4a565c", fontsize=7)

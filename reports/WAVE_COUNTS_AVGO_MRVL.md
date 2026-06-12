@@ -7,12 +7,14 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 ### AVGO · 1W — 879 bars, 2009-08-03→2026-06-01, last $385.73
 
 **ELLIOTT WAVE**
-- Primary: **ZIGZAG @ Cycle** · confidence 56% · coverage 91%
-    - **A**: $2.64 (2011-08-08) → $33.16 (2020-01-21)  · IMPULSE  [sub: 1=15.05 2=10.00 3=28.57 4=19.75 5=33.16]
-    - **B**: $33.16 (2020-01-21) → $15.57 (2020-03-16)  · MONOWAVE
-    - **C**: $15.57 (2020-03-16) → $251.88 (2024-12-16)  · IMPULSE  [sub: 1=67.78 2=41.51 3=185.16 4=128.50 5=251.88]
+- Primary: **IMPULSE @ Cycle** · confidence 29% · coverage 100%
+    - **1**: $2.64 (2011-08-08) → $33.16 (2020-01-21)  · IMPULSE  [sub: 1=15.05 2=10.00 3=28.57 4=19.75 5=33.16]
+    - **2**: $33.16 (2020-01-21) → $15.57 (2020-03-16)  · MONOWAVE
+    - **3**: $15.57 (2020-03-16) → $67.78 (2021-12-27)  · MONOWAVE
+    - **4**: $67.78 (2021-12-27) → $41.51 (2022-10-10)  · MONOWAVE
+    - **5**: $41.51 (2022-10-10) → $414.61 (2025-12-08)  · WXY  [sub: W=185.16 X=128.50 Y=414.61]
     - _impulse hard-rule check:_ R1 wave2 <100% of wave1=PASS; R2 wave3 not shortest=PASS; R3 wave4/wave1 no overlap=PASS
-- Alternates: WXY 35%; WXY 14%; FLAT 5%
+- Alternates: ZIGZAG 56%; WXY 35%; WXY 14%
 
 **NEOWAVE (Neely)**
 - Full-range swing count (21 monowaves; 7 motive / 12 corrective):
@@ -26,11 +28,14 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 ### AVGO · 1D — 4234 bars, 2009-08-06→2026-06-05, last $385.73
 
 **ELLIOTT WAVE**
-- Primary: **WXY @ Primary** · confidence 16% · coverage 33%
-    - **W**: $1.84 (2010-05-07) → $3.24 (2011-08-15)  · WXY  [sub: W=3.46 X=2.64 Y=3.24]
-    - **X**: $3.24 (2011-08-15) → $3.05 (2012-12-14)  · FLAT  [sub: A=3.09 B=3.92 C=3.05]
-    - **Y**: $3.05 (2012-12-14) → $14.97 (2015-12-07)  · WXY  [sub: W=13.63 X=10.00 Y=14.97]
-- Alternates: WXY 14%; WXY 13%; WXY 4%
+- Primary: **IMPULSE @ Cycle** · confidence 29% · coverage 100%
+    - **1**: $2.64 (2011-08-08) → $33.16 (2020-01-24)  · IMPULSE  [sub: 1=15.05 2=10.00 3=28.57 4=19.75 5=33.16]
+    - **2**: $33.16 (2020-01-24) → $15.57 (2020-03-18)  · MONOWAVE
+    - **3**: $15.57 (2020-03-18) → $67.78 (2021-12-28)  · MONOWAVE
+    - **4**: $67.78 (2021-12-28) → $41.51 (2022-10-13)  · MONOWAVE
+    - **5**: $41.51 (2022-10-13) → $414.61 (2025-12-10)  · WXY  [sub: W=185.16 X=128.50 Y=414.61]
+    - _impulse hard-rule check:_ R1 wave2 <100% of wave1=PASS; R2 wave3 not shortest=PASS; R3 wave4/wave1 no overlap=PASS
+- Alternates: WXY 16%; WXY 14%; WXY 13%
 
 **NEOWAVE (Neely)**
 - Full-range swing count (17 monowaves; 5 motive / 10 corrective):
@@ -39,18 +44,19 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): running triangle
 
-**FORECAST**: new impulse (up) → 0.618x last leg $365.59, 1.000x last leg $386.48, 1.618x last leg $420.27 · invalidation $331.80 · conf 25%
+**FORECAST**: corrective A-B-C (down) → 0.382 retrace $358.66, 0.500 retrace $316.55, 0.618 retrace $274.44 · invalidation $138.10 · conf 47%
 
 ### AVGO · 4H — 5000 bars, 2016-06-13→2026-06-05, last $385.74
 
 **ELLIOTT WAVE**
-- Primary: **TRIANGLE @ Primary** · confidence 34% · coverage 49%
-    - **A**: $28.57 (2017-11-27) → $22.20 (2018-05-04)  · FLAT  [sub: A=22.54 B=27.39 C=22.20]
-    - **B**: $22.20 (2018-05-04) → $25.21 (2018-10-01)  · FLAT  [sub: A=27.18 B=19.75 C=25.21]
-    - **C**: $25.21 (2018-10-01) → $25.02 (2019-05-28)  · FLAT  [sub: A=20.82 B=32.29 C=25.02]
-    - **D**: $25.02 (2019-05-28) → $23.42 (2020-03-13)  · FLAT  [sub: A=33.16 B=20.14 C=23.42]
-    - **E**: $23.42 (2020-03-13) → $51.37 (2022-01-24)  · FLAT  [sub: A=15.57 B=67.61 C=51.37]
-- Alternates: TRIANGLE 26%; FLAT 7%; FLAT 5%
+- Primary: **IMPULSE @ Primary** · confidence 67% · coverage 100%
+    - **1**: $15.57 (2020-03-18) → $67.61 (2021-12-27)  · MONOWAVE
+    - **2**: $67.61 (2021-12-27) → $41.52 (2022-10-13)  · MONOWAVE
+    - **3**: $41.52 (2022-10-13) → $185.13 (2024-06-18)  · MONOWAVE
+    - **4**: $185.13 (2024-06-18) → $128.50 (2024-08-05)  · MONOWAVE
+    - **5**: $128.50 (2024-08-05) → $414.60 (2025-12-10)  · FLAT  [sub: A=251.88 B=138.10 C=414.60]
+    - _impulse hard-rule check:_ R1 wave2 <100% of wave1=PASS; R2 wave3 not shortest=PASS; R3 wave4/wave1 no overlap=PASS
+- Alternates: TRIANGLE 34%; TRIANGLE 26%; FLAT 7%
 
 **NEOWAVE (Neely)**
 - Full-range swing count (24 monowaves; 6 motive / 16 corrective):
@@ -59,16 +65,19 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): no overlap -> directional impulse, not a terminal
 - Special structures (last 5 legs): running triangle
 
-**FORECAST**: new impulse (up) → 0.618x last leg $373.59, 1.000x last leg $414.60, 1.618x last leg $480.95 · invalidation $307.24 · conf 23%
+**FORECAST**: new impulse (down) → 0.618x last leg $411.98, 1.000x last leg $360.66, 1.618x last leg $277.64 · invalidation $495.00 · conf 46%
 
 ### AVGO · 1H — 5000 bars, 2023-07-27→2026-06-05, last $385.74
 
 **ELLIOTT WAVE**
-- Primary: **FLAT @ Intermediate** · confidence 24% · coverage 78%
-    - **A**: $120.39 (2024-03-19) → $251.88 (2024-12-16)  · FLAT  [sub: A=177.06 B=134.90 C=251.88]
-    - **B**: $251.88 (2024-12-16) → $161.61 (2025-04-21)  · WXY  [sub: W=177.70 X=187.30 Y=161.61]
-    - **C**: $161.61 (2025-04-21) → $495.00 (2026-06-03)  · WXY  [sub: W=350.60 X=289.95 Y=495.00]
-- Alternates: WXY 22%; WXY 6%; FLAT 4%
+- Primary: **IMPULSE @ Intermediate** · confidence 80% · coverage 100%
+    - **1**: $128.50 (2024-08-05) → $172.42 (2024-08-22)  · MONOWAVE
+    - **2**: $172.42 (2024-08-22) → $134.90 (2024-09-09)  · MONOWAVE
+    - **3**: $134.90 (2024-09-09) → $251.88 (2024-12-16)  · MONOWAVE
+    - **4**: $251.88 (2024-12-16) → $196.23 (2025-01-27)  · MONOWAVE
+    - **5**: $196.23 (2025-01-27) → $495.00 (2026-06-03)  · FLAT  [sub: A=237.93 B=138.10 C=495.00]
+    - _impulse hard-rule check:_ R1 wave2 <100% of wave1=PASS; R2 wave3 not shortest=PASS; R3 wave4/wave1 no overlap=PASS
+- Alternates: FLAT 24%; WXY 22%; WXY 6%
 
 **NEOWAVE (Neely)**
 - Full-range swing count (16 monowaves; 4 motive / 10 corrective):
@@ -77,7 +86,7 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): none
 
-**FORECAST**: new impulse (up) → 0.618x last leg $428.42, 1.000x last leg $442.36, 1.618x last leg $464.91 · invalidation $405.87 · conf 37%
+**FORECAST**: new impulse (down) → 0.618x last leg $406.80, 1.000x last leg $394.66, 1.618x last leg $375.01 · invalidation $426.45 · conf 32%
 
 ### AVGO · 15M — 5000 bars, 2025-08-28→2026-06-05, last $385.74
 
@@ -122,11 +131,14 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 ### MRVL · 1D — 5000 bars, 2006-07-21→2026-06-05, last $263.47
 
 **ELLIOTT WAVE**
-- Primary: **FLAT @ Cycle** · confidence 24% · coverage 54%
-    - **A**: $6.77 (2008-10-16) → $16.36 (2011-05-27)  · FLAT  [sub: A=5.85 B=17.78 C=16.36]
-    - **B**: $16.36 (2011-05-27) → $7.55 (2015-10-27)  · FLAT  [sub: A=6.98 B=16.65 C=7.55]
-    - **C**: $7.55 (2015-10-27) → $27.64 (2019-07-26)  · WXY  [sub: W=25.18 X=14.34 Y=27.64]
-- Alternates: FLAT 17%; WXY 15%; WXY 4%
+- Primary: **IMPULSE @ Cycle** · confidence 57% · coverage 100%
+    - **1**: $4.48 (2008-11-21) → $22.87 (2010-04-15)  · MONOWAVE
+    - **2**: $22.87 (2010-04-15) → $6.98 (2012-12-27)  · MONOWAVE
+    - **3**: $6.98 (2012-12-27) → $93.85 (2021-12-08)  · FLAT  [sub: A=16.78 B=7.40 C=93.85]
+    - **4**: $93.85 (2021-12-08) → $33.75 (2023-01-06)  · MONOWAVE
+    - **5**: $33.75 (2023-01-06) → $127.48 (2025-01-23)  · MONOWAVE
+    - _impulse hard-rule check:_ R1 wave2 <100% of wave1=PASS; R2 wave3 not shortest=PASS; R3 wave4/wave1 no overlap=PASS
+- Alternates: FLAT 24%; FLAT 17%; WXY 15%
 
 **NEOWAVE (Neely)**
 - Full-range swing count (39 monowaves; 9 motive / 28 corrective):
@@ -135,16 +147,19 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): neutral triangle, running triangle
 
-**FORECAST**: new impulse (down) → 0.618x last leg $86.31, 1.000x last leg $77.44, 1.618x last leg $63.09 · invalidation $100.65 · conf 21%
+**FORECAST**: corrective A-B-C (down) → 0.382 retrace $81.50, 0.500 retrace $74.93, 0.618 retrace $68.36 · invalidation $47.09 · conf 78%
 
 ### MRVL · 4H — 5000 bars, 2016-06-09→2026-06-05, last $263.47
 
 **ELLIOTT WAVE**
-- Primary: **WXY @ Primary** · confidence 44% · coverage 90%
-    - **W**: $19.44 (2018-05-03) → $78.18 (2022-02-10)  · FLAT  [sub: A=28.85 B=16.45 C=78.18]
-    - **X**: $78.18 (2022-02-10) → $63.46 (2024-03-19)  · FLAT  [sub: A=35.30 B=66.80 C=63.46]
-    - **Y**: $63.46 (2024-03-19) → $324.16 (2026-06-03)  · FLAT  [sub: A=127.44 B=79.06 C=324.16]
-- Alternates: FLAT 17%; WXY 7%; WXY 6%
+- Primary: **IMPULSE @ Primary** · confidence 67% · coverage 100%
+    - **1**: $14.35 (2018-12-26) → $28.85 (2020-01-17)  · MONOWAVE
+    - **2**: $28.85 (2020-01-17) → $16.45 (2020-03-18)  · MONOWAVE
+    - **3**: $16.45 (2020-03-18) → $93.83 (2021-12-08)  · MONOWAVE
+    - **4**: $93.83 (2021-12-08) → $41.11 (2022-07-05)  · MONOWAVE
+    - **5**: $41.11 (2022-07-05) → $127.44 (2025-01-23)  · FLAT  [sub: A=58.42 B=33.75 C=127.44]
+    - _impulse hard-rule check:_ R1 wave2 <100% of wave1=PASS; R2 wave3 not shortest=PASS; R3 wave4/wave1 no overlap=PASS
+- Alternates: WXY 44%; FLAT 17%; WXY 7%
 
 **NEOWAVE (Neely)**
 - Full-range swing count (21 monowaves; 4 motive / 15 corrective):
@@ -153,7 +168,7 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): neutral triangle, running triangle
 
-**FORECAST**: new impulse (up) → 0.618x last leg $93.78, 1.000x last leg $102.75, 1.618x last leg $117.25 · invalidation $79.28 · conf 16%
+**FORECAST**: new impulse (down) → 0.618x last leg $223.58, 1.000x last leg $163.08, 1.618x last leg $65.20 · invalidation $321.46 · conf 65%
 
 ### MRVL · 1H — 5000 bars, 2023-07-27→2026-06-05, last $263.47
 
@@ -171,7 +186,7 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): running triangle
 
-**FORECAST**: new impulse (up) → 0.618x last leg $300.19, 1.000x last leg $324.16, 1.618x last leg $362.93 · invalidation $261.42 · conf 23%
+**FORECAST**: corrective A-B-C (down) → 0.382 retrace $256.44, 0.500 retrace $235.53, 0.618 retrace $214.61 · invalidation $146.89 · conf 48%
 
 ### MRVL · 15M — 5000 bars, 2025-08-28→2026-06-05, last $263.47
 
@@ -191,6 +206,6 @@ _Computed 2026-06-12 by `scripts/wave_report.py` on the live TradingView snapsho
 - Terminal check (last 5 legs): no overlap -> directional impulse, not a terminal
 - Special structures (last 5 legs): none
 
-**FORECAST**: new impulse (down) → 0.618x last leg $243.12, 1.000x last leg $194.70, 1.618x last leg $116.36 · invalidation $321.46 · conf 33%
+**FORECAST**: corrective A-B-C (down) → 0.382 retrace $274.71, 0.500 retrace $259.43, 0.618 retrace $244.15 · invalidation $194.70 · conf 59%
 
 ---
