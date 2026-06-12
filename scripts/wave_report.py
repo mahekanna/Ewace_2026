@@ -142,6 +142,11 @@ def section(out, sym, tf_label, tag, scales):
         out.append(f"\n**FORECAST**: {fc.next_wave} → "
                    + ", ".join(f"{l} ${p:,.2f}" for l, p in fc.targets)
                    + f" · invalidation ${fc.invalidation:,.2f} · conf {fc.confidence:.0%}")
+        if fc.cluster:
+            c = fc.cluster[0]
+            out.append(f"- Fibonacci confluence: **${c[0]:,.2f}** ({c[1]} projections overlap)")
+        if fc.time_hi_days:
+            out.append(f"- {fc.time_note}")
 
 
 def main():

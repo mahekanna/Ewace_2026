@@ -66,6 +66,40 @@ class TestForecastEndToEnd(unittest.TestCase):
         self.assertTrue(0.0 <= fc.confidence <= 1.0)             # honest, inherited
 
 
+class TestPhase4Projection(unittest.TestCase):
+    def test_fib_cluster_groups_overlapping_projections(self):
+        from wavelib import fib_cluster
+        bands = fib_cluster([100, 101, 102, 150])     # 100/101/102 within 2%
+        self.assertEqual(bands[0][1], 3)               # top band has 3 overlaps
+        self.assertAlmostEqual(bands[0][0], 101.0)
+
+    def test_correction_complete_projects_extensions(self):
+        # a completed correction -> next impulse uses EXTENSION targets (>=1.0x),
+        # incl. the Blue Box, not retracements
+        pc = _count("ZIGZAG", [100, 70, 85, 60])
+        fc = forecast_from_count(pc, price=62)
+        labels = " ".join(l for l, _ in fc.targets)
+        self.assertIn("equal legs", labels)            # 1.0x Blue Box low
+        self.assertIn("Blue Box", labels)
+
+    def test_forecast_has_time_window(self):
+        from wavelib import Pivot
+        from wavelib.wavetree import WaveNode, AnchoredCount
+        D = 86400.0
+
+        def nd(t0, p0, t1, p1):
+            return WaveNode(Pivot(t0 * D, float(p0), "L"), Pivot(t1 * D, float(p1), "H"),
+                            1, "x", "X")
+        legs = [nd(0, 100, 10, 150), nd(10, 150, 15, 130), nd(15, 130, 40, 200),
+                nd(40, 200, 45, 180), nd(45, 180, 70, 240)]      # last leg = 25 days
+        pc = AnchoredCount("IMPULSE", 2, list(zip("12345", legs)), 0.3, 1.0, "Minor", "t")
+        fc = forecast_from_count(pc, price=235)
+        self.assertGreater(fc.time_hi_days, fc.time_lo_days)      # [N/3, 3N]
+        self.assertAlmostEqual(fc.time_lo_days, 25 / 3.0, places=0)
+        self.assertIn("time", fc.time_note.lower())
+        self.assertIsNotNone(fc.cluster)
+
+
 class TestTradePlan(unittest.TestCase):
     def test_plan_synthesizes_direction_and_gates(self):
         # completed up-impulse -> forecast a down correction -> plan is SHORT,

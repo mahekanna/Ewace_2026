@@ -12,7 +12,7 @@ Pure stdlib.
 from __future__ import annotations
 from dataclasses import dataclass
 
-from .toolkit import fib_retrace
+from .toolkit import fib_retrace, fib_cluster
 from .rules import triangle_thrust
 from .wavetree import wave_counts
 from .automation import swing_sequence
@@ -29,11 +29,21 @@ class WaveForecast:
     confidence: float            # inherited from the count — honest, often low
     sequence_status: str         # EWF swing-sequence overlay
     rationale: str
+    cluster: list = None         # [(price, n_overlaps), ...] Fibonacci confluence zones
+    time_lo_days: float = 0.0    # NeoWave Similarity & Balance: next wave in [N/3, 3N]
+    time_hi_days: float = 0.0
+    time_note: str = ""
 
     def __str__(self):
         t = "; ".join(f"{lab} ${p:,.2f}" for lab, p in self.targets)
+        cl = ""
+        if self.cluster:
+            top = self.cluster[0]
+            cl = f"\n  confluence: ${top[0]:,.2f} ({top[1]} projections overlap)"
+        tm = f"\n  {self.time_note}" if self.time_note else ""
         return (f"Next: {self.next_wave} | targets: {t} | invalidation ${self.invalidation:,.2f} "
-                f"| confidence {self.confidence:.0%} ({self.sequence_status})\n  {self.rationale}")
+                f"| confidence {self.confidence:.0%} ({self.sequence_status})\n  {self.rationale}"
+                + cl + tm)
 
 
 def forecast_from_count(pc, price, sequence_status="INCOMPLETE") -> "WaveForecast":
@@ -51,32 +61,42 @@ def forecast_from_count(pc, price, sequence_status="INCOMPLETE") -> "WaveForecas
     sgn = 1 if direction == "up" else -1
     anchor = last.end.price                           # most recent confirmed pivot
     pat = pc.pattern
+    last_days = (last.end.t - last.start.t) / 86400.0
     seq_note = ("swing-sequence INCOMPLETE — the current leg may extend first"
                 if sequence_status == "INCOMPLETE" else f"swing-sequence {sequence_status}")
+    proj = []                                         # ALL independent projections -> cluster
 
     if pat in ("IMPULSE", "DIAGONAL"):
+        # 5-wave move complete -> a 3-wave CORRECTION retraces it (retracement targets)
         hi, lo = (last.end.price, first.start.price) if struct_up else (first.start.price, last.end.price)
-        retr = fib_retrace(hi, lo)                    # bounded within the structure
+        retr = fib_retrace(hi, lo, ratios=(0.236, 0.382, 0.5, 0.618, 0.786))
         targets = [(f"{r:.3f} retrace", retr[r]) for r in (0.382, 0.5, 0.618)]
+        proj = list(retr.values())
+        if len(legs) >= 4:                            # wave-4 low is the classic A-B-C magnet
+            proj.append(legs[3].end.price)
         invalid = first.start.price
         nxt = f"corrective A-B-C ({direction})"
         why = (f"5-wave {pat.lower()} complete; a 3-wave correction retracing "
                "~38.2-61.8% of it is expected before the trend resumes.")
     elif pat in ("ZIGZAG", "FLAT", "WXY", "CORRECTION"):
-        ll = last.length                              # project off the LAST leg (local)
-        targets = [("0.618x last leg", anchor + sgn * 0.618 * ll),
-                   ("1.000x last leg", anchor + sgn * 1.000 * ll),
-                   ("1.618x last leg", anchor + sgn * 1.618 * ll)]
+        # 3-wave correction complete -> a new impulse; project Fibonacci EXTENSIONS of
+        # the last leg, incl. the EWF Blue Box (100%-161.8% equal-legs reaction zone).
+        ll = last.length
+        ext = {r: anchor + sgn * r * ll for r in (0.618, 1.0, 1.272, 1.618, 2.618)}
+        targets = [("1.000x (equal legs)", ext[1.0]), ("1.618x (Blue Box top)", ext[1.618]),
+                   ("2.618x extension", ext[2.618])]
+        proj = list(ext.values())
         invalid = anchor                              # a break past the last pivot voids it
         nxt = f"new impulse ({direction})"
         why = ("3-wave correction appears complete; trend resumption is expected, "
-               "projected as Fibonacci multiples of the last leg from the recent pivot.")
+               "projected as Fibonacci EXTENSIONS of the last leg (Blue Box = 1.0-1.618x).")
     elif pat == "TRIANGLE":
         widest = max(l.length for l in legs)
         direction = "up" if struct_up else "down"
         sgn = 1 if direction == "up" else -1
         th = triangle_thrust(widest, anchor, sgn)
         targets = [("thrust min (0.75x)", th["min"]), ("thrust max (1.25x)", th["max"])]
+        proj = [th["min"], th["max"], anchor + sgn * widest]
         invalid = first.start.price
         nxt = f"post-triangle thrust ({direction})"
         why = (f"triangle complete; a thrust of ~75-125% of the widest leg "
@@ -84,8 +104,19 @@ def forecast_from_count(pc, price, sequence_status="INCOMPLETE") -> "WaveForecas
     else:
         return None
 
-    # clamp to sane prices (drop non-positive / absurd projections)
-    targets = [(lab, round(p, 2)) for lab, p in targets if 0 < p < price * 3]
+    # clamp to sane prices: a single next-wave target shouldn't be a tiny fraction of
+    # or a huge multiple of current price (those come from projecting a macro-degree
+    # leg locally). Keep [0.3x, 3x].
+    lo_c, hi_c = price * 0.3, price * 3
+    targets = [(lab, round(p, 2)) for lab, p in targets if lo_c < p < hi_c]
+    # Fibonacci CONFLUENCE: where independent projections overlap is the real target
+    cluster = fib_cluster([p for p in proj if lo_c < p < hi_c], tol=0.02)
+    cluster = [c for c in cluster if c[1] >= 2] or cluster[:1]
+    # NeoWave time projection (Similarity & Balance on TIME): the next same-degree
+    # wave should complete in [N/3, 3N] bars where N = the last wave's duration.
+    t_lo, t_hi = last_days / 3.0, last_days * 3.0
+    time_note = (f"time: next wave likely completes in ~{t_lo:.0f}-{t_hi:.0f} days "
+                 f"(NeoWave S&B vs the {last_days:.0f}-day prior wave)")
     # honesty: if price has run far past the last CONFIRMED pivot, a big unconfirmed
     # leg is in progress and the confirmed-structure forecast lags reality.
     gap = abs(price - anchor) / price if price else 0.0
@@ -96,20 +127,23 @@ def forecast_from_count(pc, price, sequence_status="INCOMPLETE") -> "WaveForecas
                   "this forecast assumes the confirmed count and likely lags; let the "
                   "current leg confirm first.")
     return WaveForecast(price, pat, nxt, direction, targets, round(invalid, 2),
-                        pc.confidence, sequence_status, why + " " + seq_note + caveat)
+                        pc.confidence, sequence_status, why + " " + seq_note + caveat,
+                        cluster=cluster, time_lo_days=round(t_lo, 1),
+                        time_hi_days=round(t_hi, 1), time_note=time_note)
 
 
-def forecast_waves(bars, scales=(0.03, 0.05, 0.08), window: int = 300) -> "WaveForecast":
-    """Forecast the next wave(s) from the RECENT structure (last `window` bars at
-    FINE scales, so the count's legs are a local sub-move near the current price —
-    not the whole multi-month range). Returns a WaveForecast or None. Confidence
-    is the count's honest confidence — treat targets as a zone, not a prediction."""
-    recent = bars[-window:] if len(bars) > window else bars
-    counts = wave_counts(recent, scales, max_alternates=0)
+def forecast_waves(bars, window: int = None) -> "WaveForecast":
+    """Forecast the next wave from the engine's PRIMARY (top-down) count — the same
+    count shown on the chart — so the forecast is coherent with the labelled
+    structure rather than a separate recent-window read. Pass `window` to forecast
+    from only the last N bars (e.g. for intraday). Returns a WaveForecast or None;
+    confidence is the count's honest (often low) number — treat targets as a zone."""
+    data = bars if (window is None or len(bars) <= window) else bars[-window:]
+    counts = wave_counts(data, max_alternates=0)      # top-down primary
     if not counts:
         return None
-    seq = swing_sequence(bars=recent, pct=0.10)
-    return forecast_from_count(counts[0], recent[-1][4], seq["status"])
+    seq = swing_sequence(bars=data, pct=0.10)
+    return forecast_from_count(counts[0], data[-1][4], seq["status"])
 
 
 @dataclass

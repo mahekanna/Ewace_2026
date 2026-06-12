@@ -155,6 +155,11 @@ def build_chart(slug, name, tf_label, tag, scales, outpath):
         ftxt = ("FORECAST  " + fc.next_wave + "\n"
                 + "  ".join(f"{l} {p:,.1f}" for l, p in fc.targets)
                 + f"\ninvalidation {fc.invalidation:,.1f}   conf {fc.confidence:.0%}")
+        if getattr(fc, "cluster", None):
+            c = fc.cluster[0]
+            ftxt += f"\nconfluence {c[0]:,.1f} ({c[1]}x)"
+        if getattr(fc, "time_hi_days", 0):
+            ftxt += f"\ntime ~{fc.time_lo_days:.0f}-{fc.time_hi_days:.0f}d"
         ax.text(0.985, 0.035, ftxt, transform=ax.transAxes, color=INK, fontsize=9,
                 va="bottom", ha="right",
                 bbox=dict(boxstyle="round,pad=0.5", fc="#11161a", ec=GOLD, alpha=0.9))

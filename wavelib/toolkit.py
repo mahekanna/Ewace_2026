@@ -260,6 +260,31 @@ def fib_retrace(high: float, low: float, ratios=(0.236, 0.382, 0.5, 0.618, 0.786
     return {r: round(high - r * rng, 2) for r in ratios}
 
 
+def fib_cluster(prices, tol: float = 0.02):
+    """Confluence detector: group projection prices into bands where independent
+    Fibonacci measurements overlap within `tol` (relative). Returns [(center,
+    count)] sorted by count desc — the band with the most overlapping projections
+    is the high-confluence target zone. The most-cited institutional-EW edge
+    (docs/research/practitioner/04 D-8)."""
+    pts = sorted(p for p in prices if p and p > 0)
+    if not pts:
+        return []
+    used = [False] * len(pts)
+    bands = []
+    for i, p in enumerate(pts):
+        if used[i]:
+            continue
+        grp = [p]
+        used[i] = True
+        for j in range(i + 1, len(pts)):
+            if not used[j] and abs(pts[j] - p) / p <= tol:
+                grp.append(pts[j])
+                used[j] = True
+        bands.append((round(sum(grp) / len(grp), 2), len(grp)))
+    bands.sort(key=lambda b: -b[1])
+    return bands
+
+
 def wave_ratio(a: Wave, b: Wave) -> float:
     return a.length / b.length if b.length else float("nan")
 
