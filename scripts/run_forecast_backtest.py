@@ -123,7 +123,9 @@ def main():
     all_rows = []
     sections = []
     directions = {}
-    for label, tag, stride, max_hold in TIMEFRAMES:
+    want = {a.upper() for a in sys.argv[1:]}           # optional: limit to given TFs
+    tfs = [t for t in TIMEFRAMES if not want or t[0] in want]
+    for label, tag, stride, max_hold in tfs:
         rows, bench_sr, span, n_inst, direction = run_timeframe(tag, stride, max_hold)
         if not rows:
             continue
