@@ -55,3 +55,11 @@
 {"strategy": "forecast_driven", "tf": "15m", "mode": "zone", "conf_min": 0.25, "events": 610, "sharpe": -0.4871936379378894, "expectancy_r": -0.3961205557538387}
 {"strategy": "forecast_driven", "tf": "15m", "mode": "bos", "conf_min": 0.15, "events": 5, "sharpe": 0.10521427924463887, "expectancy_r": 0.004219661333336932}
 {"strategy": "forecast_driven", "tf": "15m", "mode": "bos", "conf_min": 0.25, "events": 5, "sharpe": 0.10521427924463887, "expectancy_r": 0.004219661333336932}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "zone", "conf_min": 0.15, "events": 1421, "sharpe": -0.548506246536391, "expectancy_r": -0.6388035905049301}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "zone", "conf_min": 0.25, "events": 1014, "sharpe": -0.48239340839311595, "expectancy_r": -0.5702035010274635}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "bos", "conf_min": 0.15, "events": 636, "sharpe": 0.4760220324141805, "expectancy_r": 0.5133201118791914}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "bos", "conf_min": 0.25, "events": 460, "sharpe": 0.47788267253498184, "expectancy_r": 0.4763802900480304}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "zone", "conf_min": 0.15, "events": 2200, "sharpe": -0.5844607622625833, "expectancy_r": -0.6058011554425677}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "zone", "conf_min": 0.25, "events": 1801, "sharpe": -0.5442546923560047, "expectancy_r": -0.5812724836803291}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "bos", "conf_min": 0.15, "events": 1009, "sharpe": 0.5632427711886334, "expectancy_r": 0.551407441741559}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "bos", "conf_min": 0.25, "events": 835, "sharpe": 0.4913309322113955, "expectancy_r": 0.5172836959264023}
