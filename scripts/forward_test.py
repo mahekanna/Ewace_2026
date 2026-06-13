@@ -146,9 +146,10 @@ def snapshot(sym, tf, bars, t, fc, path):
 def main():
     sym = (sys.argv[1] if len(sys.argv) > 1 else "avgo").lower()
     tf = (sys.argv[2] if len(sys.argv) > 2 else "15m").lower()
+    forward = int(sys.argv[3]) if len(sys.argv) > 3 else FORWARD  # optional 3rd arg widens the walk
     bars = load(sym, tf)
     n = len(bars)
-    start = max(ROLL, n - FORWARD)
+    start = max(ROLL, n - forward)
     end = n - RESOLVE                      # leave room to ghost-feed the resolution
     steps = list(range(start, end))
     if not steps:
@@ -183,6 +184,7 @@ def main():
     hr = hit["HIT"] / decided if decided else 0.0
     da = dir_correct / dir_total if dir_total else 0.0
     stale = hit.get("stale", 0)
+    mod = max(8, len(rows) // 120)         # keep the log readable for long walks
     out = [f"# Forward test (ghost-feeding) — {sym.upper()} {tf}",
            "",
            f"_Simulated real time: at each of {len(steps)} candles "
@@ -201,11 +203,11 @@ def main():
            f"- Next-candle directional accuracy: **{da:.0%}** of {dir_total} (coin-flip = 50%).",
            f"- Snapshots (forecast vs realized): " + ", ".join(f"`{os.path.relpath(s, ROOT)}`" for s in snaps),
            "",
-           "## Live forecast log (every 8th candle)",
+           f"## Live forecast log (every {mod}th candle)",
            "| time | price | forecast | conf | target | invalid | outcome |",
            "|---|---|---|---|---|---|---|"]
     for i, (t, px, fc, outcome, nbar) in enumerate(rows):
-        if i % 8:
+        if i % mod:
             continue
         if fc and fc.targets:
             tgt = fc.cluster[0][0] if fc.cluster else fc.targets[0][1]
