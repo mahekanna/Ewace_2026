@@ -64,7 +64,7 @@ from .forecast import (
 from .forecast_backtest import (
     ForecastTrade, forecast_trades, forecast_returns, expectancy, compute_setups,
 )
-from .wave3 import Wave3Signal, wave3_signal
+from .wave3 import Wave3Signal, wave3_signal, wave3_signal_strict
 from .cycle_seam import CycleSignal
 
 __version__ = "0.2.0"

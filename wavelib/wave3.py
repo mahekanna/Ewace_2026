@@ -40,6 +40,9 @@ class Wave3Signal:
     retr: float             # wave-2 retracement fraction of wave 1
     ewo: float              # EWO at entry (momentum into wave 3)
     note: str = ""
+    strands: int = 0        # confluence strands satisfied (Table D gate)
+    t2: float = 0.0         # second target (2.618x W1)
+    w1_bars: int = 0        # wave-1 duration in bars (for the S&B time budget)
 
 
 def wave3_signal(bars, *, pct: float = 0.02, retr_lo: float = 0.382,
@@ -110,3 +113,80 @@ def wave3_signal(bars, *, pct: float = 0.02, retr_lo: float = 0.382,
                            round(retr, 3), e if e is not None else 0.0,
                            "wave-3 short: broke wave-1 low after a valid wave-2 pullback")
     return None
+
+
+# --------------------------------------------------------------------------- #
+# RULE-FAITHFUL wave-3 entry (docs/RULESET.md §H). Adds the documented pieces the
+# crude signal skipped: PATTERN IDENTIFICATION (W1 must carry a NeoWave :5 motive
+# structure label — doc 02 §2.1), the CONFLUENCE GATE (>=N independent strands via
+# score_reversal — doc 04 Table D: a label alone never trades), the R:R gate
+# (>=2:1 — E-2), and the E-10 entry-trigger time window (the break must fire within
+# ~the wave-2 duration). Long-only first; short mirrors.
+# --------------------------------------------------------------------------- #
+_MOTIVE_LABELS = (":5", ":L5", ":s5")
+_CORR_LABELS = (":3", ":c3", ":sL3", ":F3", ":L3")
+
+
+def wave3_signal_strict(bars, *, conf_min: int = 3, min_rr: float = 2.0,
+                        retr_lo: float = 0.382, retr_hi: float = 0.618,
+                        deep_hi: float = 0.764, pct: float = 0.02,
+                        buf: float = 0.001, use_momentum: bool = True):
+    """Rule-faithful wave-3 long entry, or None. Reuses the documented rule
+    components (NeoWave structure label, score_reversal confluence, Fib targets,
+    S&B time). Causal."""
+    if len(bars) < 60:
+        return None
+    from .rules import label_monowaves
+    from .confluence import score_reversal
+    piv = [p for p in zigzag_causal(bars, pct=pct) if p.confirmed_t is not None]
+    if len(piv) < 4:
+        return None
+    a, b, c = piv[-3], piv[-2], piv[-1]                  # a->b = W1, b->c = W2
+    price, prev, t_now = bars[-1][4], bars[-2][4], bars[-1][0]
+    if not (b.price > a.price and c.price < b.price):    # long setup only (mirror later)
+        return None
+    w1_len = b.price - a.price
+    if w1_len <= 0 or w1_len / max(a.price, 1e-9) < 0.01:
+        return None
+    # --- PATTERN ID: W1 (wave a->b) must carry a NeoWave :5-family MOTIVE label ---
+    lab = label_monowaves(piv)                           # [(Wave, label), ...]
+    if len(lab) < 2:
+        return None
+    w1_label = lab[-2][1]                                 # label of the a->b wave
+    if not any(w1_label.startswith(m) for m in _MOTIVE_LABELS):
+        return None
+    # --- W2 corrective: golden zone (.382-.618), deep allowed to .764; holds R1 ---
+    retr = (b.price - c.price) / w1_len
+    if not (retr_lo <= retr <= deep_hi) or c.price <= a.price:
+        return None
+    w1_high, w2_low = b.price, c.price
+    # --- E-10 entry-trigger window: the break must fire within ~ W2's duration ---
+    w2_bars = sum(1 for x in bars if b.t <= x[0] <= c.t)
+    if sum(1 for x in bars if x[0] > c.t) > 2 * max(w2_bars, 1):
+        return None
+    # --- CONFIRMATION: break + close above W1 high on THIS candle ---
+    if not (prev <= w1_high < price):
+        return None
+    e = momentum_lookup(bars)(t_now) if use_momentum else 0.0
+    if use_momentum and (e is None or e <= 0):           # momentum expanding (W3 personality)
+        return None
+    # --- CONFLUENCE GATE (Table D): >= conf_min independent strands ---
+    rep = score_reversal("w3", bars[-250:], (w2_low, w1_high), bullish=True)
+    if rep.score < conf_min:
+        return None
+    entry, stop = w1_high, w2_low * (1 - buf)
+    risk = entry - stop
+    if risk <= 0:
+        return None
+    t1, t2 = w2_low + 1.618 * w1_len, w2_low + 2.618 * w1_len
+    rr = (t1 - entry) / risk
+    if rr < min_rr:                                       # E-2 minimum reward:risk
+        return None
+    w1_bars = sum(1 for x in bars if a.t <= x[0] <= b.t)
+    return Wave3Signal("long", t_now, round(entry, 4), round(stop, 4),
+                       [("1.618x W1", round(t1, 2)), ("2.618x W1", round(t2, 2))],
+                       round(rr, 2), (a.price, b.price), w2_low, round(retr, 3),
+                       e if e is not None else 0.0,
+                       f"rule-faithful W3: W1={w1_label.split('(')[0]} motive, "
+                       f"W2 {retr:.0%} retrace, confluence {rep.score}/7 strands, R:R {rr:.1f}",
+                       strands=rep.score, t2=round(t2, 2), w1_bars=w1_bars)

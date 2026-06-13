@@ -35,8 +35,8 @@ def dt(t):
 
 
 def resolve(sig, future):
-    """Ghost-feed; return (R_multiple, outcome, bars_held). Stop checked before target
-    within a bar (conservative)."""
+    """Single-target ghost-feed; return (R_multiple, outcome, bars_held). Stop before
+    target within a bar (conservative)."""
     entry, stop = sig.entry, sig.stop
     t1 = sig.targets[0][1]
     long = sig.direction == "long"
@@ -62,23 +62,61 @@ def resolve(sig, future):
     return None
 
 
+def resolve_scaleout(sig, future):
+    """Rule-faithful management (C-1/E-5/E-6): take 50% at T1 (1.618x), move stop to
+    breakeven, run the rest to T2 (2.618x). S&B TIME BUDGET = 3x wave-1 duration
+    (doc 02 §2.3) replaces any fixed bar count. Returns (R, outcome, bars_held)."""
+    entry, stop, t1, t2 = sig.entry, sig.stop, sig.targets[0][1], sig.t2
+    long = sig.direction == "long"
+    risk = abs(entry - stop)
+    if risk <= 0:
+        return None
+    budget = min(len(future), 3 * max(sig.w1_bars, 1))   # S&B time, not 96 bars
+    booked, rem, cur_stop, hit_t1 = 0.0, 1.0, stop, False
+    for i in range(budget):
+        b = future[i]
+        hi, lo = b[2], b[3]
+        adverse = (lo <= cur_stop) if long else (hi >= cur_stop)
+        if adverse:
+            booked += rem * (cur_stop - entry) / risk * (1 if long else -1)
+            return booked, ("PARTIAL" if hit_t1 else "STOP"), i + 1
+        reach_t1 = (hi >= t1) if long else (lo <= t1)
+        if not hit_t1 and reach_t1:
+            booked += 0.5 * (t1 - entry) / risk * (1 if long else -1)
+            rem, hit_t1, cur_stop = 0.5, True, entry           # 50% off, stop -> breakeven
+        reach_t2 = (hi >= t2) if long else (lo <= t2)
+        if hit_t1 and reach_t2:
+            booked += rem * (t2 - entry) / risk * (1 if long else -1)
+            return booked, "WIN", i + 1
+    if budget:                                               # time-budget exit at close
+        last = future[budget - 1][4]
+        booked += rem * (last - entry) / risk * (1 if long else -1)
+        return booked, ("PARTIAL" if hit_t1 else "TIME"), budget
+    return None
+
+
 def main():
     sym = (sys.argv[1] if len(sys.argv) > 1 else "avgo").lower()
     tf = (sys.argv[2] if len(sys.argv) > 2 else "15m").lower()
     max_hold = int(sys.argv[3]) if len(sys.argv) > 3 else 96
     pct = float(sys.argv[4]) if len(sys.argv) > 4 else 0.02
+    strict = "strict" in sys.argv                # rule-faithful signal + scale-out + S&B time
     bars = load(sym, tf)
     n = len(bars)
     ROLL = 400                                   # rolling window for the signal (bounds cost)
     trades = []
     t = 60
     while t < n - 1:
-        sig = wl.wave3_signal(bars[max(0, t - ROLL):t + 1], pct=pct)
+        if strict:
+            sig = wl.wave3_signal_strict(bars[max(0, t - ROLL):t + 1], pct=pct)
+        else:
+            sig = wl.wave3_signal(bars[max(0, t - ROLL):t + 1], pct=pct)
         if sig is None:
             t += 1
             continue
-        future = bars[t + 1:t + 1 + max_hold]
-        res = resolve(sig, future)
+        horizon = max(max_hold, 3 * getattr(sig, "w1_bars", max_hold) + 5)
+        future = bars[t + 1:t + 1 + horizon]
+        res = resolve_scaleout(sig, future) if strict else resolve(sig, future)
         if res is None:
             t += 1
             continue
@@ -91,13 +129,13 @@ def main():
            "",
            f"_Causal ghost-feed of `wave3_signal` over {n} bars "
            f"({dt(bars[0][0]):%Y-%m-%d} → {dt(bars[-1][0]):%Y-%m-%d}); stop=wave-2 extreme, "
-           f"target=1.618x wave-1, max_hold={max_hold} bars, zigzag pct={pct}, EWO-gated. "
+           f"target=1.618x wave-1, " + ("STRICT (pattern-ID + >=3 confluence strands + R:R>=2 + S&B-time scale-out)" if strict else f"max_hold={max_hold}, EWO-gated") + f", pct={pct}. "
            "Expectancy in R is the metric. Not advice._", ""]
     if not trades:
         out.append("**No wave-3 signals fired** (structure/confirmation/momentum filters too tight "
                    "for this data/scale).")
         print("\n".join(out))
-        open(os.path.join(ROOT, "reports", f"FORWARD_WAVE3_{sym.upper()}_{tf}.md"), "w").write("\n".join(out) + "\n")
+        open(os.path.join(ROOT, "reports", f"FORWARD_WAVE3_{'STRICT_' if strict else ''}{sym.upper()}_{tf}.md"), "w").write("\n".join(out) + "\n")
         return
     rs = [x["r"] for x in trades]
     wins = [x for x in rs if x > 0]
@@ -131,7 +169,7 @@ def main():
     for x in trades[:25]:
         out.append(f"| {dt(x['t']):%Y-%m-%d %H:%M} | {x['dir']} | {x['rr']:.2f} | "
                    f"{x['outcome']} | {x['r']:+.2f} | {x['held']} |")
-    rep = os.path.join(ROOT, "reports", f"FORWARD_WAVE3_{sym.upper()}_{tf}.md")
+    rep = os.path.join(ROOT, "reports", f"FORWARD_WAVE3_{'STRICT_' if strict else ''}{sym.upper()}_{tf}.md")
     os.makedirs(os.path.dirname(rep), exist_ok=True)
     open(rep, "w").write("\n".join(out) + "\n")
     print("\n".join(out[:14]))
