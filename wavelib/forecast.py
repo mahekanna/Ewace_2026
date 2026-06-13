@@ -82,21 +82,29 @@ def forecast_from_count(pc, price, sequence_status="INCOMPLETE") -> "WaveForecas
         # 3-wave correction complete -> a new impulse; project Fibonacci EXTENSIONS of
         # the last leg, incl. the EWF Blue Box (100%-161.8% equal-legs reaction zone).
         ll = last.length
-        ext = {r: anchor + sgn * r * ll for r in (0.618, 1.0, 1.272, 1.618, 2.618)}
+        # RE-ANCHOR to current price when an unconfirmed impulse leg is already
+        # developing (price has run in the forecast direction past the last confirmed
+        # pivot). Anchoring extensions to the stale pivot is what made ~half of
+        # intraday forecasts unusable (forward test); projecting from where price IS
+        # keeps the target ahead of price.
+        base = price if sgn * (price - anchor) > 0 else anchor
+        ext = {r: base + sgn * r * ll for r in (0.618, 1.0, 1.272, 1.618, 2.618)}
         targets = [("1.000x (equal legs)", ext[1.0]), ("1.618x (Blue Box top)", ext[1.618]),
                    ("2.618x extension", ext[2.618])]
         proj = list(ext.values())
         invalid = anchor                              # a break past the last pivot voids it
         nxt = f"new impulse ({direction})"
         why = ("3-wave correction appears complete; trend resumption is expected, "
-               "projected as Fibonacci EXTENSIONS of the last leg (Blue Box = 1.0-1.618x).")
+               "projected as Fibonacci EXTENSIONS of the last leg (Blue Box = 1.0-1.618x), "
+               "re-anchored to current price when the leg is already developing.")
     elif pat == "TRIANGLE":
         widest = max(l.length for l in legs)
         direction = "up" if struct_up else "down"
         sgn = 1 if direction == "up" else -1
-        th = triangle_thrust(widest, anchor, sgn)
+        base = price if sgn * (price - anchor) > 0 else anchor   # re-anchor to live price
+        th = triangle_thrust(widest, base, sgn)
         targets = [("thrust min (0.75x)", th["min"]), ("thrust max (1.25x)", th["max"])]
-        proj = [th["min"], th["max"], anchor + sgn * widest]
+        proj = [th["min"], th["max"], base + sgn * widest]
         invalid = first.start.price
         nxt = f"post-triangle thrust ({direction})"
         why = (f"triangle complete; a thrust of ~75-125% of the widest leg "
