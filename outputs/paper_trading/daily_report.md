@@ -1,71 +1,68 @@
 # Paper trading report
 
-_Generated 2026-07-09 11:56 UTC — replay mode._
+_Generated 2026-07-09 12:02 UTC — replay mode._
 
-- bars_replayed: **2158**
-- signals_seen: **71**
-- orders_placed: **32**
-- rejected_by_risk: **39**
-- trades_closed: **32**
-- realized_pnl: **-3385.77**
-- final_equity: **96614.23**
+- bars_replayed: **1638**
+- signals_seen: **56**
+- orders_placed: **29**
+- rejected_by_risk: **27**
+- trades_closed: **29**
+- realized_pnl: **98.64**
+- final_equity: **100098.64**
 - open_positions: **0**
 - halted_by_kill_switch: **False**
 
 ## Risk rejections (first 20)
-- AVGO: cooldown after loss (11/12 bars)
 - MRVL: symbol exposure cap (20.0%)
 - MRVL: symbol exposure cap (20.0%)
+- AVGO: symbol exposure cap (20.0%)
+- MRVL: symbol exposure cap (20.0%)
+- AVGO: symbol exposure cap (20.0%)
+- AVGO: symbol exposure cap (20.0%)
 - MRVL: symbol exposure cap (20.0%)
 - MRVL: symbol exposure cap (20.0%)
-- MRVL: symbol exposure cap (20.0%)
-- MRVL: symbol exposure cap (20.0%)
+- AVGO: symbol exposure cap (20.0%)
+- AVGO: symbol exposure cap (20.0%)
+- AVGO: symbol exposure cap (20.0%)
+- MRVL: cooldown after loss (5/12 bars)
 - AVGO: cooldown after loss (6/12 bars)
-- MRVL: cooldown after loss (10/12 bars)
-- MRVL: symbol exposure cap (20.0%)
-- MRVL: symbol exposure cap (20.0%)
-- MRVL: symbol exposure cap (20.0%)
+- AVGO: cooldown after loss (2/12 bars)
 - AVGO: symbol exposure cap (20.0%)
-- MRVL: symbol exposure cap (20.0%)
+- MRVL: cooldown after loss (3/12 bars)
 - AVGO: symbol exposure cap (20.0%)
 - AVGO: symbol exposure cap (20.0%)
-- MRVL: symbol exposure cap (20.0%)
-- AVGO: cooldown after loss (1/12 bars)
-- MRVL: symbol exposure cap (20.0%)
 - AVGO: symbol exposure cap (20.0%)
+- MRVL: cooldown after loss (3/12 bars)
 
 ## Closed trades
 | t | symbol | qty | pnl | exit |
 |---|---|---|---|---|
-| 2026-02-17 18:15 | MRVL | 191 | -537.30 | stop |
-| 2026-02-17 19:30 | AVGO | 58 | -891.44 | stop |
-| 2026-03-05 13:30 | AVGO | 53 | -996.30 | stop |
-| 2026-03-12 13:30 | MRVL | 195 | -528.79 | stop |
-| 2026-03-16 13:30 | MRVL | 150 | -534.65 | stop |
-| 2026-03-27 15:15 | MRVL | 184 | +283.35 | target |
-| 2026-03-27 17:15 | AVGO | 50 | +983.55 | target |
-| 2026-03-31 13:30 | MRVL | 100 | -584.40 | stop |
-| 2026-04-01 13:30 | MRVL | 197 | +939.70 | target |
-| 2026-04-06 13:30 | MRVL | 162 | +268.23 | target |
-| 2026-04-08 14:00 | MRVL | 175 | +366.83 | target |
-| 2026-04-10 13:30 | MRVL | 150 | +1310.05 | target |
-| 2026-04-23 13:30 | MRVL | 100 | +910.94 | target |
-| 2026-04-23 13:30 | AVGO | 39 | +651.98 | target |
-| 2026-04-24 13:45 | MRVL | 122 | -592.03 | stop |
-| 2026-04-30 13:30 | MRVL | 127 | +101.89 | target |
-| 2026-05-06 13:30 | MRVL | 107 | +795.86 | target |
-| 2026-05-06 14:00 | MRVL | 98 | -604.84 | stop |
-| 2026-05-08 16:00 | AVGO | 41 | -521.67 | stop |
-| 2026-05-08 17:00 | MRVL | 98 | -654.19 | stop |
-| 2026-05-12 13:30 | MRVL | 105 | -631.18 | stop |
-| 2026-05-18 14:00 | AVGO | 25 | -504.76 | stop |
-| 2026-05-18 14:45 | MRVL | 49 | -514.71 | stop |
-| 2026-05-26 13:30 | MRVL | 72 | +857.82 | target |
-| 2026-05-28 13:30 | MRVL | 94 | -537.72 | stop |
-| 2026-06-01 17:00 | MRVL | 66 | +579.97 | target |
-| 2026-06-02 13:45 | MRVL | 70 | -2641.71 | target |
-| 2026-06-05 13:30 | MRVL | 58 | -1189.49 | stop |
-| 2026-06-05 18:00 | MRVL | 66 | +331.19 | target |
-| 2026-06-05 19:45 | MRVL | 61 | +904.73 | target |
-| 2026-06-09 13:30 | MRVL | 58 | -677.38 | stop |
-| 2026-06-11 19:00 | MRVL | 64 | +470.70 | target |
+| 2026-03-27 15:15 | MRVL | 190 | +292.65 | target |
+| 2026-03-27 17:15 | AVGO | 52 | +1022.98 | target |
+| 2026-03-31 13:30 | MRVL | 104 | -607.70 | stop |
+| 2026-04-01 13:30 | MRVL | 204 | +973.12 | target |
+| 2026-04-06 13:30 | MRVL | 168 | +278.24 | target |
+| 2026-04-08 14:00 | MRVL | 181 | +379.48 | target |
+| 2026-04-10 13:30 | MRVL | 155 | +1353.79 | target |
+| 2026-04-23 13:30 | AVGO | 41 | +685.51 | target |
+| 2026-04-23 13:30 | MRVL | 104 | +947.46 | target |
+| 2026-04-24 13:45 | MRVL | 126 | -611.37 | stop |
+| 2026-04-28 13:30 | AVGO | 48 | +609.39 | target |
+| 2026-04-30 13:30 | MRVL | 132 | +105.98 | target |
+| 2026-05-06 13:30 | MRVL | 111 | +825.68 | target |
+| 2026-05-06 14:00 | MRVL | 102 | -629.44 | stop |
+| 2026-05-08 16:00 | AVGO | 43 | -547.02 | stop |
+| 2026-05-08 17:00 | MRVL | 102 | -680.81 | stop |
+| 2026-05-12 13:30 | MRVL | 110 | -661.14 | stop |
+| 2026-05-18 14:00 | AVGO | 26 | -524.88 | stop |
+| 2026-05-18 14:45 | MRVL | 51 | -535.63 | stop |
+| 2026-05-26 13:30 | MRVL | 75 | +893.64 | target |
+| 2026-05-28 13:30 | MRVL | 98 | -560.52 | stop |
+| 2026-06-01 17:00 | MRVL | 69 | +606.42 | target |
+| 2026-06-02 13:45 | MRVL | 73 | -2754.84 | target |
+| 2026-06-05 13:30 | MRVL | 60 | -1230.43 | stop |
+| 2026-06-05 18:00 | MRVL | 69 | +346.33 | target |
+| 2026-06-05 19:45 | MRVL | 64 | +949.32 | target |
+| 2026-06-09 13:30 | MRVL | 61 | -712.31 | stop |
+| 2026-06-09 14:30 | AVGO | 42 | -600.73 | stop |
+| 2026-06-11 19:00 | MRVL | 66 | +485.47 | target |

@@ -103,15 +103,35 @@ class Store:
     def merge_write(self, series: BarSeries, stamp: Optional[str] = None,
                     extended: bool = False) -> Path:
         """Fold `series` into the existing file for its symbol+tf (if any):
-        dedupe on t, new bars win, ascending order preserved."""
+        dedupe on t — and for daily/weekly bars ALSO by calendar day, since
+        different sources anchor the same day at different clock times (a raw-t
+        merge would double-count the overlap). New bars win."""
         existing = self.latest(series.symbol, series.interval, extended)
         if existing is not None:
             old = self.read_path(existing)
+            old_rows = old.tuples()
+            iv = series.interval.lower()
+            if iv.endswith("_eh"):
+                iv = iv[:-3]
+            if iv in ("1d", "1w"):
+                new_days = {self._ny_date(r[0]) for r in series.tuples()}
+                old_rows = [r for r in old_rows
+                            if self._ny_date(r[0]) not in new_days]
             merged = BarSeries.from_rows(
                 series.symbol, series.interval, series.asof,
-                old.tuples() + series.tuples(),
+                old_rows + series.tuples(),
                 source=series.source or old.source,
                 adjustment=series.adjustment or old.adjustment,
                 session=series.session or old.session)
             series = merged
         return self.write(series, stamp, extended)
+
+    @staticmethod
+    def _ny_date(t):
+        from datetime import datetime, timedelta, timezone
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo("America/New_York")
+        except Exception:
+            tz = timezone(timedelta(hours=-4))
+        return datetime.fromtimestamp(t, tz).date()

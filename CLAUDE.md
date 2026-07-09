@@ -3,95 +3,87 @@
 This file orients an AI coding agent working in this repo. Read it first.
 
 ## What this is
-A pure-stdlib Python research base for **Elliott Wave + NeoWave** structural analysis
-and **reversal-confluence scoring**, built around AVGO and MRVL but symbol-agnostic.
+**Ewace_2026** is an Elliott Wave + NeoWave **full-automation platform**
+(`ewave`): causal detection → rule validation → signals → ghost-forward
+validation → backtest → risk → paper trading, with live-trading gates that
+fail closed. Built around AVGO/MRVL research but symbol-agnostic. Pure-stdlib
+core; optional extras only behind import guards.
 
-This repo (**Ewace_2026**) is the *base* for the Elliott Wave / NeoWave research
-project. It owns the **"where"** layer — where a reversal is structurally permitted.
+It owns the **"where"** layer — where a reversal/entry is structurally
+permitted. The sibling repo `chakra_quant` owns the **"when"** layer (Hurst/FLD
+cycles); the only seam is the typed `CycleSignal`
+(`ewave.signals.cycle_seam`) feeding the 7th confluence strand. Neither repo
+imports the other — keep it that way.
 
-## Relationship to `chakra_quant` (sibling repo — future integration)
-`chakra_quant` is a separate, mature codebase that owns the **"when"** layer:
-JM Hurst time cycles, FLD (Future Line of Demarcation), VTL, Gann S9, and the
-sliding-window/causal cycle machinery (see its `src/fld/` package and D-013
-causal-only rules). It is **not a dependency today** and must not be imported.
-
-The integration seam already exists here: `score_reversal(..., cycle_aligned=...)`
-reserves the **7th confluence strand** for an external Hurst/FLD cycle-timing signal.
-Once the Elliott/NeoWave concepts in this repo are validated, the plan is to feed
-`chakra_quant`'s cycle model into that slot so "where" (this repo) meets "when"
-(chakra_quant). Until that research lands, the 7th strand stays an external boolean
-input — keep this repo dependency-free and the seam clean.
-
-## Project layout
+## Layout
 ```
-avgo_mrvl_wave_research/
-├── README.md              overview + the session's findings/levels
-├── DOCUMENTATION.md       full technical docs (architecture, API, theory, extension)
-├── CLAUDE.md              this file
-├── requirements.txt       core = stdlib only; optional extras listed
-├── wavelib/               the package
-│   ├── __init__.py        public API re-exports
-│   ├── rules.py           Elliott + NeoWave validators, channeling, engines (canonical Pivot/Wave)
-│   ├── toolkit.py         ZigZag, Fibonacci, terminal/wave-5 projection
-│   └── confluence.py      reversal-confidence scoring (momentum/volume/structure)
-├── data/
-│   ├── avgo.py            WEEKLY / H4 / H1 / FRESH_4H_VOL arrays
-│   └── mrvl.py            FRESH_4H_VOL / MACRO_PIVOTS
-├── examples/              01 validate · 02 confluence · 03 zigzag pipeline
-└── charts/                hand-built SVG/HTML charts + index.html dashboard
+pyproject.toml            pip install -e . ; console script `ewave`
+configs/*.json            app/data/watchlists/profiles/risk/execution (JSON canonical)
+src/ewave/                THE platform (see docs/ARCHITECTURE.md for the full map)
+  data/                   contract-JSON store over data/live/ + adapters + MCP bridge
+  pivots/                 CAUSAL detectors (confirmed_t contract); repainting.py = plotting only
+  monowaves/ rules/ patterns/   objective segments; validators (RuleResult); candidates+tree
+  signals/                wave-3 generate(bars, profile) [flagship], confluence, Signal+JSONL store
+  validation/             ghost_forward/ (snapshot freeze) + stats.py (PSR/DSR/CPCV)
+  backtest/ risk/ execution/ scanner/ reporting/
+wavelib/                  LEGACY SHIMS over ewave (same objects; don't add code here)
+tests/                    unittest; tests/ewave_platform/ = platform acceptance per phase
+data/live/                contract JSON bars (~25 symbols); COLLAB_RUNBOOK data contract
+ghost_forward_kit/        portable kit; gf.py shims ewave.validation.ghost_forward.core
+docs/                     ARCHITECTURE, NO_LOOKAHEAD_POLICY, RULESET, roadmap, research/
+outputs/ registry/        run artifacts; trials.jsonl = DSR trial registry (append-only)
 ```
 
 ## How to run / verify
 ```bash
-python3 wavelib/rules.py            # self-test (AVGO impulse + terminal + MRVL audit + channels)
-python3 wavelib/toolkit.py          # self-test
-cd examples && python3 02_confluence_score.py
+python3 -m unittest discover -s tests -p "test_*.py"   # full suite (bare checkout works)
+pip install -e . && ewave --help
+ewave validate-data --all
+ewave scan --watchlist default --tf 1h --profile experimental
+ewave ghost-forward --symbols AVGO --tf 15m --profile experimental --horizon 96
+ewave backtest --symbols AVGO,MRVL --tf 15m --profile experimental
+ewave paper-trade --replay --watchlist default --tf 15m --days 120
+ewave report --date today
 ```
-All three examples must run clean. If you touch `rules.py` Pivot/Wave, re-check
-`toolkit.py` (it imports them in package context, falls back to local defs standalone).
+CI additionally runs the wavelib module self-tests + examples/ on py3.9/3.11/3.12.
 
-## Conventions
-- Bars are tuples: `(t,o,h,l,c)` generally; `(t,o,h,l,c,v)` where volume is needed
-  (confluence). `t` is unix seconds.
-- Rule outputs are `RuleResult(rule, status, detail)` with `Status` ∈ PASS/FAIL/WARN/NA/REF.
-  A count is INVALID iff any **hard-rule** FAIL (guidelines are WARN, never invalidate).
-- `REF` = a rule that needs human/visual discretion, intentionally not auto-decided.
-- Keep it dependency-free unless the user opts into extras in `requirements.txt`.
+## Non-negotiables
+- **No lookahead** (docs/NO_LOOKAHEAD_POLICY.md): pivots usable only from
+  `confirmed_t`; cursor-slice replay; snapshot-freeze before outcome labeling;
+  every new detector/signal ships its own no-lookahead test. The non-causal
+  zigzag lives quarantined in `ewave.pivots.repainting` (an import-graph test
+  enforces no signal-path module touches it).
+- **Separation of concerns**: detection ≠ signal ≠ risk ≠ execution ≠
+  reporting. A label alone never trades (confluence strands are independent).
+- **Honesty over confidence**: `Status.UNKNOWN` when data is insufficient;
+  REF = human-discretion output that must never gate automation; every
+  backtest logs a trial to registry/trials.jsonl; select edges by **DSR +
+  MinTRL**, never raw expectancy.
+- **Live trading fails closed**: gates only, no live executor ships
+  (docs/LIVE_TRADING_SAFETY_POLICY.md).
+- **wavelib is frozen**: it's a shim layer. New code goes in src/ewave; legacy
+  names must keep resolving (tests enforce identity).
 
-## Design intent (don't violate)
-- **Separation of concerns**: structure (rules) ≠ measurement (toolkit) ≠ confirmation
-  (confluence). A reversal must be confirmed by independent strands, not the label alone.
-- **Honesty over confidence**: surface WARN/REF and stretched/irregular structures
-  rather than forcing a clean label. The terminal-retrace timing rule is a *bias*, not
-  a precise target (it over-projected on AVGO — see DOCUMENTATION §9).
+## Empirical ground truth (do not regress)
+- The next-leg forecast DIRECTION has **no edge** (coin-flip over a year-long
+  causal replay, docs/FORWARD_GHOST_TEST_FINDINGS.md) → REF-only, never an
+  entry gate.
+- The **wave-3 confirmation entry is the validated signal**
+  (docs/WAVE3_RESULT.md): crude profile = +0.167R/79 trades AVGO, +0.314R/119
+  MRVL (year, 15m) — `tests/ewave_platform/test_phase6_backtest.py` pins these
+  anchors. Strict RULESET-§H profile: higher per-trade R, 3–7 trades/yr.
+- Open research (docs/FULL_AUTOMATION_ROADMAP.md): sweep `sow_neowave_soft`
+  knobs in configs/profiles.json via ghost-forward+backtest for an operating
+  point with ≥30 trades/yr/symbol and DSR-supported edge.
 
-## Roadmap status (see docs/research/ for the full spec + audit)
-
-Deep research in `docs/research/00_index.md..04_*.md` drove a 5-phase build
-(Phases 0–4) — all implemented and tested (90 unit tests in `tests/`):
-
-1. ✅ `label_and_validate(bars)` — multi-scale auto-segmentation → ranked candidate
-   counts (`wavelib/automation.py`). Removes hand-picking.
-2. 🔲 Hurst/FLD/PSK cycle into the 7th slot — **typed seam only** so far:
-   `CycleSignal` (`wavelib/cycle_seam.py`) + `score_reversal(..., cycle_signal=...)`.
-   Real wiring to `chakra_quant` is deferred until this engine is validated.
-3. ✅ Confirmation strands hardened (`wavelib/confluence.py`): swing-pivot RSI
-   divergence, BOS-vs-CHoCH, structural channel break, ≥50-bar guard.
-4. ✅ Auto **degree** assignment (Neely bottom-up) — `assign_degrees_neely`
-   (`automation.py`); `label_monowaves`/`group_polywaves` in `rules.py`. Degree
-   stays the central subjectivity (degree_confidence="HEURISTIC").
-5. ✅ Causal backtest harness — `wavelib/backtest.py` (`backtest_reversals`,
-   walk-forward, hit-rate/profit-factor; no look-ahead).
-6. ✅ `render_chart(waves, projections)` — stdlib SVG emitter (`wavelib/charting.py`).
-
-Still open: F2 (de-dup `similarity_and_balance`/`project_wave5`/terminal-window
-across `rules.py`/`toolkit.py`); deeper Neely sub-type labels (`:F3`/`:c3`/…);
-the real cycle-model integration (item 2).
-
-## Current market state baked into data (Jun 5 2026)
-- AVGO $385.74 — in $358–410 (IV) zone, A-B-C corrective, 2-4 line $301 unbroken,
-  invalidation $251.88, confluence 1/7.
-- MRVL $263.47 — in $229–266 ((4)) zone, blow-off off $324, confluence 1/7.
+## Data
+Contract: `data/live/<slug>_<tf>_<stamp>.json` = `{"symbol","interval","asof",
+"bars":[{t,o,h,l,c,v}]}`, t unix seconds UTC ascending, split-adjusted.
+In the cloud sandbox market-data hosts are proxy-blocked: fetch via the MCP
+finance tools and normalize with `scripts/mcp_export.py` (see
+docs/COLLAB_RUNBOOK.md). On machines with access: `ewave fetch-data --adapter
+alpaca|fmp|yfinance` (keys via .env, see .env.example).
 
 ## Not in scope
-Trade execution / sizing / advice. This is analysis tooling only.
+Trade execution advice / sizing recommendations; a live broker executor; ML
+(needs labeled datasets + baseline rule performance first).

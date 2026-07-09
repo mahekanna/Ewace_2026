@@ -51,17 +51,19 @@ class TestStore(unittest.TestCase):
         self.assertEqual(slugify("NASDAQ:BRK.B"), "brkb")
 
     def test_latest_picks_newest_stamp_and_merge(self):
+        # intraday interval: merge dedupes on raw t (daily/weekly additionally
+        # dedupe by calendar day — see TestCrossSourceDailyMerge)
         with tempfile.TemporaryDirectory() as d:
             store = Store(d)
-            old = BarSeries.from_rows("AVGO", "1d", "2026-05-31",
+            old = BarSeries.from_rows("AVGO", "1h", "2026-05-31",
                                       [(100, 1, 2, 0.5, 1.5, 10), (200, 1, 2, 0.5, 1.6, 11)])
             store.write(old, stamp="2026-05")
-            new = BarSeries.from_rows("AVGO", "1d", "2026-06-13",
+            new = BarSeries.from_rows("AVGO", "1h", "2026-06-13",
                                       [(200, 9, 9, 9, 9, 99), (300, 1, 2, 0.5, 1.7, 12)])
             p = store.merge_write(new, stamp="2026-06")
             self.assertTrue(p.name.endswith("2026-06.json"))
-            self.assertEqual(store.latest("AVGO", "1d"), p)
-            merged = store.read("AVGO", "1d")
+            self.assertEqual(store.latest("AVGO", "1h"), p)
+            merged = store.read("AVGO", "1h")
             self.assertEqual([b.t for b in merged.bars], [100, 200, 300])
             self.assertEqual(merged.bars[1].o, 9)  # new bar won the t=200 slot
 
@@ -275,3 +277,31 @@ class TestMcpBridge(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCrossSourceDailyMerge(unittest.TestCase):
+    def test_merge_dedupes_daily_bars_by_calendar_day(self):
+        """Different sources anchor the same day at different clock times; a
+        raw-t merge would double-count the overlap (found on a real TV-vs-
+        legacy AVGO merge). New bars win their calendar day."""
+        with tempfile.TemporaryDirectory() as d:
+            store = Store(d)
+            # old source: 20:00 UTC daily anchors, 3 days
+            day = 86400
+            base = 1781200800  # 2026-06-11 10:00 UTC
+            old = BarSeries.from_rows("AVGO", "1d", "2026-06-12",
+                                      [(base + i * day, 1, 2, 0.5, 1.0 + i, 10)
+                                       for i in range(3)])
+            store.write(old, stamp="2026-06")
+            # new source: 13:30 UTC anchors, overlapping last 2 days + 1 new
+            new = BarSeries.from_rows("AVGO", "1d", "2026-06-15",
+                                      [(base + day + 12600 + i * day, 9, 9.5, 8.5, 9.0 + i, 20)
+                                       for i in range(3)])
+            store.merge_write(new, stamp="2026-07")
+            merged = store.read("AVGO", "1d")
+            from datetime import datetime, timezone
+            days = [datetime.fromtimestamp(b.t, timezone.utc).date()
+                    for b in merged.bars]
+            self.assertEqual(len(days), len(set(days)), "duplicate calendar days")
+            self.assertEqual(len(merged.bars), 4)      # 1 old-only + 3 new
+            self.assertEqual(merged.bars[-1].o, 9)     # new source won the overlap

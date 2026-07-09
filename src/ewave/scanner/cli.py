@@ -29,6 +29,15 @@ def cmd_scan(args) -> int:
               f"R:R {s.reward_risk} strands {s.confluence_strands} [{s.signal_id}]")
     for e in result["errors"]:
         print(f"  ! {e}", file=sys.stderr)
+    from ..reporting.markdown import scan_report
+    path = scan_report(result)
+    print(f"scan report -> {path}")
     if sigs:
-        print("frozen to outputs/signals/ (JSONL) + latest_signals.{json,csv}")
+        from pathlib import Path
+
+        from ..reporting.tradingview import notes_markdown
+        tv = Path("outputs/reports/tradingview_notes.md")
+        tv.write_text(notes_markdown(sigs))
+        print(f"frozen to outputs/signals/ (JSONL) + latest_signals.{{json,csv}}; "
+              f"TV notes -> {tv}")
     return 0

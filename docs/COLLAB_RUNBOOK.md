@@ -82,3 +82,34 @@ git push origin claude/ewave-2026-base-repo-ZRYzS
 3. Truly LIVE loop in the test session: forecast → wait for next real candle →
    self-evaluate → append to a running forward-test ledger, push.
 4. Multi-symbol, longer-window forward test for a real sample.
+
+---
+
+## Platform update (2026-07): the `ewave` CLI supersedes the ad-hoc scripts
+
+Everything above still works — the data contract and branch workflow are
+unchanged. The platform now also provides first-class commands:
+
+```bash
+pip install -e .                                   # or run bare: wavelib bootstraps src/
+
+# TEST session (network + keys):
+ewave fetch-data --adapter alpaca --symbols AVGO,MRVL --tf 15m    # same contract JSON
+ewave validate-data --all
+
+# Sandbox sessions (market hosts proxy-blocked): fetch via MCP finance tools,
+# save the raw payload, then normalize into the store:
+python3 scripts/mcp_export.py --format fmp|yf|tv|alpaca-mcp \
+        --symbol AVGO --tf 1h payload.json          # -> data/live/avgo_1h_<YYYY-MM>.json
+
+# then anywhere:
+ewave scan --watchlist default --tf 15m --profile experimental
+ewave ghost-forward --symbols AVGO --tf 15m --profile experimental --horizon 96
+ewave backtest --symbols AVGO,MRVL --tf 15m --profile experimental
+ewave paper-trade --replay --watchlist default --tf 15m --days 120
+```
+
+Profiles live in `configs/profiles.json` (experimental = the validated crude
+wave-3 entry; sow_neowave_strict = RULESET §H; sow_neowave_soft = the research
+sweep's starting point). Every backtest logs a trial to registry/trials.jsonl —
+commit it with your results.

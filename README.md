@@ -1,4 +1,48 @@
-# AVGO + MRVL — Elliott Wave / NeoWave Research Bundle
+# ewave — Elliott Wave / NeoWave Full-Automation Platform
+
+*Causal detection → rule validation → signals → ghost-forward validation →
+backtest → risk → paper trading. Live-trading gates fail closed. Pure-stdlib
+core. Analysis tooling only — not investment advice.*
+
+## Quickstart
+
+```bash
+python3 -m unittest discover -s tests -p "test_*.py"   # full suite, no install needed
+pip install -e .                                       # console script `ewave`
+
+ewave validate-data --all                              # check the cached bar store
+ewave scan --watchlist default --tf 15m --profile experimental
+ewave ghost-forward --symbols AVGO --tf 15m --profile experimental --horizon 96
+ewave backtest --symbols AVGO,MRVL --tf 15m --profile experimental
+ewave paper-trade --replay --watchlist default --tf 15m --days 120
+ewave report --date today
+```
+
+## The five-minute tour
+
+- **Pipeline & decisions:** docs/ARCHITECTURE.md · **phases/roadmap:**
+  docs/FULL_AUTOMATION_ROADMAP.md · **the one policy that rules them all:**
+  docs/NO_LOOKAHEAD_POLICY.md
+- **Rule spec:** docs/RULESET.md (every knob cites Elliott/NeoWave doctrine);
+  profiles in configs/profiles.json span the validated crude wave-3 entry
+  (`experimental`, +0.17..+0.31R/year on AVGO/MRVL 15m — reproduced by the
+  test suite) to the rule-faithful strict variant (RULESET §H).
+- **Honesty machinery:** ghost-forward snapshot-freeze validation
+  (ewave.validation.ghost_forward), DSR/PSR/MinTRL stats + append-only trials
+  registry (registry/trials.jsonl) — edges are judged by DSR, never raw
+  expectancy. The next-leg forecast direction is retained REF-only: a year of
+  causal replay showed it has no edge (docs/FORWARD_GHOST_TEST_FINDINGS.md).
+- **Data:** contract JSON in data/live/ (~25 symbols); adapters for
+  Alpaca/FMP/yfinance/CSV + an MCP-export bridge for sandboxes
+  (scripts/mcp_export.py, docs/COLLAB_RUNBOOK.md).
+- **Safety:** risk engine (sizing, loss limits, exposure caps, cooldown, kill
+  switch) gates every order; the live executor refuses to start — and even
+  fully-gated raises — by design (docs/LIVE_TRADING_SAFETY_POLICY.md).
+- Legacy `wavelib` imports keep working (thin shims over ewave).
+
+---
+
+# Research bundle — AVGO + MRVL session analysis (historical)
 *Built across the session on live TVremix data. Updated through Fri Jun 5 2026.*
 *Analysis and tooling only — not investment advice.*
 

@@ -68,3 +68,5 @@
 {"strategy": "wave3_sow_neowave_strict", "symbol": "AVGO", "timeframe": "15m", "trades": 3, "expectancy_r": 0.7047, "sharpe": 0.2708}
 {"strategy": "wave3_experimental", "symbol": "AVGO", "timeframe": "15m", "trades": 79, "expectancy_r": 0.1504, "sharpe": 0.1143}
 {"strategy": "wave3_experimental", "symbol": "MRVL", "timeframe": "15m", "trades": 119, "expectancy_r": 0.2952, "sharpe": 0.2196}
+{"strategy": "wave3_experimental", "symbol": "AVGO", "timeframe": "15m", "trades": 79, "expectancy_r": 0.1504, "sharpe": 0.1143}
+{"strategy": "wave3_experimental", "symbol": "MRVL", "timeframe": "15m", "trades": 119, "expectancy_r": 0.2952, "sharpe": 0.2196}
