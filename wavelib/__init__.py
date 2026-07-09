@@ -14,9 +14,20 @@ Modules
     wavelib.toolkit     ZigZag, Fibonacci helpers, terminal/wave-5 projection
     wavelib.confluence  Reversal-confidence scoring (momentum/volume/structure)
 
-Note: rules.py and toolkit.py each define a Pivot/Wave dataclass; they are
-structurally identical and duck-type-compatible across functions.
+wavelib is now a compatibility layer over the `ewave` platform (src/ewave):
+the canonical Pivot/Wave/Degree/Status/RuleResult live in ewave.rules.result,
+the causal pivot detectors in ewave.pivots, and every historical name below
+resolves to the same objects. See docs/ARCHITECTURE.md.
 """
+# bootstrap src/ so a bare checkout (no pip install) finds ewave
+try:
+    import ewave  # noqa: F401
+except ImportError:
+    import os as _os, sys as _sys
+    _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.dirname(
+        _os.path.abspath(__file__))), "src"))
+    import ewave  # noqa: F401
+
 from .rules import (
     Pivot, Wave, Degree, Status, RuleResult,
     elliott_hard_rules, elliott_guidelines, project_wave5,
