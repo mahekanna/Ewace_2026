@@ -144,3 +144,15 @@ class RuleResult:
 
 def _ok(c) -> Status:
     return Status.PASS if c else Status.FAIL
+
+
+def _within(a, b, lo, hi) -> bool:
+    """Is a/b inside [lo, hi]? (generic ratio-band helper used across validators)"""
+    r = a / b if b else float("nan")
+    return lo <= r <= hi
+
+
+def _group_similar(vals, lo=1 / 3, hi=3.0) -> bool:
+    """Adjacent values all within the lo..hi ratio band (S&B group test)."""
+    return all(_within(vals[i], vals[i + 1], lo, hi)
+               for i in range(len(vals) - 1)) if len(vals) > 1 else True
