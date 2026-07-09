@@ -78,12 +78,25 @@ class TestCli(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("ewave", out.getvalue())
 
-    def test_unbuilt_command_exits_2_with_phase_note(self):
-        err = io.StringIO()
-        with redirect_stderr(err):
-            rc = cli.main(["scan"])
-        self.assertEqual(rc, 2)
-        self.assertIn("Phase 4", err.getvalue())
+    def test_unbuilt_commands_exit_2_with_phase_note(self):
+        """Any dispatch entry whose module doesn't import yet must exit 2 and
+        name its phase. Skips once every phase is built."""
+        import importlib
+        unbuilt = []
+        for cmd, (mod, func, phase) in cli._DISPATCH.items():
+            try:
+                getattr(importlib.import_module(mod), func)
+            except (ImportError, AttributeError):
+                unbuilt.append((cmd, phase))
+        if not unbuilt:
+            self.skipTest("all commands built")
+        for cmd, phase in unbuilt:
+            err = io.StringIO()
+            with redirect_stderr(err):
+                rc = cli.main([cmd] + (["--symbols", "X"]
+                                       if cmd in ("ghost-forward", "backtest") else []))
+            self.assertEqual(rc, 2, cmd)
+            self.assertIn(phase, err.getvalue())
 
     def test_dispatch_table_covers_all_subcommands(self):
         parser = cli.build_parser()
