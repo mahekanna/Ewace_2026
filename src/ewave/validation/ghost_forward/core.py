@@ -48,6 +48,7 @@ class Forecast:
     confidence: float = 0.5   # 0..1, optional — used only for the diagnostic breakdown
     kind: str = ""            # optional label (e.g. "wave-3", "breakout") for grouping
     note: str = ""            # free text, optional
+    meta: dict = None         # optional provenance (e.g. setup_confirmed_t) — additive
 
 
 # ----------------------------- data -----------------------------
@@ -86,11 +87,13 @@ def _norm(fc):
         return Forecast(direction=fc["direction"], target=float(fc["target"]),
                         invalidation=float(fc["invalidation"]),
                         confidence=float(fc.get("confidence", 0.5)),
-                        kind=fc.get("kind", ""), note=fc.get("note", ""))
+                        kind=fc.get("kind", ""), note=fc.get("note", ""),
+                        meta=fc.get("meta"))
     return Forecast(direction=fc.direction, target=float(fc.target),
                     invalidation=float(fc.invalidation),
                     confidence=float(getattr(fc, "confidence", 0.5)),
-                    kind=getattr(fc, "kind", ""), note=getattr(fc, "note", ""))
+                    kind=getattr(fc, "kind", ""), note=getattr(fc, "note", ""),
+                    meta=getattr(fc, "meta", None))
 
 
 # ------------------------- the classifier -------------------------

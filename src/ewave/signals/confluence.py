@@ -610,6 +610,29 @@ _BAR_WARN_THRESHOLD: int = _MIN_BARS
 # --------------------------------------------------------------------------- #
 # score_reversal (updated signature: P3 + P6)
 # --------------------------------------------------------------------------- #
+def ichimoku_trend(bars, bullish: bool = True) -> Strand:
+    """Optional SOW strand (RULESET §I / audit G6): Ichimoku agreement with the
+    reversal direction — price on the right side of the cloud AND tenkan/kijun
+    ordered accordingly. Causal (cloud at t was computed 26 bars earlier)."""
+    from ..features.indicators import ichimoku
+    ik = ichimoku(bars)
+    i = len(bars) - 1
+    close = bars[i][4]
+    sa, sb = ik["senkou_a"][i], ik["senkou_b"][i]
+    tk, kj = ik["tenkan"][i], ik["kijun"][i]
+    if sa is None or sb is None or tk is None or kj is None:
+        return Strand("Ichimoku trend", False,
+                      "insufficient history for cloud (needs ~78 bars)")
+    top, bot = max(sa, sb), min(sa, sb)
+    if bullish:
+        c = close > top and tk > kj
+        rel = f"close {close:.1f} vs cloud top {top:.1f}; TK {tk:.1f}>{kj:.1f}={tk > kj}"
+    else:
+        c = close < bot and tk < kj
+        rel = f"close {close:.1f} vs cloud bot {bot:.1f}; TK {tk:.1f}<{kj:.1f}={tk < kj}"
+    return Strand("Ichimoku trend", c, rel)
+
+
 def score_reversal(
     symbol: str,
     bars: list,
@@ -619,6 +642,7 @@ def score_reversal(
     cycle_signal: Optional[CycleSignal] = None,
     blue_box: Optional[tuple] = None,
     extra_strands: Optional[list] = None,
+    use_ichimoku: bool = False,
 ) -> ConfluenceReport:
     """
     Compute reversal-confluence score for `symbol` at the most recent bar.
@@ -692,6 +716,9 @@ def score_reversal(
         rep.strands.append(Strand("Blue Box (Fib 1.0-1.618)", c,
                                   f"price {closes[-1]:.1f} {'INSIDE' if c else 'outside'} "
                                   f"{lo:.1f}-{hi:.1f}"))
+    if use_ichimoku:
+        # opt-in SOW strand: existing profiles/scores are unchanged by default
+        rep.strands.append(ichimoku_trend(bars, bullish=bullish))
     if extra_strands:
         rep.strands.extend(extra_strands)
     return rep

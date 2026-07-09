@@ -25,6 +25,7 @@ class Bar:
     l: float
     c: float
     v: float = 0.0
+    vwap: Optional[float] = None   # per-bar VWAP when the source supplies it
 
     def tuple(self) -> Tuple[int, float, float, float, float, float]:
         return (self.t, self.o, self.h, self.l, self.c, self.v)
@@ -57,16 +58,22 @@ class BarSeries:
             # files stay byte-identical (json re-emits the same literal)
             return x if isinstance(x, (int, float)) else float(x)
         bars = [Bar(int(b["t"]), num(b["o"]), num(b["h"]), num(b["l"]),
-                    num(b["c"]), num(b.get("v", 0) or 0)) for b in d.get("bars", [])]
+                    num(b["c"]), num(b.get("v", 0) or 0),
+                    vwap=num(b["vwap"]) if b.get("vwap") is not None else None)
+                for b in d.get("bars", [])]
         return cls(symbol=d.get("symbol", ""), interval=d.get("interval", ""),
                    asof=d.get("asof", ""), bars=bars,
                    source=d.get("source", ""), adjustment=d.get("adjustment", ""),
                    session=d.get("session", ""))
 
     def to_dict(self) -> dict:
+        def bar_dict(b: Bar) -> dict:
+            row = {"t": b.t, "o": b.o, "h": b.h, "l": b.l, "c": b.c, "v": b.v}
+            if b.vwap is not None:   # serialize only when set — legacy files stay byte-identical
+                row["vwap"] = b.vwap
+            return row
         d = {"symbol": self.symbol, "interval": self.interval, "asof": self.asof,
-             "bars": [{"t": b.t, "o": b.o, "h": b.h, "l": b.l, "c": b.c, "v": b.v}
-                      for b in self.bars]}
+             "bars": [bar_dict(b) for b in self.bars]}
         # optional metadata only when set — legacy files stay byte-identical
         for k in ("source", "adjustment", "session"):
             val = getattr(self, k)

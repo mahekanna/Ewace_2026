@@ -47,6 +47,7 @@ class Signal:
     w2_retracement: float = 0.0        # pullback depth (fraction of W1)
     tree_confidence: Optional[float] = None   # patterns.tree context (D5)
     stability_score: Optional[float] = None   # filled by ghost-forward later
+    setup_confirmed_t: Optional[float] = None  # when the setup became knowable (lag metric)
     # risk-engine outputs (None until approved)
     position_size: Optional[float] = None
     risk_amount: Optional[float] = None
@@ -104,5 +105,6 @@ def from_wave3(sig, *, profile, symbol: str, timeframe: str,
         momentum=sig.ewo,
         w2_retracement=sig.retr,
         tree_confidence=tree_confidence,
+        setup_confirmed_t=getattr(sig, "setup_confirmed_t", 0.0) or None,
         note=sig.note,
     )

@@ -35,6 +35,7 @@ class Profile:
     stop_buf: float = 0.001
     # gates
     use_momentum: bool = True             # EWO expanding in trade direction
+    use_ichimoku: bool = False            # SOW Ichimoku strand (RULESET §I, opt-in)
     require_pattern_id: bool = False      # W1 must carry a NeoWave :5 motive label
     min_confluence_strands: int = 0       # Table D: a label alone never trades
     min_rr: float = 0.0                   # E-2: minimum reward:risk to T1
@@ -55,6 +56,7 @@ class Profile:
             "min_w1_frac": self.min_w1_frac,
             "buf": self.stop_buf,
             "use_momentum": self.use_momentum,
+            "use_ichimoku": self.use_ichimoku,
             "require_pattern_id": self.require_pattern_id,
             "conf_min": self.min_confluence_strands,
             "min_rr": self.min_rr,

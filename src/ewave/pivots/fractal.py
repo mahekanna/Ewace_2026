@@ -25,15 +25,18 @@ def swing_pivots(series, n_left: int = 2, n_right: int = 2) -> List[Pivot]:
     s = list(series)
     n = len(s)
     out: List[Pivot] = []
+    meta = {"n_left": n_left, "n_right": n_right}
     for i in range(n_left, n - n_right):
         t_i, v_i = s[i][0], s[i][1]
         window = [s[j][1] for j in range(i - n_left, i)] + \
                  [s[j][1] for j in range(i + 1, i + 1 + n_right)]
         conf_t = s[i + n_right][0]
         if all(v_i > x for x in window):
-            out.append(Pivot(t_i, v_i, "H", confirmed_t=conf_t))
+            out.append(Pivot(t_i, v_i, "H", confirmed_t=conf_t,
+                             source="fractal", meta=meta))
         elif all(v_i < x for x in window):
-            out.append(Pivot(t_i, v_i, "L", confirmed_t=conf_t))
+            out.append(Pivot(t_i, v_i, "L", confirmed_t=conf_t,
+                             source="fractal", meta=meta))
     return out
 
 

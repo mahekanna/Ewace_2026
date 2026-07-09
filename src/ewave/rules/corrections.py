@@ -89,3 +89,88 @@ def classify_complex_correction(legs: Sequence[Wave]) -> RuleResult:
     return RuleResult("NeoWave complex combination", Status.REF,
                       f"{n} legs -> multi-X (W-X-Y-X-Z+) / neutral or extracting triangle; "
                       "resolve via sub-degree construction")
+
+
+def diametric_pair_checks(legs: "Sequence[Wave]") -> "list[RuleResult]":
+    """Diametric paired-leg relationships (RULESET §I.1 [G]; SOW Fibo sheet):
+    G~A (or ~61.8% of A), F~B, E~C — each satisfied by PRICE (ratio in
+    [0.5, 1.7], covering 61.8% and equality bands) OR TIME (ratio in [1/3, 3],
+    the S&B band). Legs = [a..g]."""
+    if len(legs) != 7:
+        return [RuleResult("diametric pairs", Status.NA,
+                           f"need 7 legs, got {len(legs)}")]
+    pairs = ((legs[6], legs[0], "G~A"), (legs[5], legs[1], "F~B"),
+             (legs[4], legs[2], "E~C"))
+    out = []
+    for x, y, name in pairs:
+        p_ok = _within(x.length, y.length, 0.5, 1.7)
+        t_ok = _within(x.days, y.days, 1 / 3, 3.0)
+        pr = x.length / y.length if y.length else float("nan")
+        tr = x.days / y.days if y.days else float("nan")
+        out.append(RuleResult(f"diametric {name} (price OR time)",
+                              Status.PASS if (p_ok or t_ok) else Status.WARN,
+                              f"price {pr:.2f}x (ok={p_ok}), time {tr:.2f}x "
+                              f"(ok={t_ok})"))
+    return out
+
+
+def zigzag_c_check(w: "Sequence[Wave]") -> RuleResult:
+    """Zigzag C-beyond-A gate (RULESET §B / audit G7): C's endpoint should
+    surpass A's endpoint in A's direction; a shortfall is a truncated C —
+    verify the count (WARN, not FAIL)."""
+    if len(w) != 3:
+        return RuleResult("zigzag C beyond A", Status.NA,
+                          f"need 3 legs, got {len(w)}")
+    A, B, C = w
+    a_down = A.end.price < A.start.price
+    beyond = (C.end.price < A.end.price) if a_down else (C.end.price > A.end.price)
+    return RuleResult("zigzag: C surpasses end of A",
+                      Status.PASS if beyond else Status.WARN,
+                      f"C end {C.end.price:.2f} vs A end {A.end.price:.2f}"
+                      + ("" if beyond else " -> truncated C; verify count"))
+
+
+def correction_time_rules(w: "Sequence[Wave]") -> "list[RuleResult]":
+    """SOW corrective time rules (RULESET §I.5 [G]): in zigzag AND flat, B
+    should take >= the time of A. Also emits the SOW diagnosis heuristic:
+    B faster than A -> triangle/diametric more likely."""
+    if len(w) < 2:
+        return [RuleResult("correction time rules", Status.NA,
+                           f"need >=2 legs, got {len(w)}")]
+    A, B = w[0], w[1]
+    ok = B.days >= A.days
+    out = [RuleResult("correction: B time >= A time",
+                      Status.PASS if ok else Status.WARN,
+                      f"A {A.days:.1f}d vs B {B.days:.1f}d")]
+    if not ok:
+        out.append(RuleResult("correction diagnosis (SOW Day-2 p.9)",
+                              Status.REF,
+                              "B faster than A -> triangle/diametric more "
+                              "likely than zigzag/flat"))
+    return out
+
+
+def flat_b_band(A: Wave, B: Wave) -> RuleResult:
+    """Flat B-wave strength band (RULESET §I.4 [N]): weak 61.8-80%, normal
+    80-100%, strong >100% of A."""
+    r = B.retr(A)
+    if r != r:
+        return RuleResult("flat B band", Status.UNKNOWN, "degenerate A length")
+    if r < 0.618:
+        return RuleResult("flat B band", Status.NA,
+                          f"B {r:.0%} of A (<61.8% -> zigzag territory, not a flat)")
+    band = "weak" if r < 0.80 else "normal" if r <= 1.0 else "strong"
+    return RuleResult(f"flat B band = {band.upper()}", Status.PASS,
+                      f"B retraces {r:.0%} of A "
+                      f"(weak 61.8-80 / normal 80-100 / strong >100)")
+
+
+def max_x_count_check(n_x: int) -> RuleResult:
+    """Complex-correction X-count limit (RULESET §I.3 [H]; SOW Day-2 p.7):
+    W-X-Y (one X) or W-X-Y-X-Z (two X) — never more."""
+    if n_x <= 2:
+        return RuleResult("complex: max two X waves", Status.PASS,
+                          f"{n_x} X wave(s)")
+    return RuleResult("complex: max two X waves", Status.FAIL,
+                      f"{n_x} X waves (>2) -> structurally invalid; "
+                      "reassess degree/segmentation")

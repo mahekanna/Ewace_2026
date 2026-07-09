@@ -52,6 +52,7 @@ thin argparse), `ewave.features.indicators` (one shared RSI/EMA/MACD/ATR copy),
 | D8 | Non-causal zigzag quarantined in `ewave.pivots.repainting` (plotting only) + import-graph test |
 | D9 | `data/live/` contract JSON stays the canonical store; JSONL replaces parquet everywhere |
 | D10 | Live trading: gate checks only; fails closed with the failing gate named; no broker order code ships |
+| D11 | Legacy containment (bundle packs 05/06, adapted): the packs prescribed a new repo with the old code archived unmodified under `legacy/` and a no-legacy-imports guard. The user instead approved an in-place restructure with `wavelib/` as live shims over `src/ewave`. The containment INTENT is enforced by `tests/ewave_platform/test_no_legacy_imports.py` (`src/ewave` must never import `wavelib`; every wavelib module must be a pure shim); the unmodified legacy tree is preserved in git history (commit `3a19c2c`, pre-restructure) and in the user's bundle snapshot zip; the prescribed one-page decision records live in `docs/legacy_decisions/` |
 
 ## Separation of concerns (do not blur)
 

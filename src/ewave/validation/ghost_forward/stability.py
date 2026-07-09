@@ -39,6 +39,10 @@ class Snapshot:
     confidence: Optional[float] = None
     kind: Optional[str] = None
     note: str = ""
+    # provenance (Ghost_Forward_Validation_Spec §10)
+    profile: str = ""
+    config_hash: str = ""
+    setup_confirmed_t: Optional[float] = None   # when the setup became knowable
 
     @property
     def has_forecast(self) -> bool:
@@ -46,7 +50,8 @@ class Snapshot:
 
 
 def snapshot_pass(bars, forecaster, roll: int = 400, forward="all",
-                  horizon: int = 32, out_path=None) -> List[Snapshot]:
+                  horizon: int = 32, out_path=None, profile: str = "",
+                  config_hash: str = "") -> List[Snapshot]:
     """Pass A: causal walk, snapshot every step; optionally persist (freeze)."""
     n = len(bars)
     fwd = n if forward in ("all", None) else int(forward)
@@ -55,11 +60,14 @@ def snapshot_pass(bars, forecaster, roll: int = 400, forward="all",
     for step, t in enumerate(range(start, n - horizon)):
         window = bars[max(0, t + 1 - roll):t + 1]
         fc = _norm(forecaster(window))
-        row = Snapshot(step=step, t=bars[t][0], price=bars[t][4])
+        row = Snapshot(step=step, t=bars[t][0], price=bars[t][4],
+                       profile=profile, config_hash=config_hash)
         if fc is not None:
             row.direction, row.target = fc.direction, fc.target
             row.invalidation, row.confidence = fc.invalidation, fc.confidence
             row.kind, row.note = fc.kind, fc.note
+            if fc.meta:
+                row.setup_confirmed_t = fc.meta.get("setup_confirmed_t")
         snaps.append(row)
     if out_path:
         Path(out_path).parent.mkdir(parents=True, exist_ok=True)
@@ -133,15 +141,33 @@ def _episodes(snaps: List[Snapshot]) -> List[dict]:
         if same:
             cur["length"] += 1
             cur["target"] = s.target
+            cur["conf_last"] = s.confidence
         else:
             if cur:
                 cur["ended_by"] = "revised"
                 eps.append(cur)
             cur = {"start_step": s.step, "direction": s.direction, "kind": s.kind,
-                   "target": s.target, "length": 1, "ended_by": None}
+                   "target": s.target, "length": 1, "ended_by": None,
+                   "conf_first": s.confidence, "conf_last": s.confidence}
     if cur:
         cur["ended_by"] = "series_end"
         eps.append(cur)
+    # spec six-state mapping (Ghost_Forward_Validation_Spec §13):
+    #   series_end -> stable ; revised -> reclassified ; vanished -> disappeared
+    #   upgraded/downgraded from confidence drift within the episode
+    for e in eps:
+        if e["ended_by"] == "series_end":
+            e["state"] = "stable"
+        elif e["ended_by"] == "revised":
+            e["state"] = "reclassified"
+        else:
+            e["state"] = "disappeared"
+        c0, c1 = e.get("conf_first"), e.get("conf_last")
+        if c0 is not None and c1 is not None and e["state"] == "stable":
+            if c1 > c0 + 1e-9:
+                e["state"] = "upgraded"
+            elif c1 < c0 - 1e-9:
+                e["state"] = "downgraded"
     return eps
 
 
@@ -176,7 +202,42 @@ def metrics(snaps: List[Snapshot], outcomes: List[dict]) -> dict:
         "avg_episode_length": round(sum(e["length"] for e in eps) / len(eps), 2) if eps else None,
         "repaint_rate": round(sum(1 for e in ended if e["ended_by"] == "vanished")
                               / len(ended), 4) if ended else None,
+        "stability_states": {st: sum(1 for e in eps if e.get("state") == st)
+                             for st in ("stable", "upgraded", "downgraded",
+                                        "reclassified", "disappeared")},
+        "repaint_level": _repaint_level(snaps, eps, ended),
+        **_lag_metrics(snaps),
     }
+
+
+def _repaint_level(snaps: List[Snapshot], eps, ended) -> str:
+    """Spec §14 five-level classification. CRITICAL = a snapshot timestamp
+    moved backward — structurally impossible in this engine (asserted); the
+    remaining levels grade the vanish rate of ended episodes."""
+    ts = [s.t for s in snaps]
+    assert ts == sorted(ts), "CRITICAL repaint: snapshot timestamps not monotonic"
+    if not ended:
+        return "NONE"
+    rate = sum(1 for e in ended if e["ended_by"] == "vanished") / len(ended)
+    if rate == 0:
+        return "NONE"
+    if rate < 0.10:
+        return "LOW"
+    if rate < 0.30:
+        return "MEDIUM"
+    return "HIGH"
+
+
+def _lag_metrics(snaps: List[Snapshot]) -> dict:
+    """Signal-lag metrics (spec §12 late_signal_*): bars/seconds between the
+    setup becoming knowable (setup_confirmed_t) and the signal firing."""
+    lags = [s.t - s.setup_confirmed_t for s in snaps
+            if s.has_forecast and s.setup_confirmed_t]
+    if not lags:
+        return {"late_signal_rate": None, "avg_signal_lag_secs": None}
+    late = sum(1 for x in lags if x > 0)
+    return {"late_signal_rate": round(late / len(lags), 4),
+            "avg_signal_lag_secs": round(sum(lags) / len(lags), 1)}
 
 
 def run(bars, forecaster, roll: int = 400, forward="all", horizon: int = 32,

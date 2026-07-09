@@ -52,6 +52,9 @@ def zigzag_causal(bars, pct: float = 0.10, atr_n: Optional[int] = None) -> List[
     if not bars:
         return []
     atr = causal_atr(bars, atr_n) if atr_n else None
+    # provenance stamped on every pivot (ewauto SPEC parity)
+    src = "atr" if atr_n else "pct_reversal"
+    meta = {"pct": pct, "atr_n": atr_n} if atr_n else {"pct": pct}
 
     def thr(ep_val, i):
         if atr is not None and atr[i] is not None:
@@ -67,24 +70,24 @@ def zigzag_causal(bars, pct: float = 0.10, atr_n: Optional[int] = None) -> List[
             if h > ep:
                 et, ep = t, h
             if l < ep - thr(ep, i):            # reversal confirmed at THIS bar
-                piv.append(Pivot(et, ep, "H", confirmed_t=t))
+                piv.append(Pivot(et, ep, "H", confirmed_t=t, source=src, meta=meta))
                 trend, et, ep = -1, t, l
         elif trend < 0:                        # tracking a low
             if l < ep:
                 et, ep = t, l
             if h > ep + thr(ep, i):
-                piv.append(Pivot(et, ep, "L", confirmed_t=t))
+                piv.append(Pivot(et, ep, "L", confirmed_t=t, source=src, meta=meta))
                 trend, et, ep = 1, t, h
         else:                                  # seed (mirror of zigzag)
             if h > ep + thr(ep, i):
-                piv.append(Pivot(et, ep, "L", confirmed_t=t)); trend, et, ep = 1, t, h
+                piv.append(Pivot(et, ep, "L", confirmed_t=t, source=src, meta=meta)); trend, et, ep = 1, t, h
             elif l < ep - thr(ep, i):
-                piv.append(Pivot(et, ep, "H", confirmed_t=t)); trend, et, ep = -1, t, l
+                piv.append(Pivot(et, ep, "H", confirmed_t=t, source=src, meta=meta)); trend, et, ep = -1, t, l
             else:
                 if h > ep: et, ep = t, h
                 if l < bars[0][3]: pass
     # final extreme: not yet confirmed by a reversal -> provisional
-    piv.append(Pivot(et, ep, "H" if trend > 0 else "L", confirmed_t=None))
+    piv.append(Pivot(et, ep, "H" if trend > 0 else "L", confirmed_t=None, source=src, meta=meta))
     # collapse consecutive same-kind pivots, keep the more extreme (with its timing)
     out: List[Pivot] = []
     for p in piv:

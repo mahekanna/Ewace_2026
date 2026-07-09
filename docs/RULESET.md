@@ -114,3 +114,107 @@ Minimum viable = **D-1 Fib zone + (D-2/D-3 momentum divergence) + (D-6/D-7 struc
 6. **Targets + management:** T1 1.618×W1, T2 2.618× (C-1); **take 50% at T1, stop→breakeven, trail under W3 sub-waves** (E-5/E-6). Exit logic governed by structure, with an S&B-time *monitor* ([⅓,3×] vs W1), not a fixed bar count.
 7. **Gate:** require **R:R ≥ 2:1** (E-2) and confluence ≥ 3 or no trade.
 8. **Re-run the year-long ghost forward test** on the rule-faithful version and compare to the current +0.17–0.44R — to see whether *the rules themselves* add edge over the crude skeleton.
+
+---
+
+## I. DOCTRINE COMPLETION (2026-07 bundle audit — SOW/Ashish Kyal sources + deep/06,11)
+
+_Added after auditing the full source bundle (SOW Day-1/Day-2 notes, NeoWave
+training deck, Fibo system sheet, Brahmastra mentorship material, master-pack
+wave-rules reference). Sections below close the gaps between this spec, the
+source doctrine, and the engine's own deeper research._
+
+### I.1 Diametric (7-leg a–g) [N]
+- **[H]** Exactly 7 legs a–g, each corrective (3-3-3-3-3-3-3); **no X-wave
+  connectors**. (deep/11 T42; SOW Day-2 p.6)
+- **[H-time]** Time similarity is the norm: adjacent legs relate in TIME
+  (equality in time, not price). (deep/11 T43)
+- **[G]** Paired-leg relationships by price OR time: **G≈A (or G≈61.8%A),
+  F≈B, E≈C**. (SOW Fibo sheet; Day-2 p.6)
+- Shapes: **bow-tie** (middle leg shortest — contract then expand),
+  **diamond** (middle leg longest — expand then contract), running variant.
+- **[G]** Post-g **thrust ≈ widest part** of the pattern; sharp. (deep/11 T44)
+
+### I.2 Triangle sub-rules (supplementing §B) [N/G]
+- **[G]** Wave **E is the smallest leg** (contracting family). (ref §66-79)
+- **[G]** **≥3 of the 5 legs retrace >50%** of the preceding leg. (ref)
+- **[H]** **B-D line discipline**: the baseline through the ends of B and D
+  must be clean — **no part of C or E breaks it prematurely**; the decisive
+  post-E break OF the B-D line is the triangle-complete confirmation.
+  (SOW Day-2 p.4; ref §78)
+- **[G]** Position rule: a triangle cannot normally form in wave 2 (terminal
+  context excepted). (SOW Day-2 p.4)
+- **[G]** Thrust: 75–125% of the widest leg from E (SOW quotes 100–125%);
+  thrust should complete in **≤ the shortest leg's duration**. (deep/11 T40)
+- **Neutral triangle [N]**: C longest; A≈E (each ≥38.2% of C); C ≤ 261.8% of
+  A. **Extracting triangle [N]**: **e < c < a AND d > b** (alternating
+  contraction/expansion; Neely later folded it into the neutral family).
+  (SOW Day-2 p.5; deep/11 T38/T59)
+- **Symmetrical (9-leg) [N]**: 9 corrective legs; price+time+complexity
+  similar within the advancing group and within the declining group; **no
+  Fibonacci relationships** expected; no X-waves. (deep/11 T45)
+
+### I.3 Complex-correction X bounds (supplementing §B) [N]
+- **[H]** **Maximum two X waves** (W-X-Y or W-X-Y-X-Z; never more). (SOW
+  Day-2 p.7)
+- **[G]** Small-X: retraces **<61.8%** of the prior pattern W. 61.8–100% =
+  large-X WARN. **[H]** X >100% of W without large-X context = structural
+  error (not an x-wave).
+- **[N]** **Large-X regime: X ≥ 1.618×W** ⇒ the "connector" is oversized —
+  reassess degree and relabel (the correction is of a larger degree than
+  assumed). (SOW Day-2 p.8)
+- **[G]** X-wave complexity ≤ the prior correction's and ≥ its least-complex
+  sub-wave. (deep/11 T46/T47)
+
+### I.4 Flat B-wave bands (supplementing §B) [N]
+Weak B: 61.8–80% of A · Normal B: 80–100% · **Strong B: >100%** (expanded/
+running family). C-failure and double-failure flats exist (C falls short).
+(deep/11 T60; SOW Day-2 p.3)
+
+### I.5 Confirmation lines per family — the SOW two-stage pattern [N,H]
+Every pattern family has a confirmation line; **no completion is trusted
+until the line breaks within its time limit** (this generalizes §E's 2-4
+rule):
+| family | line | stage-1 break time limit |
+|---|---|---|
+| impulse | **2-4** | ≤ time(W5) (§E, implemented) |
+| zigzag / flat | **0-B** | ≤ time(C) (SOW Day-2 p.2) |
+| triangle | **B-D** (after E) | ≤ shortest-leg duration |
+| diametric | boundary after G | ≈ ≤ time(G) |
+
+Corrective **time rules**: in zigzag AND flat, **B should take ≥ the time of
+A** [G]. Diagnosis heuristic [G]: if B takes LESS time than A → triangle/
+diametric become more likely; if B ≥ A's time → all corrections possible, ZZ/
+flat most likely. (SOW Day-2 p.9)
+
+### I.6 Pre-labelling conditioning [N]
+- **Rule of Neutrality**: merge monowaves smaller than ~10% of their
+  neighbours before structure labelling. (deep/11 T02)
+- **Endpoint rollback**: correct pivot endpoints on near-miss/one-bar-spike/
+  flat-top cases before labelling. (deep/11 T03)
+- **Chart standardization**: NeoWave proportion work assumes an arithmetic
+  price scale and uniform bar spacing. (deep/11 T01) — the engine's
+  log-magnitude comparisons (§E) are the deliberate large-range adaptation.
+
+### I.7 Wave-2 61.8% posture (audit G4 — the documented decision)
+The SOW/NeoWave sources state W2 ≤61.8% of W1 as *the* rule; classic Elliott's
+inviolable rule is <100% (R1). **This engine keeps R1 (<100%) as the hard
+invalidator** and enforces the 61.8% cap **per profile** through the W2
+retracement bands (strict/golden profiles cap entry setups at 0.618, deep to
+0.764 as WARN-band; the crude research profile allows to 0.786). Terminals
+are exempt (W2 may retrace deeper — SOW Day-1 p.5). Rationale: demoting a
+count to INVALID at 61.8% would discard structures the classic rule set
+allows; the profile band achieves the SOW discipline where it matters — at
+the entry gate.
+
+### I.8 Scope notes (deliberate boundaries)
+- **Time-cycles / date forecasting** (Brahmastra "Timing the Markets",
+  forecasting dates): this is the **"when" layer** and belongs to the
+  sibling repo chakra_quant; it enters this engine ONLY through the typed
+  `CycleSignal` seam (`ewave.signals.cycle_seam`) as the 7th confluence
+  strand. Not implemented here by design.
+- **Gann price levels** (used as S/R confluence on the SOW charts): candidate
+  future confluence strand; no validated level algorithm in the source
+  bundle, so not implemented.
+- **3-of-4 channel touch points** (zigzag/flat channel quality): manual
+  charting heuristic [G, manual]; not automated.

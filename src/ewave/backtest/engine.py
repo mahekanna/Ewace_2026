@@ -116,7 +116,8 @@ def _raw_signal(bars_window, profile: Profile):
             pct=kw["pct"], buf=kw["buf"], use_momentum=kw["use_momentum"],
             require_pattern_id=kw["require_pattern_id"],
             entry_window_w2_mult=kw["entry_window_w2_mult"],
-            min_w1_frac=kw["min_w1_frac"])
+            min_w1_frac=kw["min_w1_frac"],
+            use_ichimoku=kw.get("use_ichimoku", False))
     return wave3.wave3_signal(
         bars_window, pct=kw["pct"], retr_lo=kw["retr_lo"], retr_hi=kw["retr_hi"],
         min_w1_frac=kw["min_w1_frac"], buf=kw["buf"],

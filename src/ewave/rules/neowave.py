@@ -292,3 +292,103 @@ def group_polywaves(labelled: Sequence[tuple]) -> list[list[tuple]]:
                 if not any(h.status is Status.FAIL for h in hard):
                     candidates.append(items[start:start + size])
     return candidates
+
+
+# =========================================================================== #
+# CONFIRMATION LINES PER FAMILY (RULESET §I.5 — SOW two-stage pattern).
+# Generalizes the impulse 2-4 machinery above to corrections/triangles/
+# diametrics: no completion is trusted until the family's line breaks within
+# its time limit. All causal: only observed (current_t, current_price) enter.
+# =========================================================================== #
+def zero_b_confirmation(A: Wave, B: Wave, C: Wave, current_t: float,
+                        current_price: float) -> "list[RuleResult]":
+    """Zigzag/flat completion confirmation via the 0-B trendline (RULESET §I.5;
+    SOW Day-2 p.2). Stage 1: price breaks the line drawn through the
+    correction's origin (start of A) and the end of B, in the direction
+    OPPOSITE the correction, within <= time(C). Stage 2: price also retraces
+    beyond B's extreme within that time."""
+    lv = line_value(A.start, B.end, current_t)
+    a_down = A.end.price < A.start.price          # correction direction
+    broke = (current_price > lv) if a_down else (current_price < lv)
+    elapsed = (current_t - C.end.t) / 86400.0
+    fast = elapsed <= max(C.days, 1e-9)
+    stage1 = RuleResult("0-B confirmation Stage 1 (break <= time of C)",
+                        Status.PASS if (broke and fast) else Status.WARN,
+                        f"0-B line ~{lv:.2f}, price {current_price:.2f}, "
+                        f"broken={broke}; elapsed {elapsed:.1f}d vs C {C.days:.1f}d "
+                        f"-> fast={fast}")
+    beyond_b = (current_price >= B.end.price) if a_down else (current_price <= B.end.price)
+    stage2 = RuleResult("0-B confirmation Stage 2 (beyond B extreme)",
+                        Status.PASS if (beyond_b and fast) else Status.WARN,
+                        f"B extreme {B.end.price:.2f}; price {current_price:.2f}; "
+                        f"beyond={beyond_b}; within C time={fast}")
+    return [stage1, stage2]
+
+
+def bd_line_test(legs: "Sequence[Wave]") -> RuleResult:
+    """Triangle B-D baseline cleanliness (RULESET §I.2 [H]): no part of C or E
+    (their endpoints, at monowave granularity) breaks the line through the
+    ends of B and D prematurely. Legs = [a, b, c, d, e]."""
+    if len(legs) != 5:
+        return RuleResult("triangle B-D line", Status.NA,
+                          f"need 5 legs, got {len(legs)}")
+    a, b, c, d, e = legs
+    side_ref = a.end.price - line_value(b.end, d.end, a.end.t)
+    if side_ref == 0:
+        return RuleResult("triangle B-D line", Status.UNKNOWN,
+                          "degenerate geometry (a-end on the B-D line)")
+    clean = True
+    for leg, name in ((c, "C"), (e, "E")):
+        offset = leg.end.price - line_value(b.end, d.end, leg.end.t)
+        if offset * side_ref < 0:                 # crossed to the far side
+            clean = False
+    return RuleResult("triangle B-D line clean",
+                      Status.PASS if clean else Status.WARN,
+                      "no premature C/E break of the B-D baseline" if clean
+                      else "C or E endpoint crosses the B-D line before "
+                           "completion — verify the count")
+
+
+def bd_confirmation(legs: "Sequence[Wave]", current_t: float,
+                    current_price: float) -> "list[RuleResult]":
+    """Triangle-complete confirmation (RULESET §I.5): after E, price breaks
+    the B-D line AWAY from the a/c/e side within <= the SHORTEST leg's
+    duration (thrust timing, deep/11 T40)."""
+    if len(legs) != 5:
+        return [RuleResult("B-D confirmation", Status.NA,
+                           f"need 5 legs, got {len(legs)}")]
+    a, b, c, d, e = legs
+    lv = line_value(b.end, d.end, current_t)
+    side_ref = a.end.price - line_value(b.end, d.end, a.end.t)
+    broke = (current_price - lv) * side_ref < 0   # crossed away from the a-side
+    shortest_days = min(x.days for x in legs)
+    elapsed = (current_t - e.end.t) / 86400.0
+    fast = elapsed <= max(shortest_days, 1e-9)
+    stage1 = RuleResult("B-D confirmation Stage 1 (break <= shortest-leg time)",
+                        Status.PASS if (broke and fast) else Status.WARN,
+                        f"B-D line ~{lv:.2f}, price {current_price:.2f}, "
+                        f"broken={broke}; elapsed {elapsed:.1f}d vs shortest "
+                        f"leg {shortest_days:.1f}d -> fast={fast}")
+    return [stage1, bd_line_test(legs)]
+
+
+def diametric_boundary_confirmation(legs: "Sequence[Wave]", current_t: float,
+                                    current_price: float) -> "list[RuleResult]":
+    """Diametric-complete confirmation (RULESET §I.1/§I.5): after G, price
+    breaks the boundary through the ends of D and F (the last two same-side
+    pivots) within ~<= time(G)."""
+    if len(legs) != 7:
+        return [RuleResult("diametric confirmation", Status.NA,
+                           f"need 7 legs, got {len(legs)}")]
+    d_leg, f_leg, g_leg = legs[3], legs[5], legs[6]
+    lv = line_value(d_leg.end, f_leg.end, current_t)
+    side_ref = legs[4].end.price - line_value(d_leg.end, f_leg.end,
+                                              legs[4].end.t)  # E side
+    broke = side_ref != 0 and (current_price - lv) * side_ref < 0
+    elapsed = (current_t - g_leg.end.t) / 86400.0
+    fast = elapsed <= max(g_leg.days, 1e-9)
+    return [RuleResult("diametric boundary Stage 1 (break <= time of G)",
+                       Status.PASS if (broke and fast) else Status.WARN,
+                       f"D-F boundary ~{lv:.2f}, price {current_price:.2f}, "
+                       f"broken={broke}; elapsed {elapsed:.1f}d vs G "
+                       f"{g_leg.days:.1f}d -> fast={fast}")]

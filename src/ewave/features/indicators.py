@@ -60,3 +60,41 @@ def atr(bars, n=14):
         h, l, pc = bars[i][2], bars[i][3], bars[i - 1][4]
         trs.append(max(h - l, abs(h - pc), abs(l - pc)))
     return sum(trs[-n:]) / min(len(trs), n)
+
+
+def ichimoku(bars, tenkan_n=9, kijun_n=26, senkou_b_n=52, displacement=26):
+    """Ichimoku Cloud (SOW: 'NeoWave with Ichimoku Cloud' — the method's
+    confirmation overlay; RULESET §I scope + audit G6).
+
+    Returns a dict of lists aligned to `bars` (None until enough history):
+      tenkan, kijun            — conversion/base lines at each bar
+      senkou_a, senkou_b       — the CLOUD AT bar i (i.e. the spans computed
+                                 `displacement` bars EARLIER and projected
+                                 forward onto i). CAUSAL by construction: the
+                                 cloud overhead at bar i uses data up to
+                                 i - displacement only.
+    Chikou (the lagging close plot) is deliberately NOT returned: it plots the
+    close BACKWARD in time and cannot inform a causal decision at bar i.
+    bars = (t,o,h,l,c[,v]) tuples.
+    """
+    n = len(bars)
+    highs = [b[2] for b in bars]
+    lows = [b[3] for b in bars]
+
+    def mid(period, i):
+        if i + 1 < period:
+            return None
+        return (max(highs[i + 1 - period:i + 1]) + min(lows[i + 1 - period:i + 1])) / 2
+
+    tenkan = [mid(tenkan_n, i) for i in range(n)]
+    kijun = [mid(kijun_n, i) for i in range(n)]
+    senkou_a = [None] * n
+    senkou_b = [None] * n
+    for i in range(n):
+        j = i - displacement                      # span computed j, seen at i
+        if j >= 0 and tenkan[j] is not None and kijun[j] is not None:
+            senkou_a[i] = (tenkan[j] + kijun[j]) / 2
+        sb = mid(senkou_b_n, j) if j >= 0 else None
+        senkou_b[i] = sb
+    return {"tenkan": tenkan, "kijun": kijun,
+            "senkou_a": senkou_a, "senkou_b": senkou_b}

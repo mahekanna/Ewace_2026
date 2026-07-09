@@ -43,6 +43,7 @@ class Wave3Signal:
     strands: int = 0        # confluence strands satisfied (Table D gate)
     t2: float = 0.0         # second target (2.618x W1)
     w1_bars: int = 0        # wave-1 duration in bars (for the S&B time budget)
+    setup_confirmed_t: float = 0.0   # when the W2 pivot became knowable (lag metric)
 
 
 def wave3_signal(bars, *, pct: float = 0.02, retr_lo: float = 0.382,
@@ -88,7 +89,8 @@ def wave3_signal(bars, *, pct: float = 0.02, retr_lo: float = 0.382,
                            [("1.618x W1", round(t1, 2)), ("2.618x W1", round(t2, 2))],
                            round((t1 - entry) / risk, 2), (a.price, b.price), w2_low,
                            round(retr, 3), e if e is not None else 0.0,
-                           "wave-3 long: broke wave-1 high after a valid wave-2 pullback")
+                           "wave-3 long: broke wave-1 high after a valid wave-2 pullback",
+                           setup_confirmed_t=c.confirmed_t or 0.0)
 
     # ---- SHORT: wave 1 down, wave 2 up, break BELOW wave-1 low ----
     if (not w1_up) and c.price > b.price:
@@ -111,7 +113,8 @@ def wave3_signal(bars, *, pct: float = 0.02, retr_lo: float = 0.382,
                            [("1.618x W1", round(t1, 2)), ("2.618x W1", round(t2, 2))],
                            round((entry - t1) / risk, 2), (a.price, b.price), w2_high,
                            round(retr, 3), e if e is not None else 0.0,
-                           "wave-3 short: broke wave-1 low after a valid wave-2 pullback")
+                           "wave-3 short: broke wave-1 low after a valid wave-2 pullback",
+                           setup_confirmed_t=c.confirmed_t or 0.0)
     return None
 
 
@@ -133,7 +136,8 @@ def wave3_signal_strict(bars, *, conf_min: int = 3, min_rr: float = 2.0,
                         buf: float = 0.001, use_momentum: bool = True,
                         require_pattern_id: bool = True,
                         entry_window_w2_mult: int = 2,
-                        min_w1_frac: float = 0.01):
+                        min_w1_frac: float = 0.01,
+                        use_ichimoku: bool = False):
     """Rule-faithful wave-3 long entry, or None. Reuses the documented rule
     components (NeoWave structure label, score_reversal confluence, Fib targets,
     S&B time). Causal."""
@@ -177,7 +181,8 @@ def wave3_signal_strict(bars, *, conf_min: int = 3, min_rr: float = 2.0,
     if use_momentum and (e is None or e <= 0):           # momentum expanding (W3 personality)
         return None
     # --- CONFLUENCE GATE (Table D): >= conf_min independent strands ---
-    rep = score_reversal("w3", bars[-250:], (w2_low, w1_high), bullish=True)
+    rep = score_reversal("w3", bars[-250:], (w2_low, w1_high), bullish=True,
+                         use_ichimoku=use_ichimoku)
     if rep.score < conf_min:
         return None
     entry, stop = w1_high, w2_low * (1 - buf)
@@ -195,7 +200,8 @@ def wave3_signal_strict(bars, *, conf_min: int = 3, min_rr: float = 2.0,
                        e if e is not None else 0.0,
                        f"rule-faithful W3: W1={w1_label.split('(')[0]} motive, "
                        f"W2 {retr:.0%} retrace, confluence {rep.score}/7 strands, R:R {rr:.1f}",
-                       strands=rep.score, t2=round(t2, 2), w1_bars=w1_bars)
+                       strands=rep.score, t2=round(t2, 2), w1_bars=w1_bars,
+                       setup_confirmed_t=c.confirmed_t or 0.0)
 
 
 # --------------------------------------------------------------------------- #
@@ -220,7 +226,8 @@ def generate(bars, profile, symbol: str = "", timeframe: str = ""):
             pct=kw["pct"], buf=kw["buf"], use_momentum=kw["use_momentum"],
             require_pattern_id=kw["require_pattern_id"],
             entry_window_w2_mult=kw["entry_window_w2_mult"],
-            min_w1_frac=kw["min_w1_frac"])
+            min_w1_frac=kw["min_w1_frac"],
+            use_ichimoku=kw.get("use_ichimoku", False))
     else:
         sig = wave3_signal(
             bars, pct=kw["pct"], retr_lo=kw["retr_lo"], retr_hi=kw["retr_hi"],

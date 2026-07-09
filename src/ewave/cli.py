@@ -78,6 +78,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--roll", type=int, default=400, help="bars of history per step")
     sp.add_argument("--horizon", type=int, default=32, help="bars to resolve each call")
     sp.add_argument("--forward", default="all", help="how many steps to walk (or 'all')")
+    sp.add_argument("--csv", action="store_true",
+                    help="also write snapshots/outcomes as CSV (spec §17)")
 
     sp = sub.add_parser("backtest", help="backtest executable signals (causal entries only)")
     sp.add_argument("--symbols", required=True)

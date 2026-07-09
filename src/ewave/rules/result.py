@@ -71,6 +71,11 @@ class Pivot:
     # None => provisional / still forming (e.g. the final extreme of a series).
     confirmed_t: Optional[float] = None
     degree: Optional["Degree"] = None  # optional wave-degree annotation
+    # provenance (ewauto SPEC parity): which detector produced this pivot and
+    # with what parameters — e.g. source="pct_reversal", meta={"pct": 0.03}.
+    # Defaults keep positional construction and equality of legacy code intact.
+    source: str = ""
+    meta: Optional[dict] = None
 
     @property
     def date(self) -> str:

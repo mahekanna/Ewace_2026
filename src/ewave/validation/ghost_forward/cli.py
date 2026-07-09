@@ -35,8 +35,13 @@ def cmd_ghost_forward(args) -> int:
             continue
         out_dir = Path("outputs/ghost_forward") / f"{sym.lower()}_{args.tf}_{args.profile}"
         fc = wave3_forecaster(profile)
+        import dataclasses
+        import hashlib
+        cfg_hash = hashlib.sha1(str(sorted(
+            dataclasses.asdict(profile).items())).encode()).hexdigest()[:12]
         snaps = stability.snapshot_pass(bars, fc, args.roll, args.forward,
-                                        args.horizon, out_dir / "snapshots.jsonl")
+                                        args.horizon, out_dir / "snapshots.jsonl",
+                                        profile=profile.name, config_hash=cfg_hash)
         outcomes = stability.outcome_pass(bars, snaps, args.roll, args.forward,
                                           args.horizon, frozen=True,
                                           out_path=out_dir / "outcomes.jsonl")
@@ -46,6 +51,18 @@ def cmd_ghost_forward(args) -> int:
             json.dump(m, f, indent=1)
         report.render(sym, args.tf, snaps, outcomes, m, args.roll, args.horizon,
                       out_dir / "summary.md")
+        if getattr(args, "csv", False):
+            import csv as _csv
+            import dataclasses as _dc
+            with open(out_dir / "snapshots.csv", "w", newline="") as f:
+                rows = [_dc.asdict(x) for x in snaps]
+                w = _csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+                w.writeheader()
+                w.writerows(rows)
+            with open(out_dir / "outcomes.csv", "w", newline="") as f:
+                w = _csv.DictWriter(f, fieldnames=list(outcomes[0].keys()))
+                w.writeheader()
+                w.writerows(outcomes)
         hit = m["outcomes"].get("HIT", 0)
         inv = m["outcomes"].get("INVALIDATED", 0)
         print(f"{sym} {args.tf} [{args.profile}]: {m['forecasts']} signals over "

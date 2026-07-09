@@ -30,5 +30,6 @@ def wave3_forecaster(profile: Profile):
             confidence=(s.confluence_strands / 7.0
                         if profile.min_confluence_strands else 0.5),
             kind=f"wave3-{profile.name}",
-            note=s.note)
+            note=s.note,
+            meta={"setup_confirmed_t": getattr(s, "setup_confirmed_t", 0.0) or None})
     return forecast

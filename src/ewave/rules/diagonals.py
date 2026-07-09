@@ -148,6 +148,10 @@ def terminal_rules(w: Sequence[Wave]) -> list[RuleResult]:
                           Status.PASS if contracting else Status.WARN, shape))
     res.append(RuleResult("terminal: sub-waves each corrective (:3)", Status.REF,
                           "each of the 5 legs should be a three (verify via monowave labels)"))
+    # RULESET SI (audit G10; SOW Day-1 p.5): even in a terminal, W3 > W1
+    res.append(RuleResult("terminal: wave3 exceeds wave1",
+                          Status.PASS if w3.length > w1.length else Status.WARN,
+                          f"len W1/W3 = {w1.length:.2f}/{w3.length:.2f}"))
     return res
 
 

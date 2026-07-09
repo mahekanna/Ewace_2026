@@ -94,6 +94,48 @@ def x_wave_check(prior_correction: Wave, x: Wave) -> RuleResult:
         st, msg = Status.PASS, f"x = {rr:.0%} of prior correction (small x-wave)"
     elif rr <= 1.0:
         st, msg = Status.WARN, f"x = {rr:.0%} of prior correction (large x-wave)"
+    elif rr >= 1.618:
+        # RULESET SI.3 large-X regime (SOW Day-2 p.8): the "connector" is
+        # oversized -> the correction is of a larger degree than assumed
+        st, msg = Status.REF, (f"x = {rr:.0%} (>=161.8%) -> LARGE-X regime; "
+                               "reassess degree and relabel")
     else:
         st, msg = Status.FAIL, f"x = {rr:.0%} (>100%) -> not an x-wave; structural error"
     return RuleResult("NeoWave x-wave", st, msg)
+
+
+def triangle_subrules(legs: "Sequence[Wave]") -> "list[RuleResult]":
+    """SOW/reference triangle sub-rules (RULESET §I.2): E smallest leg;
+    >=3 of the legs retrace >50% of the preceding leg. (The B-D cleanliness
+    check lives in neowave.bd_line_test, which owns line geometry.)"""
+    if len(legs) != 5:
+        return [RuleResult("triangle sub-rules", Status.NA,
+                           f"need 5 legs, got {len(legs)}")]
+    lens = [x.length for x in legs]
+    e_smallest = lens[4] == min(lens)
+    out = [RuleResult("triangle: E smallest leg",
+                      Status.PASS if e_smallest else Status.WARN,
+                      f"leg lengths {[round(x, 2) for x in lens]}")]
+    deep = sum(1 for i in range(1, 5)
+               if lens[i - 1] and lens[i] / lens[i - 1] > 0.5)
+    out.append(RuleResult("triangle: >=3 legs retrace >50% of prior",
+                          Status.PASS if deep >= 3 else Status.WARN,
+                          f"{deep}/4 legs retrace >50% of the preceding leg"))
+    return out
+
+
+def is_extracting_triangle(legs: "Sequence[Wave]") -> RuleResult:
+    """NeoWave extracting triangle (RULESET §I.2; SOW Day-2 p.5): alternating
+    contraction/expansion with e < c < a AND d > b. PASS = extracting;
+    NA = not this shape."""
+    if len(legs) != 5:
+        return RuleResult("extracting triangle", Status.NA,
+                          f"need 5 legs, got {len(legs)}")
+    a, b, c, d, e = (x.length for x in legs)
+    ok = e < c < a and d > b
+    return RuleResult("extracting triangle",
+                      Status.PASS if ok else Status.NA,
+                      f"e<c<a={'yes' if e < c < a else 'no'} "
+                      f"(e={e:.2f}, c={c:.2f}, a={a:.2f}); "
+                      f"d>b={'yes' if d > b else 'no'} (d={d:.2f}, b={b:.2f})"
+                      + ("" if ok else " -> not extracting"))
