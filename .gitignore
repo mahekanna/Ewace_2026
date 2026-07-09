@@ -27,3 +27,13 @@ htmlcov/
 *.parquet
 *.csv
 scratch/
+
+# ewave run outputs — keep the directory structure (.gitkeep) and markdown
+# reports; ignore bulky run artifacts (ledgers, snapshots, logs)
+outputs/*/*
+!outputs/*/.gitkeep
+!outputs/*/*.md
+outputs/KILL_SWITCH
+
+# local env files
+.env

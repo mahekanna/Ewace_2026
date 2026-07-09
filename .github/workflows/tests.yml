@@ -17,8 +17,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Run test suite (pure stdlib, no deps)
+      - name: Run test suite on the bare checkout (pure stdlib, no install)
         run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Install package and smoke the CLI
+        run: |
+          pip install -e .
+          ewave --version
+          ewave --help >/dev/null
+      - name: Run test suite against the installed package
+        run: python -m unittest discover -s tests -p "test_*.py"
       - name: Run module self-tests + examples
         run: |
           python wavelib/rules.py

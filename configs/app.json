@@ -1,0 +1,5 @@
+{
+  "outputs_dir": "outputs",
+  "log_level": "INFO",
+  "engine_version": "0.3.0"
+}

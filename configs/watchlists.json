@@ -1,0 +1,7 @@
+{
+  "default": ["AVGO", "MRVL"],
+  "semis": ["AVGO", "MRVL", "NVDA", "AMD", "TSM", "QCOM", "ASML", "LRCX", "MU", "ARM", "SMCI", "AMAT"],
+  "indices": ["SPX", "NDX", "DJI", "VIX"],
+  "defensives": ["JNJ", "JPM", "KO", "PG", "WMT", "XOM"],
+  "crypto": ["BTCUSDT", "ETHUSDT"]
+}

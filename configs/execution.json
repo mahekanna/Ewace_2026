@@ -1,0 +1,17 @@
+{
+  "mode": "paper",
+  "fill_model": "next_bar_open",
+  "slippage": { "model": "bps", "value": 2.0 },
+  "commission": { "per_share": 0.005, "minimum": 1.0 },
+  "paper_ledger_dir": "outputs/paper_trading",
+  "live": {
+    "enabled": false,
+    "requires": [
+      "env:EWAVE_ENABLE_LIVE=true",
+      "execution.mode==live",
+      "risk.live_enabled==true",
+      "paper report exists under outputs/paper_trading/",
+      "kill switch file absent"
+    ]
+  }
+}
