@@ -120,3 +120,11 @@
 {"strategy": "wave3_experimental", "symbol": "MRVL", "timeframe": "1h", "trades": 25, "expectancy_r": 0.5045, "sharpe": 0.3537}
 {"strategy": "wave3_experimental", "symbol": "NVDA", "timeframe": "1h", "trades": 15, "expectancy_r": -0.093, "sharpe": -0.0634}
 {"strategy": "wave3_experimental", "symbol": "MU", "timeframe": "1h", "trades": 26, "expectancy_r": 0.5233, "sharpe": 0.3479}
+{"strategy": "wave3_experimental", "symbol": "AMD", "timeframe": "1h", "trades": 22, "expectancy_r": 0.8369, "sharpe": 0.6041}
+{"strategy": "wave3_experimental", "symbol": "TSM", "timeframe": "1h", "trades": 17, "expectancy_r": 0.1799, "sharpe": 0.1181}
+{"strategy": "wave3_experimental", "symbol": "QCOM", "timeframe": "1h", "trades": 20, "expectancy_r": 0.2361, "sharpe": 0.1708}
+{"strategy": "wave3_experimental", "symbol": "ASML", "timeframe": "1h", "trades": 13, "expectancy_r": -0.1392, "sharpe": -0.1003}
+{"strategy": "wave3_experimental", "symbol": "LRCX", "timeframe": "1h", "trades": 25, "expectancy_r": 0.1421, "sharpe": 0.0951}
+{"strategy": "wave3_experimental", "symbol": "ARM", "timeframe": "1h", "trades": 20, "expectancy_r": 0.4636, "sharpe": 0.319}
+{"strategy": "wave3_experimental", "symbol": "SMCI", "timeframe": "1h", "trades": 28, "expectancy_r": 0.7963, "sharpe": 0.5092}
+{"strategy": "wave3_experimental", "symbol": "AMAT", "timeframe": "1h", "trades": 17, "expectancy_r": 0.5593, "sharpe": 0.3448}
