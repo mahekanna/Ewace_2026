@@ -114,3 +114,9 @@
 {"strategy": "wave3_sw_s3_rr2_pid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 46, "expectancy_r": 0.6166, "sharpe": 0.3912}
 {"strategy": "wave3_sw_s3_rr2_nopid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 46, "expectancy_r": 0.6166, "sharpe": 0.3912}
 {"strategy": "wave3_sw_s3_rr2_nopid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 46, "expectancy_r": 0.6166, "sharpe": 0.3912}
+{"strategy": "wave3_experimental", "symbol": "AVGO", "timeframe": "15m", "trades": 83, "expectancy_r": 0.0944, "sharpe": 0.0721}
+{"strategy": "wave3_experimental", "symbol": "MRVL", "timeframe": "15m", "trades": 119, "expectancy_r": 0.2952, "sharpe": 0.2196}
+{"strategy": "wave3_experimental", "symbol": "AVGO", "timeframe": "1h", "trades": 14, "expectancy_r": 0.1912, "sharpe": 0.1381}
+{"strategy": "wave3_experimental", "symbol": "MRVL", "timeframe": "1h", "trades": 25, "expectancy_r": 0.5045, "sharpe": 0.3537}
+{"strategy": "wave3_experimental", "symbol": "NVDA", "timeframe": "1h", "trades": 15, "expectancy_r": -0.093, "sharpe": -0.0634}
+{"strategy": "wave3_experimental", "symbol": "MU", "timeframe": "1h", "trades": 26, "expectancy_r": 0.5233, "sharpe": 0.3479}
