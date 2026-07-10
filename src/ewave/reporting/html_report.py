@@ -276,6 +276,8 @@ svg.appendChild(el("path",{d:dp+` L ${X(t1).toFixed(1)} ${H-mB} L ${X(t0).toFixe
 svg.appendChild(el("path",{d:dp,fill:"none",stroke:"#3aa6ff","stroke-width":2,"stroke-linejoin":"round"}));
 // pivots + labels
 D.pivots.forEach(([t,p,lab,kind])=>{const x=X(t),y=Y(p);const col=(kind==="T"||kind==="N")?"#ff5d57":"#27e0c4";svg.appendChild(el("circle",{cx:x,cy:y,r:kind==="T"?5.5:4,fill:col,stroke:"#0a0d0f","stroke-width":1.5}));const up=(kind==="H"||kind==="T");tx(x,up?y-12:y+18,lab,{fill:col,"font-size":13,"font-weight":700,"text-anchor":"middle"});tx(x,up?y-26:y+31,"$"+p.toFixed(0),{fill:"#9fb0b6","font-size":9.5,"text-anchor":"middle"})});
+// structural / confirmation lines (SOW: 0-B, 2-4, B-D)
+(D.lines||[]).forEach(([t1,p1,t2,p2,lab,col])=>{const c=col||"#f2b134";svg.appendChild(el("line",{x1:X(t1),y1:Y(p1),x2:X(t2),y2:Y(p2),stroke:c,"stroke-width":1.6,"stroke-dasharray":"7 4",opacity:0.9}));tx(Math.min(X(t2),W-mR-4),Y(p2)-6,lab,{fill:c,"font-size":10.5,"text-anchor":"end"})});
 </script></body></html>"""
 
 
@@ -294,7 +296,8 @@ def render_analysis_page(data, output_path=None):
             .replace("__CARDS__", cards)
             .replace("__DATA__", json.dumps(
                 {"line": data["line"], "pivots": data["pivots"],
-                 "targets": data["targets"], "zone": data["zone"]})))
+                 "targets": data["targets"], "zone": data["zone"],
+                 "lines": data.get("lines", [])})))
     if output_path:
         with open(output_path, "w", encoding="utf-8") as fh:
             fh.write(html)
