@@ -64,3 +64,34 @@ ewave ghost-forward --symbols AVGO,MRVL,NVDA,AMD,TSM,QCOM,ASML,LRCX,MU,ARM,SMCI,
 
 Artifacts: `outputs/backtests/<sym>_1h_experimental/` (trades/equity/metrics) and
 `outputs/ghost_forward/<sym>_1h_experimental/` (snapshots/outcomes/metrics/summary).
+
+---
+
+## UPDATE 2026-07-12 — out-of-sample 2024 window (Alpaca, trials #131-#142)
+
+A second, fully independent test: Jan-Oct 2024 hourly RTH bars (source `mcp:alpaca`,
+:00-anchored, split-adjusted, stored as `<sym>_1h_2024-10.json`) — a different regime
+(2024 summer chop + the October top) and a different data vendor from the Dec-2025→Jul-2026
+TradingView window.
+
+| window | trades | pooled exp | win | PF | trades/yr/sym |
+|---|---|---|---|---|---|
+| 2024-01→10 (Alpaca) | 360 | **+0.319R** | 48.9% | 1.62 | 36.2 |
+| 2025-12→2026-07 (TV) | 242 | **+0.399R** | 49.6% | 1.79 | 34.9 |
+| combined | 602 | **+0.351R** | — | — | ~35 |
+
+Combined per-trade Sharpe 0.245 (skew +0.27, kurt 1.39): **PSR ~1.00, MinTRL 44 << 602.**
+Two regimes, two vendors, same profile, no re-tuning — the pooled hourly edge replicates.
+
+Honest notes:
+1. **Per-symbol edges are NOT stable across windows** (MRVL −0.01R in 2024 vs +0.50R in
+   2025-26; NVDA +0.49R vs −0.09R; only ASML negative in both). The edge is
+   portfolio-level; do not pick symbols by trailing expectancy.
+2. **Family DSR as previously constructed reads 0.0** — but that construction compares the
+   pooled (unselected) portfolio Sharpe against the expected max of 24 per-symbol trials,
+   which is the wrong null for a pre-registered pool. The correct promotion test is
+   portfolio-level: full continuous 2.5yr series (fetch resuming after the session limit
+   reset), CPCV over the pooled trade sequence, and PSR at the portfolio level. Recorded
+   here so the DSR field in trials.jsonl is not misread.
+3. Gap 2024-11→2025-11 still unfetched (session usage limit interrupted slices s3-s6;
+   resume state in scratchpad fresh_alpaca/FETCH_STATE.md).
