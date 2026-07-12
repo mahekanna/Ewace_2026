@@ -23,6 +23,7 @@ _DISPATCH = {
     "backtest":      ("ewave.backtest.cli", "cmd_backtest", "Phase 6"),
     "paper-trade":   ("ewave.execution.cli", "cmd_paper_trade", "Phase 7"),
     "report":        ("ewave.reporting.cli", "cmd_report", "Phase 8"),
+    "journal":       ("ewave.reporting.cli", "cmd_journal", "Phase 8"),
 }
 
 
@@ -98,6 +99,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("report", help="write the daily markdown report")
     sp.add_argument("--date", default="today")
+
+    sp = sub.add_parser("journal", help="write the human trading journal (every trade, its basis, P&L)")
+    sp.add_argument("--symbols", required=True, help="comma-separated tickers")
+    sp.add_argument("--tf", default="1h")
+    sp.add_argument("--profile", default="experimental")
 
     return p
 

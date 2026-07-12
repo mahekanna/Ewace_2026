@@ -69,7 +69,7 @@ class TestCli(unittest.TestCase):
         self.assertEqual(
             set(sub.choices),
             {"fetch-data", "validate-data", "resample", "pivots", "scan",
-             "ghost-forward", "backtest", "paper-trade", "report"})
+             "ghost-forward", "backtest", "paper-trade", "report", "journal"})
 
     def test_no_command_prints_help(self):
         out = io.StringIO()

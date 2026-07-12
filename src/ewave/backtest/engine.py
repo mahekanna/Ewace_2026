@@ -40,6 +40,13 @@ class Wave3Trade:
     outcome: str               # TARGET | STOP | TIME | WIN | PARTIAL
     bars_held: int
     strands: int = 0
+    # --- wave basis (additive; for the human trading journal — does not affect R) ---
+    exit_time: float = 0.0     # timestamp of the bar the position closed on
+    w1_origin: float = 0.0     # wave-1 start price (pivot a)
+    w1_extreme: float = 0.0    # wave-1 end price (pivot b) = the broken level = entry
+    w2_extreme: float = 0.0    # wave-2 pullback extreme (pivot c) = stop reference
+    retr: float = 0.0          # wave-2 retracement as a fraction of wave 1
+    setup_confirmed_t: float = 0.0  # bar at which the W2 pivot became knowable (causal proof)
 
 
 def _resolve_single(sig, future):
@@ -147,11 +154,18 @@ def backtest_wave3(bars, profile: Profile, *, max_hold: int = 96, roll: int = 40
         r, outcome, held = res
         if fill_model is not None:
             r -= fill_model.cost_r(sig.entry, sig.stop)
+        exit_idx = min(t + held, n - 1)
+        w1 = getattr(sig, "w1", (0.0, 0.0))
         trades.append(Wave3Trade(
             signal_time=bars[t][0], entry_time=bars[t][0],
             direction=sig.direction, entry=sig.entry, stop=sig.stop,
             target_1=sig.targets[0][1], planned_rr=sig.reward_risk,
             r=round(r, 4), outcome=outcome, bars_held=held,
-            strands=getattr(sig, "strands", 0)))
+            strands=getattr(sig, "strands", 0),
+            exit_time=bars[exit_idx][0],
+            w1_origin=round(w1[0], 4), w1_extreme=round(w1[1], 4),
+            w2_extreme=round(getattr(sig, "w2", 0.0), 4),
+            retr=round(getattr(sig, "retr", 0.0), 4),
+            setup_confirmed_t=getattr(sig, "setup_confirmed_t", 0.0) or 0.0))
         t += held + 1                            # one position at a time
     return trades
