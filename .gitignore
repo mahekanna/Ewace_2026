@@ -37,3 +37,10 @@ outputs/KILL_SWITCH
 
 # local env files
 .env
+
+# Copyrighted third-party source material (Ashish Kyal / SOW course PDFs + project
+# zip bundles) — preserved on disk for reference but deliberately NOT committed to
+# version control; the derived searchable rules live in docs/RULES_LEDGER.md,
+# docs/research/sow_deep_read/, and docs/atlas/. See docs/source_material/README.md.
+docs/source_material/instructor_pdfs/
+docs/source_material/zip_archives/
