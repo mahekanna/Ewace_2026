@@ -1,0 +1,8 @@
+{
+  "symbol": "NASDAQ:AVGO",
+  "bars": [
+    {"time": 1749735000, "open": 384.2, "high": 385.4, "low": 383.9, "close": 385.0, "volume": 150000},
+    {"time": 1749735900, "open": 385.0, "high": 386.3, "low": 384.6, "close": 386.1, "volume": 180000},
+    {"time": 1749736800, "open": 386.1, "high": 387.4, "low": 385.2, "close": 386.9, "volume": 210000}
+  ]
+}

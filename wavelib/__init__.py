@@ -14,9 +14,20 @@ Modules
     wavelib.toolkit     ZigZag, Fibonacci helpers, terminal/wave-5 projection
     wavelib.confluence  Reversal-confidence scoring (momentum/volume/structure)
 
-Note: rules.py and toolkit.py each define a Pivot/Wave dataclass; they are
-structurally identical and duck-type-compatible across functions.
+wavelib is now a compatibility layer over the `ewave` platform (src/ewave):
+the canonical Pivot/Wave/Degree/Status/RuleResult live in ewave.rules.result,
+the causal pivot detectors in ewave.pivots, and every historical name below
+resolves to the same objects. See docs/ARCHITECTURE.md.
 """
+# bootstrap src/ so a bare checkout (no pip install) finds ewave
+try:
+    import ewave  # noqa: F401
+except ImportError:
+    import os as _os, sys as _sys
+    _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.dirname(
+        _os.path.abspath(__file__))), "src"))
+    import ewave  # noqa: F401
+
 from .rules import (
     Pivot, Wave, Degree, Status, RuleResult,
     elliott_hard_rules, elliott_guidelines, project_wave5,
@@ -26,12 +37,13 @@ from .rules import (
     is_terminal, terminal_rules, terminal_retrace_window, is_running_triangle,
     classify_complex_correction, is_neutral_triangle, x_wave_check,
     line_value, two_four_test, two_four_confirmation, throwover_test, base_channel_test,
+    confirm_completion, CompletionSignal,
     label_monowaves, monowave_candidates, group_polywaves,
     validate_impulse, validate_correction, report,
 )
 from .toolkit import (
     zigzag, zigzag_causal, zigzag_multiscale, swing_pivots,
-    pivots_to_waves, fib_extension, fib_retrace, wave_ratio, blue_box_zone,
+    pivots_to_waves, fib_extension, fib_retrace, fib_cluster, wave_ratio, blue_box_zone,
 )
 from .automation import (
     CandidateCount, label_and_validate, assign_degrees_neely, swing_sequence,
@@ -49,7 +61,7 @@ from .charting import render_chart
 from .wavetree import (
     WaveNode, build_wave_tree, build_tree_from_pivots, format_tree, deepest_degree,
     best_count, tree_confidence, anchor_count, AnchoredCount,
-    wave_counts, anchored_degree,
+    wave_counts, anchored_degree, top_down_count, momentum_lookup,
 )
 from .confluence import (
     score_reversal, classify_swing_sequence,
@@ -57,7 +69,13 @@ from .confluence import (
     choch, channel_break, divergence_at,
     rsi, ema, macd, ConfluenceReport, Strand,
 )
-from .forecast import WaveForecast, forecast_waves, forecast_from_count
+from .forecast import (
+    WaveForecast, forecast_waves, forecast_from_count, TradePlan, trade_plan,
+)
+from .forecast_backtest import (
+    ForecastTrade, forecast_trades, forecast_returns, expectancy, compute_setups,
+)
+from .wave3 import Wave3Signal, wave3_signal, wave3_signal_strict
 from .cycle_seam import CycleSignal
 
 __version__ = "0.2.0"

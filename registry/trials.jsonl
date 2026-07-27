@@ -2,3 +2,153 @@
 {"strategy": "reversal_tb", "score_threshold": 3, "pt": 0.08, "sl": 0.05, "events": 47, "sharpe": 0.5141283801830018}
 {"strategy": "reversal_tb", "score_threshold": 4, "pt": 0.06, "sl": 0.04, "events": 9, "sharpe": 2.9603362576061496}
 {"strategy": "reversal_tb", "score_threshold": 4, "pt": 0.08, "sl": 0.05, "events": 9, "sharpe": 1.197392796336812}
+{"strategy": "reversal_tb", "score_threshold": 3, "pt": 0.06, "sl": 0.04, "events": 47, "sharpe": 0.608372530171872}
+{"strategy": "reversal_tb", "score_threshold": 3, "pt": 0.08, "sl": 0.05, "events": 47, "sharpe": 0.5141283801830018}
+{"strategy": "reversal_tb", "score_threshold": 4, "pt": 0.06, "sl": 0.04, "events": 9, "sharpe": 2.9603362576061496}
+{"strategy": "reversal_tb", "score_threshold": 4, "pt": 0.08, "sl": 0.05, "events": 9, "sharpe": 1.197392796336812}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 3, "pt": 0.1, "sl": 0.07, "events": 1130, "sharpe": 0.0663234430541834}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 3, "pt": 0.1, "sl": 0.07, "events": 632, "sharpe": 0.12693499545975884}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 3, "pt": 0.15, "sl": 0.1, "events": 632, "sharpe": 0.16449549964496366}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 4, "pt": 0.1, "sl": 0.07, "events": 104, "sharpe": 0.08740757512839646}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 4, "pt": 0.15, "sl": 0.1, "events": 104, "sharpe": 0.11879512512901962}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 3, "pt": 0.1, "sl": 0.07, "events": 632, "sharpe": 0.12693499545975884}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 3, "pt": 0.15, "sl": 0.1, "events": 632, "sharpe": 0.16449549964496366}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 4, "pt": 0.1, "sl": 0.07, "events": 104, "sharpe": 0.08740757512839646}
+{"strategy": "reversal_tb_weekly_multiregime", "score_threshold": 4, "pt": 0.15, "sl": 0.1, "events": 104, "sharpe": 0.11879512512901962}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.15, "min_rr": 1.5, "events": 2720, "sharpe": 0.587342359904214, "expectancy_r": 13.893076786239954}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.15, "min_rr": 2.5, "events": 2697, "sharpe": 0.5897130408725396, "expectancy_r": 14.0317000807876}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 1.5, "events": 1807, "sharpe": 0.5610878356310223, "expectancy_r": 13.266543601836704}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 2.5, "events": 1783, "sharpe": 0.5655966837646864, "expectancy_r": 13.471215954413635}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.15, "min_rr": 1.5, "events": 48, "sharpe": 0.3930159036853929, "expectancy_r": 0.841810662427866}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.15, "min_rr": 2.5, "events": 31, "sharpe": 0.2864003782830093, "expectancy_r": 1.0786583129009353}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 1.5, "events": 41, "sharpe": 0.5390180023210231, "expectancy_r": 1.0092968741756332}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 2.5, "events": 27, "sharpe": 0.6246206267884509, "expectancy_r": 1.3824491867101092}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.15, "min_rr": 1.5, "events": 48, "sharpe": 0.3930159036853929, "expectancy_r": 0.841810662427866}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.15, "min_rr": 2.5, "events": 31, "sharpe": 0.2864003782830093, "expectancy_r": 1.0786583129009353}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 1.5, "events": 41, "sharpe": 0.5390180023210231, "expectancy_r": 1.0092968741756332}
+{"strategy": "forecast_driven_weekly", "conf_min": 0.25, "min_rr": 2.5, "events": 27, "sharpe": 0.6246206267884509, "expectancy_r": 1.3824491867101092}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "zone", "conf_min": 0.15, "events": 3338, "sharpe": -0.8528885363171057, "expectancy_r": -0.7191372821244445}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "zone", "conf_min": 0.25, "events": 2049, "sharpe": -0.7901473645388762, "expectancy_r": -0.6706702041558219}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "bos", "conf_min": 0.15, "events": 48, "sharpe": 0.3930159036853929, "expectancy_r": 0.841810662427866}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "bos", "conf_min": 0.25, "events": 41, "sharpe": 0.5390180023210231, "expectancy_r": 1.0092968741756332}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "zone", "conf_min": 0.15, "events": 3919, "sharpe": -0.7879666605204756, "expectancy_r": -0.6568532838521886}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "zone", "conf_min": 0.25, "events": 3108, "sharpe": -0.7489190817886193, "expectancy_r": -0.6317711987121274}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "bos", "conf_min": 0.15, "events": 34, "sharpe": 0.6624657467188301, "expectancy_r": 1.124988531461176}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "bos", "conf_min": 0.25, "events": 31, "sharpe": 0.6684453154483017, "expectancy_r": 1.1078368841684667}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "zone", "conf_min": 0.15, "events": 3338, "sharpe": -0.8528885363171057, "expectancy_r": -0.7191372821244445}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "zone", "conf_min": 0.25, "events": 2049, "sharpe": -0.7901473645388762, "expectancy_r": -0.6706702041558219}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "bos", "conf_min": 0.15, "events": 48, "sharpe": 0.3930159036853929, "expectancy_r": 0.841810662427866}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "bos", "conf_min": 0.25, "events": 41, "sharpe": 0.5390180023210231, "expectancy_r": 1.0092968741756332}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "zone", "conf_min": 0.15, "events": 3919, "sharpe": -0.7879666605204756, "expectancy_r": -0.6568532838521886}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "zone", "conf_min": 0.25, "events": 3108, "sharpe": -0.7489190817886193, "expectancy_r": -0.6317711987121274}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "bos", "conf_min": 0.15, "events": 34, "sharpe": 0.6624657467188301, "expectancy_r": 1.124988531461176}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "bos", "conf_min": 0.25, "events": 31, "sharpe": 0.6684453154483017, "expectancy_r": 1.1078368841684667}
+{"strategy": "forecast_driven", "tf": "4h", "mode": "zone", "conf_min": 0.15, "events": 2144, "sharpe": -0.6783651854318182, "expectancy_r": -0.5607337052942002}
+{"strategy": "forecast_driven", "tf": "4h", "mode": "zone", "conf_min": 0.25, "events": 1939, "sharpe": -0.6433304043458511, "expectancy_r": -0.537308608141844}
+{"strategy": "forecast_driven", "tf": "4h", "mode": "bos", "conf_min": 0.15, "events": 20, "sharpe": 0.2959093213997916, "expectancy_r": 0.8002050431084994}
+{"strategy": "forecast_driven", "tf": "4h", "mode": "bos", "conf_min": 0.25, "events": 18, "sharpe": 0.3127342574520099, "expectancy_r": 0.8857531624327779}
+{"strategy": "forecast_driven", "tf": "1h", "mode": "zone", "conf_min": 0.15, "events": 1094, "sharpe": -0.5084865666040673, "expectancy_r": -0.43430222354671455}
+{"strategy": "forecast_driven", "tf": "1h", "mode": "zone", "conf_min": 0.25, "events": 1041, "sharpe": -0.5073957780082542, "expectancy_r": -0.43255263597615107}
+{"strategy": "forecast_driven", "tf": "1h", "mode": "bos", "conf_min": 0.15, "events": 12, "sharpe": -0.03774303757621187, "expectancy_r": 0.578182969651878}
+{"strategy": "forecast_driven", "tf": "1h", "mode": "bos", "conf_min": 0.25, "events": 12, "sharpe": -0.03774303757621187, "expectancy_r": 0.578182969651878}
+{"strategy": "forecast_driven", "tf": "15m", "mode": "zone", "conf_min": 0.15, "events": 626, "sharpe": -0.4807208126092092, "expectancy_r": -0.3971185011439799}
+{"strategy": "forecast_driven", "tf": "15m", "mode": "zone", "conf_min": 0.25, "events": 610, "sharpe": -0.4871936379378894, "expectancy_r": -0.3961205557538387}
+{"strategy": "forecast_driven", "tf": "15m", "mode": "bos", "conf_min": 0.15, "events": 5, "sharpe": 0.10521427924463887, "expectancy_r": 0.004219661333336932}
+{"strategy": "forecast_driven", "tf": "15m", "mode": "bos", "conf_min": 0.25, "events": 5, "sharpe": 0.10521427924463887, "expectancy_r": 0.004219661333336932}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "zone", "conf_min": 0.15, "events": 1421, "sharpe": -0.548506246536391, "expectancy_r": -0.6388035905049301}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "zone", "conf_min": 0.25, "events": 1014, "sharpe": -0.48239340839311595, "expectancy_r": -0.5702035010274635}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "bos", "conf_min": 0.15, "events": 636, "sharpe": 0.4760220324141805, "expectancy_r": 0.5133201118791914}
+{"strategy": "forecast_driven", "tf": "1w", "mode": "bos", "conf_min": 0.25, "events": 460, "sharpe": 0.47788267253498184, "expectancy_r": 0.4763802900480304}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "zone", "conf_min": 0.15, "events": 2200, "sharpe": -0.5844607622625833, "expectancy_r": -0.6058011554425677}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "zone", "conf_min": 0.25, "events": 1801, "sharpe": -0.5442546923560047, "expectancy_r": -0.5812724836803291}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "bos", "conf_min": 0.15, "events": 1009, "sharpe": 0.5632427711886334, "expectancy_r": 0.551407441741559}
+{"strategy": "forecast_driven", "tf": "1d", "mode": "bos", "conf_min": 0.25, "events": 835, "sharpe": 0.4913309322113955, "expectancy_r": 0.5172836959264023}
+{"strategy": "wave3_experimental", "symbol": "AVGO", "timeframe": "15m", "trades": 79, "expectancy_r": -0.1311, "sharpe": -0.1002}
+{"strategy": "wave3_experimental", "symbol": "MRVL", "timeframe": "15m", "trades": 119, "expectancy_r": -0.527, "sharpe": -0.3734}
+{"strategy": "wave3_sow_neowave_strict", "symbol": "AVGO", "timeframe": "15m", "trades": 3, "expectancy_r": 0.7047, "sharpe": 0.2708}
+{"strategy": "wave3_experimental", "symbol": "AVGO", "timeframe": "15m", "trades": 79, "expectancy_r": 0.1504, "sharpe": 0.1143}
+{"strategy": "wave3_experimental", "symbol": "MRVL", "timeframe": "15m", "trades": 119, "expectancy_r": 0.2952, "sharpe": 0.2196}
+{"strategy": "wave3_experimental", "symbol": "AVGO", "timeframe": "15m", "trades": 79, "expectancy_r": 0.1504, "sharpe": 0.1143}
+{"strategy": "wave3_experimental", "symbol": "MRVL", "timeframe": "15m", "trades": 119, "expectancy_r": 0.2952, "sharpe": 0.2196}
+{"strategy": "wave3_baseline_experimental_pooled", "symbol": "POOLED", "timeframe": "15m", "trades": 202, "expectancy_r": 0.2127, "sharpe": 0.1599}
+{"strategy": "wave3_sw_s1_rr1_pid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 45, "expectancy_r": 0.4645, "sharpe": 0.2778}
+{"strategy": "wave3_sw_s1_rr1_pid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 45, "expectancy_r": 0.4645, "sharpe": 0.2778}
+{"strategy": "wave3_sw_s1_rr1_nopid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 66, "expectancy_r": 0.4528, "sharpe": 0.3078}
+{"strategy": "wave3_sw_s1_rr1_nopid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 67, "expectancy_r": 0.4561, "sharpe": 0.3123}
+{"strategy": "wave3_sw_s1_rr1.5_pid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 45, "expectancy_r": 0.4645, "sharpe": 0.2778}
+{"strategy": "wave3_sw_s1_rr1.5_pid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 45, "expectancy_r": 0.4645, "sharpe": 0.2778}
+{"strategy": "wave3_baseline_experimental_pooled", "symbol": "POOLED", "timeframe": "15m", "trades": 606, "expectancy_r": 0.3046, "sharpe": 0.2187}
+{"strategy": "wave3_sw_s1_rr1_pid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 165, "expectancy_r": 0.5763, "sharpe": 0.4073}
+{"strategy": "wave3_sw_s1_rr1_pid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 165, "expectancy_r": 0.5763, "sharpe": 0.4073}
+{"strategy": "wave3_sw_s1_rr1_nopid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 252, "expectancy_r": 0.5073, "sharpe": 0.4018}
+{"strategy": "wave3_sw_s1_rr1_nopid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 254, "expectancy_r": 0.5125, "sharpe": 0.4086}
+{"strategy": "wave3_sw_s1_rr1.5_pid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 165, "expectancy_r": 0.5763, "sharpe": 0.4073}
+{"strategy": "wave3_sw_s1_rr1.5_pid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 165, "expectancy_r": 0.5763, "sharpe": 0.4073}
+{"strategy": "wave3_sw_s1_rr1.5_nopid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 180, "expectancy_r": 0.5604, "sharpe": 0.4045}
+{"strategy": "wave3_sw_s1_rr1.5_nopid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 180, "expectancy_r": 0.5604, "sharpe": 0.4045}
+{"strategy": "wave3_sw_s1_rr2_pid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 120, "expectancy_r": 0.4855, "sharpe": 0.3328}
+{"strategy": "wave3_sw_s1_rr2_pid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 120, "expectancy_r": 0.4855, "sharpe": 0.3328}
+{"strategy": "wave3_sw_s1_rr2_nopid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 120, "expectancy_r": 0.4855, "sharpe": 0.3328}
+{"strategy": "wave3_sw_s1_rr2_nopid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 120, "expectancy_r": 0.4855, "sharpe": 0.3328}
+{"strategy": "wave3_sw_s2_rr1_pid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 122, "expectancy_r": 0.6456, "sharpe": 0.4516}
+{"strategy": "wave3_sw_s2_rr1_pid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 122, "expectancy_r": 0.6456, "sharpe": 0.4516}
+{"strategy": "wave3_sw_s2_rr1_nopid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 179, "expectancy_r": 0.5982, "sharpe": 0.4692}
+{"strategy": "wave3_sw_s2_rr1_nopid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 181, "expectancy_r": 0.5957, "sharpe": 0.4696}
+{"strategy": "wave3_sw_s2_rr1.5_pid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 122, "expectancy_r": 0.6456, "sharpe": 0.4516}
+{"strategy": "wave3_sw_s2_rr1.5_pid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 122, "expectancy_r": 0.6456, "sharpe": 0.4516}
+{"strategy": "wave3_sw_s2_rr1.5_nopid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 133, "expectancy_r": 0.6172, "sharpe": 0.4395}
+{"strategy": "wave3_sw_s2_rr1.5_nopid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 133, "expectancy_r": 0.6172, "sharpe": 0.4395}
+{"strategy": "wave3_sw_s2_rr2_pid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 84, "expectancy_r": 0.6313, "sharpe": 0.4187}
+{"strategy": "wave3_sw_s2_rr2_pid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 84, "expectancy_r": 0.6313, "sharpe": 0.4187}
+{"strategy": "wave3_sw_s2_rr2_nopid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 84, "expectancy_r": 0.6313, "sharpe": 0.4187}
+{"strategy": "wave3_sw_s2_rr2_nopid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 84, "expectancy_r": 0.6313, "sharpe": 0.4187}
+{"strategy": "wave3_sw_s3_rr1_pid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 63, "expectancy_r": 0.5928, "sharpe": 0.4006}
+{"strategy": "wave3_sw_s3_rr1_pid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 63, "expectancy_r": 0.5928, "sharpe": 0.4006}
+{"strategy": "wave3_sw_s3_rr1_nopid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 90, "expectancy_r": 0.5842, "sharpe": 0.4273}
+{"strategy": "wave3_sw_s3_rr1_nopid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 92, "expectancy_r": 0.5819, "sharpe": 0.43}
+{"strategy": "wave3_sw_s3_rr1.5_pid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 63, "expectancy_r": 0.5928, "sharpe": 0.4006}
+{"strategy": "wave3_sw_s3_rr1.5_pid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 63, "expectancy_r": 0.5928, "sharpe": 0.4006}
+{"strategy": "wave3_sw_s3_rr1.5_nopid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 67, "expectancy_r": 0.5786, "sharpe": 0.3963}
+{"strategy": "wave3_sw_s3_rr1.5_nopid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 67, "expectancy_r": 0.5786, "sharpe": 0.3963}
+{"strategy": "wave3_sw_s3_rr2_pid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 46, "expectancy_r": 0.6166, "sharpe": 0.3912}
+{"strategy": "wave3_sw_s3_rr2_pid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 46, "expectancy_r": 0.6166, "sharpe": 0.3912}
+{"strategy": "wave3_sw_s3_rr2_nopid_golden", "symbol": "POOLED", "timeframe": "15m", "trades": 46, "expectancy_r": 0.6166, "sharpe": 0.3912}
+{"strategy": "wave3_sw_s3_rr2_nopid_wide", "symbol": "POOLED", "timeframe": "15m", "trades": 46, "expectancy_r": 0.6166, "sharpe": 0.3912}
+{"strategy": "wave3_experimental", "symbol": "AVGO", "timeframe": "15m", "trades": 83, "expectancy_r": 0.0944, "sharpe": 0.0721}
+{"strategy": "wave3_experimental", "symbol": "MRVL", "timeframe": "15m", "trades": 119, "expectancy_r": 0.2952, "sharpe": 0.2196}
+{"strategy": "wave3_experimental", "symbol": "AVGO", "timeframe": "1h", "trades": 14, "expectancy_r": 0.1912, "sharpe": 0.1381}
+{"strategy": "wave3_experimental", "symbol": "MRVL", "timeframe": "1h", "trades": 25, "expectancy_r": 0.5045, "sharpe": 0.3537}
+{"strategy": "wave3_experimental", "symbol": "NVDA", "timeframe": "1h", "trades": 15, "expectancy_r": -0.093, "sharpe": -0.0634}
+{"strategy": "wave3_experimental", "symbol": "MU", "timeframe": "1h", "trades": 26, "expectancy_r": 0.5233, "sharpe": 0.3479}
+{"strategy": "wave3_experimental", "symbol": "AMD", "timeframe": "1h", "trades": 22, "expectancy_r": 0.8369, "sharpe": 0.6041}
+{"strategy": "wave3_experimental", "symbol": "TSM", "timeframe": "1h", "trades": 17, "expectancy_r": 0.1799, "sharpe": 0.1181}
+{"strategy": "wave3_experimental", "symbol": "QCOM", "timeframe": "1h", "trades": 20, "expectancy_r": 0.2361, "sharpe": 0.1708}
+{"strategy": "wave3_experimental", "symbol": "ASML", "timeframe": "1h", "trades": 13, "expectancy_r": -0.1392, "sharpe": -0.1003}
+{"strategy": "wave3_experimental", "symbol": "LRCX", "timeframe": "1h", "trades": 25, "expectancy_r": 0.1421, "sharpe": 0.0951}
+{"strategy": "wave3_experimental", "symbol": "ARM", "timeframe": "1h", "trades": 20, "expectancy_r": 0.4636, "sharpe": 0.319}
+{"strategy": "wave3_experimental", "symbol": "SMCI", "timeframe": "1h", "trades": 28, "expectancy_r": 0.7963, "sharpe": 0.5092}
+{"strategy": "wave3_experimental", "symbol": "AMAT", "timeframe": "1h", "trades": 17, "expectancy_r": 0.5593, "sharpe": 0.3448}
+{"strategy": "wave3_experimental", "symbol": "AVGO", "timeframe": "1h-2024", "trades": 25, "expectancy_r": 0.5806, "sharpe": 0.4195}
+{"strategy": "wave3_experimental", "symbol": "MRVL", "timeframe": "1h-2024", "trades": 32, "expectancy_r": -0.0086, "sharpe": -0.0057}
+{"strategy": "wave3_experimental", "symbol": "NVDA", "timeframe": "1h-2024", "trades": 40, "expectancy_r": 0.4917, "sharpe": 0.3398}
+{"strategy": "wave3_experimental", "symbol": "AMD", "timeframe": "1h-2024", "trades": 28, "expectancy_r": 0.5935, "sharpe": 0.3987}
+{"strategy": "wave3_experimental", "symbol": "TSM", "timeframe": "1h-2024", "trades": 22, "expectancy_r": 0.329, "sharpe": 0.2405}
+{"strategy": "wave3_experimental", "symbol": "QCOM", "timeframe": "1h-2024", "trades": 20, "expectancy_r": 0.2988, "sharpe": 0.2127}
+{"strategy": "wave3_experimental", "symbol": "ASML", "timeframe": "1h-2024", "trades": 18, "expectancy_r": -0.1633, "sharpe": -0.1284}
+{"strategy": "wave3_experimental", "symbol": "LRCX", "timeframe": "1h-2024", "trades": 24, "expectancy_r": -0.2085, "sharpe": -0.1672}
+{"strategy": "wave3_experimental", "symbol": "MU", "timeframe": "1h-2024", "trades": 34, "expectancy_r": 0.5775, "sharpe": 0.4116}
+{"strategy": "wave3_experimental", "symbol": "ARM", "timeframe": "1h-2024", "trades": 42, "expectancy_r": 0.3662, "sharpe": 0.2509}
+{"strategy": "wave3_experimental", "symbol": "SMCI", "timeframe": "1h-2024", "trades": 52, "expectancy_r": 0.343, "sharpe": 0.2375}
+{"strategy": "wave3_experimental", "symbol": "AMAT", "timeframe": "1h-2024", "trades": 23, "expectancy_r": 0.2694, "sharpe": 0.2032}
+{"strategy": "wave3_experimental", "symbol": "AVGO", "timeframe": "1h-ext", "trades": 69, "expectancy_r": 0.2117, "sharpe": 0.1551}
+{"strategy": "wave3_experimental", "symbol": "MRVL", "timeframe": "1h-ext", "trades": 84, "expectancy_r": 0.0981, "sharpe": 0.0679}
+{"strategy": "wave3_experimental", "symbol": "NVDA", "timeframe": "1h-ext", "trades": 79, "expectancy_r": 0.4183, "sharpe": 0.2868}
+{"strategy": "wave3_experimental", "symbol": "AMD", "timeframe": "1h-ext", "trades": 64, "expectancy_r": 0.2412, "sharpe": 0.1614}
+{"strategy": "wave3_experimental", "symbol": "TSM", "timeframe": "1h-ext", "trades": 59, "expectancy_r": 0.1923, "sharpe": 0.1446}
+{"strategy": "wave3_experimental", "symbol": "QCOM", "timeframe": "1h-ext", "trades": 48, "expectancy_r": 0.1362, "sharpe": 0.1001}
+{"strategy": "wave3_experimental", "symbol": "ASML", "timeframe": "1h-ext", "trades": 41, "expectancy_r": 0.1617, "sharpe": 0.1155}
+{"strategy": "wave3_experimental", "symbol": "LRCX", "timeframe": "1h-ext", "trades": 55, "expectancy_r": -0.1638, "sharpe": -0.1296}
+{"strategy": "wave3_experimental", "symbol": "MU", "timeframe": "1h-ext", "trades": 73, "expectancy_r": 0.4605, "sharpe": 0.318}
+{"strategy": "wave3_experimental", "symbol": "ARM", "timeframe": "1h-ext", "trades": 94, "expectancy_r": 0.3068, "sharpe": 0.2033}
+{"strategy": "wave3_experimental", "symbol": "SMCI", "timeframe": "1h-ext", "trades": 113, "expectancy_r": 0.4072, "sharpe": 0.2849}
+{"strategy": "wave3_experimental", "symbol": "AMAT", "timeframe": "1h-ext", "trades": 59, "expectancy_r": 0.1181, "sharpe": 0.0816}

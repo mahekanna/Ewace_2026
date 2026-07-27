@@ -101,21 +101,24 @@ class TestWalkForward(unittest.TestCase):
 
 class TestNoLookAhead(unittest.TestCase):
     def test_label_never_sees_future(self):
+        # patch the module the replay engine ACTUALLY calls (the canonical
+        # ewave.patterns.candidates; wavelib.automation is a shim over it)
+        from ewave.patterns import candidates as _cand
         seen = []
-        original = automation.label_and_validate
+        original = _cand.label_and_validate
 
         def recorder(bars, **kw):
             seen.append(bars[-1][0])                           # last bar t handed to labeler
             return []                                          # no events -> fast
 
-        automation.label_and_validate = recorder
+        _cand.label_and_validate = recorder
         try:
             bars = make_bars([100, 130, 110, 150], per=3)
             backtest_reversals(bars, min_history=2)
             cursor_ts = [bars[t][0] for t in range(2, len(bars))]
             self.assertEqual(seen, cursor_ts)                  # exactly the cursor, never ahead
         finally:
-            automation.label_and_validate = original
+            _cand.label_and_validate = original
 
 
 class TestRenderChart(unittest.TestCase):

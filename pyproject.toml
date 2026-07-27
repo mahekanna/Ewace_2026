@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ewave"
+version = "0.3.0"
+description = "Elliott Wave / NeoWave full-automation research platform: causal pivots, mono-waves, rule validators, signals, ghost-forward validation, backtest, risk and paper trading. Pure-stdlib core."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Ewace_2026" }]
+keywords = ["elliott-wave", "neowave", "technical-analysis", "backtesting", "trading"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Programming Language :: Python :: 3",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+# Core = stdlib only, by design (see CLAUDE.md / docs/ARCHITECTURE.md).
+dependencies = []
+
+[project.optional-dependencies]
+yfinance = ["yfinance>=0.2"]      # data adapter on machines with network access
+yaml = ["pyyaml>=6"]              # optional .yaml config support (JSON is canonical)
+charts = ["matplotlib>=3.7"]      # optional PNG chart scripts (SVG emitter needs nothing)
+dev = ["pytest>=7"]               # optional; unittest remains the requirement
+
+[project.scripts]
+ewave = "ewave.cli:main"
+
+[tool.setuptools]
+package-dir = { "ewave" = "src/ewave", "wavelib" = "wavelib" }
+packages = [
+    "ewave",
+    "ewave.data",
+    "ewave.data.adapters",
+    "ewave.features",
+    "ewave.pivots",
+    "ewave.monowaves",
+    "ewave.rules",
+    "ewave.patterns",
+    "ewave.signals",
+    "ewave.validation",
+    "ewave.validation.ghost_forward",
+    "ewave.backtest",
+    "ewave.risk",
+    "ewave.execution",
+    "ewave.scanner",
+    "ewave.reporting",
+    "wavelib",
+]

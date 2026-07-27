@@ -1,0 +1,16 @@
+{
+  "store_dir": "data/live",
+  "adapter_order": ["contract", "csv", "alpaca", "fmp", "yfinance"],
+  "adjustment": "split",
+  "timeframes": ["15m", "1h", "4h", "1d", "1w"],
+  "session_rules": {
+    "equity": { "session": "regular", "calendar": "America/New_York" },
+    "crypto": { "session": "full", "calendar": "UTC" },
+    "fx": { "session": "full", "calendar": "UTC" }
+  },
+  "symbol_classes": {
+    "btcusdt": "crypto", "ethusdt": "crypto",
+    "eurusd": "fx", "gold": "fx",
+    "_default": "equity"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "account_equity": 100000.0,
+  "max_risk_per_trade_pct": 1.0,
+  "reduced_risk_pct_below_3_strands": 0.5,
+  "max_daily_loss_pct": 3.0,
+  "max_weekly_loss_pct": 6.0,
+  "max_open_positions": 3,
+  "max_symbol_exposure_pct": 20.0,
+  "max_portfolio_exposure_pct": 60.0,
+  "cooldown_bars_after_loss": 12,
+  "kill_switch_file": "outputs/KILL_SWITCH",
+  "live_enabled": false
+}

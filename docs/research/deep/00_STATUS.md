@@ -77,10 +77,110 @@ zone, not a prediction.
 The NeoWave card surfaces monowave structure (:5/:3), Similarity & Balance, the
 terminal/diagonal check, neutral/running-triangle flags, and the 2-4 timing
 confirmation. Honest answer to "did we research NeoWave?": **yes, deeply** (docs
-02 + 05) and it was implemented — the gap was *presentation*, now fixed. Doc 11's
-remaining genuine gaps (next NeoWave work): Rule-3-vs-4 overlap + conditions a-d
-in `monowave_candidates`; a trading-method synthesis panel (entry/stop/targets);
-post-constructive confirmations as a stateful per-bar queue.
+02 + 05) and it was implemented — the gap was *presentation*, now fixed.
+
+### Stage 9b — doc 11's three remaining NeoWave gaps (now CLOSED)
+
+| Gap (doc 11) | Status | Where |
+|---|---|---|
+| GAP-1 Rule-3-vs-4 overlap test + condition d in monowave labelling | ✅ done | `rules.monowave_candidates` (overlaps_m0 + m0r) now drives `rules.label_monowaves`' core label — fixes the old `retr>1 -> :5` motive over-labelling |
+| GAP-2 trading-method synthesis panel (direction/entry/stop/invalidation/time-gated targets) | ✅ done | `forecast.TradePlan` / `forecast.trade_plan`; surfaced as the "Trading-method synthesis" report card |
+| GAP-3 post-constructive confirmation as a stateful per-bar monitor | ✅ done | `rules.CompletionSignal` / `rules.confirm_completion` walks bars forward from wave-5 end, returns first-confirm bar or `pending`; surfaced in the NeoWave card when the count is an impulse |
+
+GAP-1 makes labels Neely-correct: the 0.618-1.0 retrace band now splits into Rule 3
+(no re-entry into m0 -> motive-or-first `:3/:5`) vs Rule 4 (re-entry -> c-wave
+`:3/:c3`), so the constructor stops calling every deep extension a motive. GAP-2
+turns a forecast into an honest, gated plan (low confidence = *wait*, the stop is
+the structural invalidation, and confirmation is time-boxed to the prior leg's
+build). GAP-3 is the real-time companion to the static `two_four_confirmation`: the
+constructor proposes a complete impulse, the monitor waits for the market to
+confirm it bar-by-bar with no look-ahead. All three are unit-tested (147 tests).
+
+## Stage 10 — multi-regime validation (answers the daily report's main caveat)
+
+The daily DSR report's biggest honesty caveat was *"single recent regime."* That is
+now closed. `scripts/run_multiregime.py` pools the reversal strategy across **25
+instruments** and multiple asset classes (12 semis, indices SPX/NDX/DJI/VIX,
+defensive/energy sectors JPM/XOM/PG/JNJ/WMT/KO, EURUSD/GOLD, BTCUSDT/ETHUSDT) over
+**weekly history 1987→2026** — so the sample now spans 2000, 2008, 2020 and 2022.
+
+| metric | result |
+|---|---|
+| Pooled decided events (all variants) | **1,472** (vs a handful per symbol daily) |
+| Buy-and-hold benchmark Sharpe (13-bar) | 0.228 (42,086 samples) |
+| Best ≥30-event variant Sharpe | 0.164 (632 events) |
+| Beats buy-and-hold | **No** (PSR vs benchmark **5%**) |
+| CPCV 5th-pctile OOS profit factor | 0.59 – 1.07 (≈1.0 = no robust edge) |
+
+**Verdict: no edge over buy-and-hold even across regimes.** This is the strongest
+honesty result the project has produced: with a proper multi-decade, multi-asset
+sample (1,472 events, not a handful) the reversal-confluence strategy still does not
+beat passive holding. The harness refuses to certify a data-mined edge. (Report:
+`reports/MULTIREGIME_2026-06.md`. Replay is bounded by a causal `label_lookback`
+cap + `stride` for tractable runtime — both past-only.) This directly gates the
+chakra_quant cycle integration: there is no validated standalone edge yet for the
+"when" layer to enhance.
+
+## Stage 11 — prediction-driven backtest (testing EW/NeoWave's *predictive* claim)
+
+The multi-regime test (Stage 10) and all prior backtests traded a reversal SCORE
+with fixed barriers — they never used the engine's wave FORECAST. `wavelib/
+forecast_backtest.py` + `scripts/run_forecast_backtest.py` fix that: they trade
+`forecast`/the count the institutional way — break-of-structure confirmation entry,
+stop at the corrective-leg extreme (real structural risk), asymmetric R:R filter,
+scale-out + move-to-breakeven, conviction filter, one position at a time, causal.
+
+**A first run reported a fake edge (74% win / 14R / PF~50).** It was a bug, caught
+because it was too good to be true: the stop had collapsed to a hard-coded 1%
+(meaningless R, capped losses) and the same setup was re-entered every bar (fake
+100% PSR). Both fixed (structural stop = leg depth; setup de-duplication). A second
+(corrected) pass on a CONSERVATIVE break-of-structure entry looked *faintly*
+positive — but on only ~147 trades, far too few to trust. So a second entry model
+(EWF reaction-zone pullback) was added to get a properly-powered sample, run across
+BOTH timeframes:
+
+Powered verdict (weekly 1987→2026 + daily 2006→2026; `reports/FORECAST_BACKTEST_2026-06.md`):
+
+| timeframe | entry | trades | win% | avg R | Sharpe | PSR vs B&H |
+|---|---|---|---|---|---|---|
+| 1W | zone (powered) | 2,049–3,338 | 16–19% | **−0.72 / −0.67** | −0.85 | 0% |
+| 1W | bos (tiny) | 41–48 | 56–61% | +0.84 / +1.01 | 0.39–0.54 | 91–99% |
+| 1D | zone (powered) | 3,108–3,919 | 20–22% | **−0.66 / −0.63** | −0.79 | 0% |
+| 1D | bos (tiny) | 31–34 | 68% | +1.11 / +1.12 | 0.66 | 99% |
+
+**Verdict: no durable edge.** The break-of-structure model looked positive only
+because it was under-powered (31–48 trades); the moment the zone-entry model
+produces a real sample (2,000–3,900 trades) on EITHER timeframe, expectancy is
+clearly **negative** (−0.6 to −0.7 R, 16–22% win) — the forecast's predicted
+reaction zones are *not* where price reliably turns. No configuration is both
+powered and positive. Trading the prediction does not beat buy-and-hold on weekly
+or daily. (Honest nuance: the zone stop is tight, which contributes to the low win
+rate — results are entry/stop-model dependent, the EW discretion ceiling — but the
+direction of the conclusion is unambiguous across the powered cells.)
+
+**Decisive confirmation — the pure DIRECTION test** (`scripts/forecast_direction_test.py`,
+no stop/target/management, just "enter next bar in the forecast direction, hold 13
+weeks"): over **19,784** forecast-directed trades the signed mean is **−0.82%**
+(Sharpe −0.04, **win rate 48.6%** — below a coin flip), versus buy-and-hold +5.28%.
+This removes the entry/stop-model caveat entirely: the forecast direction itself
+carries **no skill** — it is marginally *anti*-predictive. The negative backtest is
+not an artifact of how trades were managed; the prediction has no directional edge
+to begin with.
+
+**Robustness across timeframes.** The forecast-driven test was then swept over
+**five timeframes — 1W, 1D, 4H, 1H, 15M** (`reports/FORECAST_BACKTEST_2026-06.md`).
+The zone-entry model is NEGATIVE on every one (−0.40 to −0.72 R, 626–3,919 trades
+each); the per-timeframe direction test edges marginally above a coin flip on
+intraday (52–53% win) but at noise-level Sharpe (~0.05) and never beats buy-and-hold
+on any horizon (below 50% on weekly). The faint positive is confined to tiny
+break-of-structure samples (5–48 trades). No tradeable edge at any horizon tested.
+
+This confirms the cycle-integration gate is RED: across the reversal-score test
+(Stage 10) and the prediction test on FIVE timeframes PLUS the mechanics-free
+direction test, there is no standalone edge for the chakra_quant "when" layer to
+enhance. The engine's honest role is *context* ("where a reversal is structurally
+permitted"), not a standalone systematic predictor — exactly the ceiling the
+research predicted.
 
 ## The honest ceiling
 
@@ -97,6 +197,7 @@ honest posture.
 
 ## Test coverage
 
-120 unit tests (`python3 -m unittest discover -s tests`), synthetic-ground-truth
-first. Validation math, CPCV, diagonals, anchored counts, and the wave tree all
-have deterministic tests.
+147 unit tests (`python3 -m unittest discover -s tests`), synthetic-ground-truth
+first. Validation math, CPCV, diagonals, anchored counts, the wave tree, the
+monowave Rule-3-vs-4 overlap test, the trade-plan synthesizer, and the
+post-constructive completion monitor all have deterministic tests.

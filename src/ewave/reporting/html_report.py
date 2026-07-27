@@ -1,0 +1,359 @@
+"""
+report_chart.py
+===============
+Rich, annotated HTML analysis pages — auto-generated from the wavelib engine, in
+the visual spirit of the project's original hand-built charts (dark theme, price
+line, labelled wave pivots, Fibonacci target lines, shaded zone, findings cards).
+
+`analyze_symbol()` runs the engine to produce the chart data; `render_analysis_page()`
+turns that data into a self-contained HTML file (inline SVG drawing, no deps).
+"""
+from __future__ import annotations
+import datetime
+import json
+
+from ..pivots.percentage_reversal import zigzag_causal
+from ..rules.result import Pivot
+from ..rules.fib import blue_box_zone, fib_retrace
+from ..signals.confluence import score_reversal
+from ..patterns.candidates import label_and_validate
+from ..patterns.tree import wave_counts
+from ..signals.trade_plan import forecast_waves, trade_plan
+
+
+def _fmt(t):
+    return datetime.datetime.utcfromtimestamp(t).strftime("%Y-%m-%d")
+
+
+def _neowave_card(piv, primary, full):
+    """Surface the NeoWave engine (Neely) for a symbol: monowave structure bias,
+    Rule of Similarity & Balance, terminal/diagonal check, neutral/running-triangle
+    flags, and the two-stage 2-4 timing confirmation — all from existing functions."""
+    from ..rules import (label_monowaves, similarity_and_balance, terminal_rules,
+                        is_neutral_triangle, is_running_triangle, two_four_confirmation,
+                        confirm_completion)
+    from ..pivots.models import pivots_to_waves
+    items = []
+    if len(piv) >= 4:
+        labelled = label_monowaves(piv)
+        m = sum(1 for _w, l in labelled if l.startswith(":5"))
+        c = sum(1 for _w, l in labelled if l.startswith(":3"))
+        amb = sum(1 for _w, l in labelled if l.startswith(":5|"))
+        items.append(f"Monowave structure: <span class='k'>{m}</span> motive (:5) / "
+                     f"<span class='k'>{c}</span> corrective (:3)"
+                     + (f", {amb} ambiguous" if amb else "")
+                     + f" over {len(labelled)} monowaves.")
+    legs = [n.as_wave() for _l, n in primary.labels] if primary else []
+    if len(legs) >= 4:
+        sb = similarity_and_balance(legs[1], legs[3], context="wave2 vs wave4")
+    elif len(legs) == 3:
+        sb = similarity_and_balance(legs[0], legs[2], context="A vs C")
+    else:
+        sb = None
+    if sb:
+        items.append(f"Similarity & Balance ({sb.status.value}): {sb.detail}")
+    rl = pivots_to_waves(piv[-6:]) if len(piv) >= 6 else []
+    if len(rl) == 5:
+        items.append(f"Terminal check (last 5 legs): {terminal_rules(rl)[0].detail}")
+        flags = []
+        if is_neutral_triangle(rl).status.value == "PASS":
+            flags.append("neutral triangle")
+        if is_running_triangle(rl).status.value == "PASS":
+            flags.append("running triangle (mislabel risk)")
+        items.append("Special structures: " + (", ".join(flags) if flags
+                                                else "none on last 5 legs"))
+    if primary and primary.pattern in ("IMPULSE", "DIAGONAL") and len(legs) == 5:
+        tf = two_four_confirmation(legs[4], legs[1].end, legs[3].end,
+                                   full[-1][0], full[-1][4], uptrend=legs[0].up)
+        items.append(f"2-4 timing confirmation: {tf[0].detail}")
+        # GAP-3: post-constructive per-bar monitor — has the market CONFIRMED the
+        # completed impulse bar-by-bar since wave 5 ended?
+        fwd = [b for b in full if b[0] > legs[4].end.t]
+        sig = confirm_completion(legs[4], legs[1].end, legs[3].end, fwd, uptrend=legs[0].up)
+        status = ("CONFIRMED complete (stage 2: fully retraced in time)" if sig.stage == 2
+                  else "confirmed complete (stage 1: fast 2-4 break)" if sig.stage == 1
+                  else "PENDING — not yet confirmed by price")
+        when = f" at bar +{sig.bars_elapsed} after wave 5" if sig.at_t else ""
+        items.append(f"Post-constructive confirmation monitor: {status}{when}.")
+    if not items:
+        items = ["insufficient recent structure for NeoWave analysis."]
+    return ("NeoWave techniques (Neely)", items)
+
+
+def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
+    """Run the engine on `bars` (t,o,h,l,c,v) and return chart-data for a page.
+
+    The chart shows the most recent `window` bars (readable); the MACRO wave-tree
+    count uses the FULL history with honest confidence. `zone` may be None — then
+    it is derived as the 0.382-0.618 retrace band of the recent up-leg.
+    """
+    full = bars
+    recent = bars[-window:] if len(bars) > window else bars
+    closes = [b[4] for b in recent]
+    line = [[b[0], b[4]] for b in recent]
+    last_close = closes[-1]
+
+    piv = [p for p in zigzag_causal(recent, pct=0.06)]
+    if len(piv) < 2:
+        piv = [Pivot(recent[0][0], recent[0][4], "L"), Pivot(recent[-1][0], last_close, "H")]
+    top_i = max(range(len(piv)), key=lambda i: piv[i].price)
+    top = piv[top_i]
+    pre = piv[:top_i] or piv
+    launch = min(pre, key=lambda p: p.price)
+
+    if zone is None:
+        rng = top.price - launch.price
+        zone = ((round(top.price - 0.618 * rng, 2), round(top.price - 0.382 * rng, 2))
+                if rng > 0 else (round(last_close * 0.95, 2), round(last_close * 1.05, 2)))
+
+    fibs = fib_retrace(top.price, launch.price)
+    targets = [[round(v, 2), f"{r:.3f}  ${v:,.0f}", 0.85] for r, v in sorted(fibs.items())]
+
+    cands = label_and_validate(recent, degrees=(0.05, 0.10, 0.15), max_candidates=60)
+    best = cands[0] if cands else None  # top-ranked overall (usually a 3-wave corrective)
+
+    # HONESTY GATE — why the visual no longer overstates.
+    # A 3-wave CORRECTION has almost no hard constraints, so the ranker can
+    # ALWAYS cherry-pick a fib-perfect down-up-down from any price series (it
+    # fires for every symbol). Numbering that would dress up a universal match
+    # as a "validated count" — the exact thing to avoid. Only a 5-wave
+    # IMPULSE/DIAGONAL is bound by R1/R2/R3, so ONLY a rule-clean impulse earns
+    # numerals. Everything else is drawn as causal swing highs (▲) / lows (▼) —
+    # honest ZigZag pivots, never an invented 1-2-3-4-5.
+    impulses = [c for c in cands
+                if c.count_type in ("IMPULSE", "DIAGONAL") and c.hard_fails == 0
+                and len(c.pivots) >= 6]
+    best_imp = (min(impulses, key=lambda c: (c.warns, -c.fib_score))
+                if impulses else None)
+    count_ok = best_imp is not None
+    if count_ok:
+        seq = ["0", "①", "②", "③", "④", "⑤"]
+        pivots = [[p.t, round(p.price, 2), (seq[i] if i < len(seq) else ""), p.kind]
+                  for i, p in enumerate(best_imp.pivots)]
+        count_note = (
+            f"VALIDATED IMPULSE — the numerals below are a rule-clean 5-wave "
+            f"{best_imp.count_type} (passes the hard rules R1/R2/R3, "
+            f"{best_imp.warns} guideline warnings, Fibonacci quality "
+            f"{best_imp.fib_score:.0%}). This is an actual Elliott count: of the "
+            "tested scales the engine found a wave structure that survives the "
+            "hard rules.")
+    else:
+        # neutral swing markers: p.kind is the FACTUAL swing direction (H/L).
+        pivots = [[p.t, round(p.price, 2), ("▲" if (p is top or p.kind == "H") else "▼"),
+                   ("T" if p is top else p.kind)] for p in piv[-7:]]
+        corr = " The engine's best structural read is a 3-wave corrective — a " \
+               "pullback, which is only weakly constrained and is NOT a confirmed " \
+               "impulse." if (best and best.count_type == "CORRECTION") else ""
+        count_note = (
+            "NO VALIDATED IMPULSE COUNT — the marked points are causal ZigZag "
+            "swing highs (▲) and lows (▼), NOT an Elliott wave count. No 5-wave "
+            "structure on the tested scales survives the hard rules (R1/R2/R3)."
+            + corr + " The engine numbers waves only when a count is earned; it "
+            "will not paint a 1-2-3-4-5 onto price that hasn't produced one.")
+    pivots.append([recent[-1][0], round(last_close, 2), "now", "N"])
+    # EWF Blue Box: reaction zone of the recent up-leg (launch->top) projected from
+    # the pullback low — surfaced as an extra confluence strand.
+    post = [p.price for p in piv if p.t > top.t]
+    bb = blue_box_zone(launch.price, top.price, min(post) if post else last_close)
+    rep = score_reversal(symbol, full[-250:], zone, bullish=bullish, blue_box=bb)
+    counts = wave_counts(full, max_alternates=2)
+    primary = counts[0] if counts else None
+    alternates = counts[1:]
+
+    tier = ("HIGH-CONFIDENCE reversal" if rep.score >= 4
+            else "BUILDING — not yet confirmed" if rep.score >= 2
+            else "structurally allowed only")
+    macro_line = ("No single dominant count — fragmented history." if not primary else
+                  f"Primary: <span class='k'>{primary.pattern}</span> @ {primary.degree_label}, "
+                  f"honest confidence <span class='k'>{primary.confidence:.0%}</span> "
+                  f"(covers {primary.coverage:.0%} of {len(full)} bars — multi-year counts "
+                  "are inherently ambiguous).")
+    alt_line = ("Alternates: " + "; ".join(
+        f"{a.pattern} {a.confidence:.0%}" for a in alternates)) if alternates else \
+        "No strong alternates."
+
+    card_macro = ("Macro wave-tree count (full history)", [
+        f"History: <span class='k'>{len(full)}</span> daily bars from {_fmt(full[0][0])}.",
+        macro_line,
+        alt_line,
+        f"Recent swing top <span class='r'>${top.price:,.2f}</span> ({top.date}); "
+        f"launch <span class='k'>${launch.price:,.2f}</span> ({launch.date}).",
+    ])
+    fc = forecast_waves(full)
+    if fc:
+        t = "; ".join(f"{lab} ${p:,.2f}" for lab, p in fc.targets)
+        card_forecast = ("Next-wave forecast", [
+            f"Expected next: <span class='k'>{fc.next_wave}</span> "
+            f"(confidence {fc.confidence:.0%}).",
+            f"Target zone: <span class='g'>{t or 'n/a'}</span>.",
+            f"Invalidation: <span class='r'>${fc.invalidation:,.2f}</span>.",
+            fc.rationale,
+        ])
+        # draw forecast targets on the chart
+        for lab, p in fc.targets:
+            targets.append([round(p, 2), f"FC {lab}", 0.95])
+    else:
+        card_forecast = ("Next-wave forecast", ["No forecast (no clean count)."])
+
+    # GAP-2: NeoWave/EWF trading-method synthesis — direction, confirmation trigger,
+    # stop, invalidation, time-gated targets. Honest: low confidence = wait.
+    tp = trade_plan(full)
+    if tp:
+        tgt = "; ".join(f"{lab} ${p:,.2f}" for lab, p in tp.targets)
+        card_plan = ("Trading-method synthesis (NeoWave/EWF)", [
+            f"Direction: <span class='k'>{tp.direction.upper()}</span> "
+            f"(confidence {tp.confidence:.0%} — low means wait, not act).",
+            f"Entry trigger: <span class='k'>{tp.entry_trigger}</span>.",
+            f"Protective stop: <span class='r'>${tp.stop_level:,.2f}</span>; "
+            f"structural invalidation: <span class='r'>${tp.invalidation:,.2f}</span>.",
+            f"Targets: <span class='g'>{tgt or 'n/a'}</span>.",
+            f"Confirmation must arrive within ~<span class='k'>{tp.confirm_window_bars}</span> "
+            "bars (Neely time gate). " + tp.rationale,
+        ])
+    else:
+        card_plan = ("Trading-method synthesis (NeoWave/EWF)",
+                     ["No actionable plan (no clean count)."])
+
+    card_engine = ("Recent structure", [
+        (f"Rule-clean impulse: <span class='g'>YES</span> — 5-wave "
+         f"<span class='k'>{best_imp.count_type}</span> "
+         f"(fib quality {best_imp.fib_score:.0%}, {best_imp.warns} warnings)." if count_ok
+         else "Rule-clean 5-wave impulse: <span class='r'>NONE</span> on the tested scales."),
+        (f"Best-ranked read: <span class='k'>{best.count_type}</span> "
+         f"(fib {best.fib_score:.0%}, {best.hard_fails} hard-breaks)"
+         + (" — corrective structure is weakly constrained; treat as a pullback, not a count."
+            if best and best.count_type == 'CORRECTION' else ".") if best
+         else "No candidate count formed."),
+        f"Price <span class='k'>${last_close:,.2f}</span> vs reversal zone "
+        f"<span class='g'>${zone[0]}-{zone[1]}</span>.",
+    ])
+    card_conf = ("Reversal confluence (live)",
+                 [f"{'<span class=g>&#10003;</span>' if s.confirm else '<span class=dim>&#9675;</span>'} "
+                  f"<b>{s.name}</b>: {s.detail}" for s in rep.strands]
+                 + [f"<b>Score {rep.score}/{rep.max_score}</b> &rarr; <span class='k'>{tier}</span>."])
+
+    return {
+        "symbol": symbol,
+        "desc": desc or symbol,
+        "subtitle": f"{desc or symbol} · daily · last {len(recent)} bars",
+        "headline": f"Macro: {primary.pattern if primary else 'n/a'} "
+                    f"({primary.confidence:.0%} conf) · recent: {best.count_type if best else 'n/a'}",
+        "price": last_close,
+        "change": f"in ${zone[0]}-{zone[1]} zone · confluence {rep.score}/{rep.max_score}",
+        "asof": _fmt(recent[-1][0]),
+        "line": line,
+        "pivots": pivots,
+        "count_ok": count_ok,
+        "count_note": count_note,
+        "targets": targets,
+        "zone": list(zone),
+        "cards": [card_macro, card_forecast, card_plan,
+                  _neowave_card(piv, primary, full), card_engine, card_conf],
+        "score": rep.score,
+        "best_recent": best.count_type if best else None,
+        "macro": (None if not primary else {
+            "pattern": primary.pattern, "score": primary.confidence,
+            "coverage": primary.coverage, "degree_label": primary.degree_label,
+            "alternates": [(a.pattern, a.confidence) for a in alternates]}),
+    }
+
+
+_PAGE = r"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><title>__SYM__ · wavelib</title>
+<style>
+:root{--bg:#0a0d0f;--panel:#11161a;--grid:#1c252b;--ink:#e8eef0;--dim:#7c8a91;
+--teal:#27e0c4;--amber:#f2b134;--red:#ff5d57;--green:#48d97a;--line:#3aa6ff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,sans-serif;padding:22px;min-height:100vh}
+.wrap{max-width:1080px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--grid);padding-bottom:14px}
+h1{font-size:26px;letter-spacing:-.3px;line-height:1.1}
+h1 small{font-weight:500;font-size:11px;color:var(--teal);display:block;letter-spacing:2px;margin-bottom:6px;text-transform:uppercase}
+.px{text-align:right}.px .now{font-size:24px;font-weight:700;color:var(--red)}.px .chg{font-size:12px;color:var(--amber)}.px .ath{font-size:11px;color:var(--dim);margin-top:3px}
+.chartbox{background:var(--panel);border:1px solid var(--grid);border-radius:10px;margin-top:16px;padding:8px 6px 2px;overflow:hidden}
+svg{width:100%;height:auto;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;font-size:11.5px;color:var(--dim)}
+.legend span{display:inline-flex;align-items:center;gap:7px}.swatch{width:16px;height:3px;border-radius:2px;display:inline-block}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}@media(max-width:720px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--grid);border-radius:10px;padding:16px 18px}
+.card h2{font-size:14px;color:var(--teal);margin-bottom:10px}
+.card li{font-size:12.5px;line-height:1.7;color:#cdd6da;list-style:none;padding-left:16px;position:relative;margin-bottom:6px}
+.card li::before{content:"\25B8";position:absolute;left:0;color:var(--amber)}
+.k{color:var(--amber);font-weight:700}.r{color:var(--red);font-weight:700}.g{color:var(--green);font-weight:700}.dim{color:var(--dim)}
+.foot{margin-top:16px;font-size:10.5px;color:var(--dim);line-height:1.6;border-top:1px solid var(--grid);padding-top:12px}
+.cnote{margin-top:16px;padding:11px 14px;border-radius:9px;font-size:12px;line-height:1.55;border:1px solid}
+.cnote.ok{background:#0f2419;border-color:#1f6b42;color:#bfe9cf}
+.cnote.no{background:#241c0f;border-color:#7a5a17;color:#f0d9a6}
+.cnote b{letter-spacing:.4px}
+</style></head><body><div class="wrap">
+<header><div><h1><small>__SUBTITLE__</small>__HEADLINE__</h1></div>
+<div class="px"><div class="now">$__PRICE__</div><div class="chg">__CHANGE__</div><div class="ath">as of __ASOF__ · not investment advice</div></div></header>
+<div class="cnote __CNOTECLASS__">__COUNTNOTE__</div>
+<div class="chartbox"><svg id="c" viewBox="0 0 1040 520" preserveAspectRatio="xMidYMid meet"></svg></div>
+<div class="legend">
+<span><i class="swatch" style="background:var(--line)"></i>daily close</span>
+<span><i class="swatch" style="background:var(--teal)"></i>__PIVOTLEGEND__</span>
+<span><i class="swatch" style="background:var(--green)"></i>Fibonacci target</span>
+<span><i class="swatch" style="background:#3a4f3f"></i>reversal zone</span>
+<span><i class="swatch" style="background:var(--red)"></i>last price</span></div>
+<div class="grid2">__CARDS__</div>
+<div class="foot">Auto-generated by wavelib: causal ZigZag pivots &rarr; Elliott/NeoWave rule checks &rarr; Fibonacci levels &rarr; reversal-confluence score. <b>Numerals (①②③④⑤ / ⒶⒷⒸ) appear ONLY when a count passes the hard rules;</b> otherwise the chart shows causal swing highs (&#9650;) and lows (&#9660;), never an invented wave count. Elliott Wave is interpretive; this is the engine's highest-scoring read on the tested scales, not a certainty. Analysis tooling only.</div>
+</div>
+<script>
+const D=__DATA__;
+const NS="http://www.w3.org/2000/svg",svg=document.getElementById("c");
+const W=1040,H=520,mL=10,mR=92,mT=22,mB=34;
+function el(n,a){const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e}
+function tx(x,y,s,a){const t=el("text",{x,y,...a});t.textContent=s;svg.appendChild(t);return t}
+const xs=D.line.map(d=>d[0]),t0=Math.min(...xs),t1=Math.max(...xs);
+let ps=D.line.map(d=>d[1]).concat(D.pivots.map(p=>p[1])).concat(D.targets.map(t=>t[0])).concat(D.zone);
+let pMin=Math.min(...ps),pMax=Math.max(...ps);const pad=(pMax-pMin)*0.06||1;pMin-=pad;pMax+=pad;
+const X=t=>mL+(t-t0)/((t1-t0)||1)*(W-mL-mR),Y=p=>mT+(pMax-p)/((pMax-pMin)||1)*(H-mT-mB);
+// gridlines + price axis (6 steps)
+for(let i=0;i<=6;i++){const p=pMin+(pMax-pMin)*i/6;svg.appendChild(el("line",{x1:mL,y1:Y(p),x2:W-mR,y2:Y(p),stroke:"#1c252b","stroke-width":1}));tx(W-mR+8,Y(p)+4,"$"+p.toFixed(0),{fill:"#7c8a91","font-size":11});}
+// date ticks
+for(let i=0;i<=4;i++){const t=t0+(t1-t0)*i/4;const d=new Date(t*1000).toISOString().slice(0,7);tx(X(t),H-12,d,{fill:"#7c8a91","font-size":11,"text-anchor":"middle"});}
+// reversal zone band
+const zl=Y(Math.max(...D.zone)),zh=Y(Math.min(...D.zone));
+svg.appendChild(el("rect",{x:mL,y:zl,width:W-mL-mR,height:Math.abs(zh-zl),fill:"#48d97a18",stroke:"none"}));
+tx(mL+6,zl+14,"reversal zone $"+D.zone[0]+"-"+D.zone[1],{fill:"#48d97a","font-size":10.5});
+// Fibonacci targets
+D.targets.forEach(([p,lab,op])=>{if(p<pMin||p>pMax)return;svg.appendChild(el("line",{x1:mL,y1:Y(p),x2:W-mR,y2:Y(p),stroke:"#48d97a","stroke-width":1,"stroke-dasharray":"2 5",opacity:op}));tx(mL+6,Y(p)-5,lab,{fill:"#48d97a","font-size":10})});
+// price area + line
+let dp=D.line.map((d,i)=>(i?"L":"M")+X(d[0]).toFixed(1)+" "+Y(d[1]).toFixed(1)).join(" ");
+svg.appendChild(el("path",{d:dp+` L ${X(t1).toFixed(1)} ${H-mB} L ${X(t0).toFixed(1)} ${H-mB} Z`,fill:"#3aa6ff14"}));
+svg.appendChild(el("path",{d:dp,fill:"none",stroke:"#3aa6ff","stroke-width":2,"stroke-linejoin":"round"}));
+// pivots + labels
+D.pivots.forEach(([t,p,lab,kind])=>{const x=X(t),y=Y(p);const col=(kind==="T"||kind==="N")?"#ff5d57":"#27e0c4";svg.appendChild(el("circle",{cx:x,cy:y,r:kind==="T"?5.5:4,fill:col,stroke:"#0a0d0f","stroke-width":1.5}));const up=(kind==="H"||kind==="T");tx(x,up?y-12:y+18,lab,{fill:col,"font-size":13,"font-weight":700,"text-anchor":"middle"});tx(x,up?y-26:y+31,"$"+p.toFixed(0),{fill:"#9fb0b6","font-size":9.5,"text-anchor":"middle"})});
+// structural / confirmation lines (SOW: 0-B, 2-4, B-D)
+(D.lines||[]).forEach(([t1,p1,t2,p2,lab,col])=>{const c=col||"#f2b134";svg.appendChild(el("line",{x1:X(t1),y1:Y(p1),x2:X(t2),y2:Y(p2),stroke:c,"stroke-width":1.6,"stroke-dasharray":"7 4",opacity:0.9}));tx(Math.min(X(t2),W-mR-4),Y(p2)-6,lab,{fill:c,"font-size":10.5,"text-anchor":"end"})});
+</script></body></html>"""
+
+
+def render_analysis_page(data, output_path=None):
+    cards = "".join(
+        "<div class='card'><h2>" + title + "</h2><ul>"
+        + "".join(f"<li>{b}</li>" for b in bullets) + "</ul></div>"
+        for title, bullets in data["cards"])
+    count_ok = data.get("count_ok", False)
+    html = (_PAGE
+            .replace("__SYM__", data["symbol"])
+            .replace("__SUBTITLE__", data["subtitle"])
+            .replace("__HEADLINE__", data["headline"])
+            .replace("__PRICE__", f"{data['price']:,.2f}")
+            .replace("__CHANGE__", data["change"])
+            .replace("__ASOF__", data["asof"])
+            .replace("__CNOTECLASS__", "ok" if count_ok else "no")
+            .replace("__COUNTNOTE__", data.get("count_note", ""))
+            .replace("__PIVOTLEGEND__",
+                     "wave pivot (validated count)" if count_ok
+                     else "swing high/low (causal ZigZag — not a count)")
+            .replace("__CARDS__", cards)
+            .replace("__DATA__", json.dumps(
+                {"line": data["line"], "pivots": data["pivots"],
+                 "targets": data["targets"], "zone": data["zone"],
+                 "lines": data.get("lines", [])})))
+    if output_path:
+        with open(output_path, "w", encoding="utf-8") as fh:
+            fh.write(html)
+    return html
