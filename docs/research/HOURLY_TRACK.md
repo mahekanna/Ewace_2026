@@ -95,3 +95,44 @@ Honest notes:
    here so the DSR field in trials.jsonl is not misread.
 3. Gap 2024-11→2025-11 still unfetched (session usage limit interrupted slices s3-s6;
    resume state in scratchpad fresh_alpaca/FETCH_STATE.md).
+
+---
+
+## FINAL — extended ~2-year continuous single-source series (2026-07-13)
+
+The fetch reached slices s1–s5: **continuous hourly RTH bars, Jan 2024 → Dec 2025/Jan 2026
+(~2.0 years), single source (Alpaca, split-adjusted, :00-anchored), ~3,400–3,650 bars/symbol.**
+Stored as `<sym>_1h_2026-01x.json`. One corrupt TSM OHLC bar was dropped (validated).
+(s6 Feb–Jul 2026 was not fetched — weekly API limit — but the ~2yr continuous span across
+the 2024 chop, the 2024 top, the early-2025 correction, and the 2025 recovery is already a
+multi-regime test; the earlier separate windows are superseded by this.)
+
+**Backtest, crude `experimental`, all 12, no re-tuning:**
+
+| sym | trades | exp (R) | win | PF |   | sym | trades | exp (R) | win | PF |
+|---|---|---|---|---|---|---|---|---|---|---|
+| SMCI | 113 | +0.407 | 52% | 1.84 | | AVGO | 69 | +0.212 | 46% | 1.39 |
+| ARM  | 94  | +0.307 | 46% | 1.56 | | TSM  | 59 | +0.192 | 46% | 1.36 |
+| NVDA | 79  | +0.418 | 52% | 1.85 | | ASML | 41 | +0.162 | 44% | 1.28 |
+| MRVL | 84  | +0.098 | 39% | 1.16 | | QCOM | 48 | +0.136 | 44% | 1.24 |
+| AMD  | 64  | +0.241 | 44% | 1.42 | | AMAT | 59 | +0.118 | 39% | 1.20 |
+| MU   | 73  | +0.461 | 53% | 1.97 | | LRCX | 55 | −0.164 | 33% | 0.76 |
+
+**Pooled: 838 trades · +0.241R · win 45.6% · PF 1.44 · total +202.3R · 11/12 positive.**
+Per-trade Sharpe 0.170 · **PSR ≈ 1.00 · MinTRL 89 ≪ 838.**
+
+**Portfolio CPCV (6 groups, 2-test, embargo 5 → 15 folds):**
+**15/15 out-of-fold test folds POSITIVE** · median **+0.240R** · range +0.046R … +0.440R.
+The edge survives every combinatorial train/test split — no single regime carries it.
+
+**Verdict — this is the strongest honest evidence to date, and it revises the earlier
+numbers DOWNWARD:** the two disjoint "recent" windows read +0.35R because both were
+trend-friendly; the full continuous 2-year span (which includes the chop) reads **+0.24R**.
+That is the more trustworthy figure. The edge is real at the **portfolio** level (CPCV
+100% positive), still **not** per-symbol (LRCX loses; MRVL/AMAT thin). Promotion of the
+hourly `experimental` profile from research to a live-gated profile is now supportable on
+the evidence; the remaining gates before any real capital are the platform's standing ones
+(risk engine, fail-closed live gates) — unchanged.
+
+Reproduce: merge scratchpad `fresh_alpaca/*_1h_s?_p*.csv` → `<sym>_1h_2026-01x.json` (RTH,
+NY hours 9–15), then `backtest` per symbol; CPCV via `ewave.validation.stats.cpcv_splits`.
