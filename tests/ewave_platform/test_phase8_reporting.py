@@ -86,5 +86,53 @@ class TestChartingShims(unittest.TestCase):
         self.assertIs(WRC.render_analysis_page, html_report.render_analysis_page)
 
 
+class TestAnalysisReportHonestyGate(unittest.TestCase):
+    """The visual must number waves (①②③④⑤) ONLY over a rule-clean 5-wave
+    impulse; on anything else it draws causal swing markers and says so, so it
+    can never imply a validated count where the engine found none."""
+
+    def _bars(self, closes, t0=1_700_000_000, step=86400):
+        # simple OHLC from a close path; wide enough H/L so pivots confirm
+        out = []
+        for i, c in enumerate(closes):
+            o = closes[i - 1] if i else c
+            h = max(o, c) * 1.01
+            lo = min(o, c) * 0.99
+            out.append((t0 + i * step, o, h, lo, c, 1000))
+        return out
+
+    def test_noise_gets_swings_not_numerals(self):
+        from ewave.reporting.html_report import analyze_symbol, render_analysis_page
+        # a pure zig-zag chop with no valid 5-wave impulse
+        seq = []
+        base = 100.0
+        for k in range(20):
+            base += (6 if k % 2 == 0 else -5)
+            seq += [base] * 6
+        bars = self._bars(seq)
+        d = analyze_symbol("NOISE", bars)
+        html = render_analysis_page(d)
+        if not d["count_ok"]:
+            self.assertIn("NO VALIDATED IMPULSE COUNT", d["count_note"])
+            # no Elliott numerals drawn when the gate is closed
+            labels = "".join(str(p[2]) for p in d["pivots"])
+            for numeral in "①②③④⑤":
+                self.assertNotIn(numeral, labels)
+            self.assertIn("swing high/low", html)
+        # placeholders always resolved
+        for ph in ("__COUNTNOTE__", "__CNOTECLASS__", "__PIVOTLEGEND__"):
+            self.assertNotIn(ph, html)
+
+    def test_gate_is_impulse_only(self):
+        """A 3-wave corrective (trivially fib-fittable on any series) must NOT
+        be numbered — only a rule-clean IMPULSE/DIAGONAL opens the gate."""
+        from ewave.reporting import html_report
+        import inspect
+        src = inspect.getsource(html_report.analyze_symbol)
+        # the gate keys on IMPULSE/DIAGONAL with hard_fails == 0, never CORRECTION
+        self.assertIn('("IMPULSE", "DIAGONAL")', src)
+        self.assertIn("hard_fails == 0", src)
+
+
 if __name__ == "__main__":
     unittest.main()

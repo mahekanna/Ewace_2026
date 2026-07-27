@@ -13,6 +13,7 @@ import datetime
 import json
 
 from ..pivots.percentage_reversal import zigzag_causal
+from ..rules.result import Pivot
 from ..rules.fib import blue_box_zone, fib_retrace
 from ..signals.confluence import score_reversal
 from ..patterns.candidates import label_and_validate
@@ -105,16 +106,51 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
         zone = ((round(top.price - 0.618 * rng, 2), round(top.price - 0.382 * rng, 2))
                 if rng > 0 else (round(last_close * 0.95, 2), round(last_close * 1.05, 2)))
 
-    labels = ["①", "②", "③", "④", "⑤", "Ⓐ", "Ⓑ", "Ⓒ"]
-    pivots = [[p.t, round(p.price, 2), (labels[i] if i < len(labels) else ""),
-               ("T" if p is top else p.kind)] for i, p in enumerate(piv[-7:])]
-    pivots.append([recent[-1][0], round(last_close, 2), "now", "N"])
-
     fibs = fib_retrace(top.price, launch.price)
     targets = [[round(v, 2), f"{r:.3f}  ${v:,.0f}", 0.85] for r, v in sorted(fibs.items())]
 
-    cands = label_and_validate(recent, degrees=(0.05, 0.10, 0.15), max_candidates=1)
-    best = cands[0] if cands else None
+    cands = label_and_validate(recent, degrees=(0.05, 0.10, 0.15), max_candidates=60)
+    best = cands[0] if cands else None  # top-ranked overall (usually a 3-wave corrective)
+
+    # HONESTY GATE — why the visual no longer overstates.
+    # A 3-wave CORRECTION has almost no hard constraints, so the ranker can
+    # ALWAYS cherry-pick a fib-perfect down-up-down from any price series (it
+    # fires for every symbol). Numbering that would dress up a universal match
+    # as a "validated count" — the exact thing to avoid. Only a 5-wave
+    # IMPULSE/DIAGONAL is bound by R1/R2/R3, so ONLY a rule-clean impulse earns
+    # numerals. Everything else is drawn as causal swing highs (▲) / lows (▼) —
+    # honest ZigZag pivots, never an invented 1-2-3-4-5.
+    impulses = [c for c in cands
+                if c.count_type in ("IMPULSE", "DIAGONAL") and c.hard_fails == 0
+                and len(c.pivots) >= 6]
+    best_imp = (min(impulses, key=lambda c: (c.warns, -c.fib_score))
+                if impulses else None)
+    count_ok = best_imp is not None
+    if count_ok:
+        seq = ["0", "①", "②", "③", "④", "⑤"]
+        pivots = [[p.t, round(p.price, 2), (seq[i] if i < len(seq) else ""), p.kind]
+                  for i, p in enumerate(best_imp.pivots)]
+        count_note = (
+            f"VALIDATED IMPULSE — the numerals below are a rule-clean 5-wave "
+            f"{best_imp.count_type} (passes the hard rules R1/R2/R3, "
+            f"{best_imp.warns} guideline warnings, Fibonacci quality "
+            f"{best_imp.fib_score:.0%}). This is an actual Elliott count: of the "
+            "tested scales the engine found a wave structure that survives the "
+            "hard rules.")
+    else:
+        # neutral swing markers: p.kind is the FACTUAL swing direction (H/L).
+        pivots = [[p.t, round(p.price, 2), ("▲" if (p is top or p.kind == "H") else "▼"),
+                   ("T" if p is top else p.kind)] for p in piv[-7:]]
+        corr = " The engine's best structural read is a 3-wave corrective — a " \
+               "pullback, which is only weakly constrained and is NOT a confirmed " \
+               "impulse." if (best and best.count_type == "CORRECTION") else ""
+        count_note = (
+            "NO VALIDATED IMPULSE COUNT — the marked points are causal ZigZag "
+            "swing highs (▲) and lows (▼), NOT an Elliott wave count. No 5-wave "
+            "structure on the tested scales survives the hard rules (R1/R2/R3)."
+            + corr + " The engine numbers waves only when a count is earned; it "
+            "will not paint a 1-2-3-4-5 onto price that hasn't produced one.")
+    pivots.append([recent[-1][0], round(last_close, 2), "now", "N"])
     # EWF Blue Box: reaction zone of the recent up-leg (launch->top) projected from
     # the pullback low — surfaced as an extra confluence strand.
     post = [p.price for p in piv if p.t > top.t]
@@ -179,9 +215,15 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
                      ["No actionable plan (no clean count)."])
 
     card_engine = ("Recent structure", [
-        (f"Best recent count: <span class='k'>{best.count_type}</span> "
-         f"(fib quality {best.fib_score:.0%}, {best.hard_fails} rule-breaks)." if best
-         else "No clean recent count."),
+        (f"Rule-clean impulse: <span class='g'>YES</span> — 5-wave "
+         f"<span class='k'>{best_imp.count_type}</span> "
+         f"(fib quality {best_imp.fib_score:.0%}, {best_imp.warns} warnings)." if count_ok
+         else "Rule-clean 5-wave impulse: <span class='r'>NONE</span> on the tested scales."),
+        (f"Best-ranked read: <span class='k'>{best.count_type}</span> "
+         f"(fib {best.fib_score:.0%}, {best.hard_fails} hard-breaks)"
+         + (" — corrective structure is weakly constrained; treat as a pullback, not a count."
+            if best and best.count_type == 'CORRECTION' else ".") if best
+         else "No candidate count formed."),
         f"Price <span class='k'>${last_close:,.2f}</span> vs reversal zone "
         f"<span class='g'>${zone[0]}-{zone[1]}</span>.",
     ])
@@ -201,6 +243,8 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
         "asof": _fmt(recent[-1][0]),
         "line": line,
         "pivots": pivots,
+        "count_ok": count_ok,
+        "count_note": count_note,
         "targets": targets,
         "zone": list(zone),
         "cards": [card_macro, card_forecast, card_plan,
@@ -237,18 +281,23 @@ svg{width:100%;height:auto;display:block}
 .card li::before{content:"\25B8";position:absolute;left:0;color:var(--amber)}
 .k{color:var(--amber);font-weight:700}.r{color:var(--red);font-weight:700}.g{color:var(--green);font-weight:700}.dim{color:var(--dim)}
 .foot{margin-top:16px;font-size:10.5px;color:var(--dim);line-height:1.6;border-top:1px solid var(--grid);padding-top:12px}
+.cnote{margin-top:16px;padding:11px 14px;border-radius:9px;font-size:12px;line-height:1.55;border:1px solid}
+.cnote.ok{background:#0f2419;border-color:#1f6b42;color:#bfe9cf}
+.cnote.no{background:#241c0f;border-color:#7a5a17;color:#f0d9a6}
+.cnote b{letter-spacing:.4px}
 </style></head><body><div class="wrap">
 <header><div><h1><small>__SUBTITLE__</small>__HEADLINE__</h1></div>
 <div class="px"><div class="now">$__PRICE__</div><div class="chg">__CHANGE__</div><div class="ath">as of __ASOF__ · not investment advice</div></div></header>
+<div class="cnote __CNOTECLASS__">__COUNTNOTE__</div>
 <div class="chartbox"><svg id="c" viewBox="0 0 1040 520" preserveAspectRatio="xMidYMid meet"></svg></div>
 <div class="legend">
 <span><i class="swatch" style="background:var(--line)"></i>daily close</span>
-<span><i class="swatch" style="background:var(--teal)"></i>wave pivot</span>
+<span><i class="swatch" style="background:var(--teal)"></i>__PIVOTLEGEND__</span>
 <span><i class="swatch" style="background:var(--green)"></i>Fibonacci target</span>
 <span><i class="swatch" style="background:#3a4f3f"></i>reversal zone</span>
 <span><i class="swatch" style="background:var(--red)"></i>last price</span></div>
 <div class="grid2">__CARDS__</div>
-<div class="foot">Auto-generated by wavelib: causal ZigZag pivots &rarr; Elliott/NeoWave rule checks &rarr; Fibonacci levels &rarr; reversal-confluence score. Elliott Wave is interpretive; this is the engine's highest-scoring read on the tested scales, not a certainty. Analysis tooling only.</div>
+<div class="foot">Auto-generated by wavelib: causal ZigZag pivots &rarr; Elliott/NeoWave rule checks &rarr; Fibonacci levels &rarr; reversal-confluence score. <b>Numerals (①②③④⑤ / ⒶⒷⒸ) appear ONLY when a count passes the hard rules;</b> otherwise the chart shows causal swing highs (&#9650;) and lows (&#9660;), never an invented wave count. Elliott Wave is interpretive; this is the engine's highest-scoring read on the tested scales, not a certainty. Analysis tooling only.</div>
 </div>
 <script>
 const D=__DATA__;
@@ -286,6 +335,7 @@ def render_analysis_page(data, output_path=None):
         "<div class='card'><h2>" + title + "</h2><ul>"
         + "".join(f"<li>{b}</li>" for b in bullets) + "</ul></div>"
         for title, bullets in data["cards"])
+    count_ok = data.get("count_ok", False)
     html = (_PAGE
             .replace("__SYM__", data["symbol"])
             .replace("__SUBTITLE__", data["subtitle"])
@@ -293,6 +343,11 @@ def render_analysis_page(data, output_path=None):
             .replace("__PRICE__", f"{data['price']:,.2f}")
             .replace("__CHANGE__", data["change"])
             .replace("__ASOF__", data["asof"])
+            .replace("__CNOTECLASS__", "ok" if count_ok else "no")
+            .replace("__COUNTNOTE__", data.get("count_note", ""))
+            .replace("__PIVOTLEGEND__",
+                     "wave pivot (validated count)" if count_ok
+                     else "swing high/low (causal ZigZag — not a count)")
             .replace("__CARDS__", cards)
             .replace("__DATA__", json.dumps(
                 {"line": data["line"], "pivots": data["pivots"],
