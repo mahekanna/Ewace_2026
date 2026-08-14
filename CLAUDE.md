@@ -99,11 +99,18 @@ B $356.43→$432.73 (55% of A), C down opening. Confluence for a bullish reversa
 1/7 weekly, 1/7 daily, 3/7 4H, 2/7 1H, 2/7 15M. Invalidation $495.00; count fails
 below $138.10. Full write-up: `reports/AVGO_LIVE_2026-08-14.md`.
 
-_Known artifact:_ `zigzag_causal` can emit a low and a high pivot from the **same**
-bar in the wrong order when that bar's range alone exceeds the reversal threshold
-(its falling branch updates the running low before testing the threshold against
-it). This inverted the 1H/15M last leg on 2026-08-14. Unfixed — a fix changes engine
-behaviour repo-wide; see §4 of the AVGO report.
+_Fixed 2026-08-14 — intrabar pivot ordering._ Both ZigZags used to visit the
+extreme in the trend's direction first and test the reversal threshold against
+that just-updated extreme, so a bar wide enough to do both emitted a low and a
+high pivot at one timestamp in reverse order (it inverted the AVGO 1H/15M last
+leg). `_intrabar_order` (`toolkit.py`) now infers the path from open/close —
+down bar → o-h-l-c, up bar → o-l-h-c — and both ZigZags walk the extremes in
+that order. Bars shorter than (t,o,h,l,c) fall back to the old behaviour.
+Guarded by `tests/test_intrabar_order.py`. Higher-TF primary counts were
+unaffected; ranked alternates shifted slightly.
+
+_Still open:_ the ZigZag seed prices its first pivot at bar 0's **close** rather
+than an extreme, so every series opens with a slightly synthetic pivot.
 
 **MRVL — Jun 5 2026 snapshot ($263.47)** — in $229–266 ((4)) zone, blow-off off
 $324, confluence 1/7. Not refreshed in the 2026-08 pull.

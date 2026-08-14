@@ -117,31 +117,38 @@ def main():
         out.append(f"\n**{label}**\n```\n{rep}\n```")
     out.append("\n</details>")
 
-    # ---------------- intrabar-ordering caveat ------------------------------
-    out.append("\n## 4. Intraday caveat — intrabar pivot ordering\n")
+    # ---------------- intrabar-ordering note (bug fixed) --------------------
+    out.append("\n## 4. Intrabar pivot ordering — fixed\n")
     h1 = load("1h")
     last = h1[-2]          # the 2026-08-14 13:30 bar: o 411.93 h 412.36 l 395.13 c 397.07
     out.append(
-        f"`wave_counts` on 1H/15M reports a final leg **up** to ${last[2]:,.2f}. "
-        f"That is an artifact, not a swing. The {dd(last[0])} 13:30 bar prints "
-        f"o ${last[1]:,.2f} / h ${last[2]:,.2f} / l ${last[3]:,.2f} / c ${last[4]:,.2f} — "
-        "it opened near its high and closed near its low, so the true intrabar path is "
-        "high-then-low.")
+        f"An earlier run of this report showed a final 1H/15M leg **up** to "
+        f"${last[2]:,.2f}. That was an engine artifact, now fixed in `wavelib/toolkit.py`.")
     out.append("")
-    out.append("`zigzag_causal`'s falling branch updates the running low *before* testing "
-               "the reversal threshold against it, so one wide bar can mint a low pivot and "
-               "a high pivot at the same timestamp, emitted low-first regardless of the "
-               "actual path. At pct=0.04 that yields "
-               f"`L ${last[3]:,.2f}` → `H ${last[2]:,.2f}`, inverting the micro-count. "
-               "Plain `zigzag` at pct=0.02 does not trip on it and reads the last leg "
-               "correctly as **down** to $394.16.")
+    out.append(f"The {dd(last[0])} 13:30 bar prints o ${last[1]:,.2f} / h ${last[2]:,.2f} / "
+               f"l ${last[3]:,.2f} / c ${last[4]:,.2f} — it opened near its high and closed "
+               "near its low, so the path is high-then-low. Both ZigZags used to visit the "
+               "extreme in the trend's direction first and then test the reversal threshold "
+               "against that just-updated extreme, which is only valid if price reached it "
+               "first. On a bar wide enough to do both, that minted a low and a high pivot "
+               f"at one timestamp in reverse order — here `L ${last[3]:,.2f}` → "
+               f"`H ${last[2]:,.2f}`, inverting the micro-count.")
     out.append("")
-    out.append("**Read the 1H/15M last leg as down.** The artifact only bites on bars whose "
-               "high-low range alone exceeds the reversal threshold; the 1W/1D/4H counts "
-               "above are unaffected. Suggested fix (not applied here — it changes engine "
-               "behaviour repo-wide): when a single bar both extends the extreme and "
-               "triggers the reversal, use open/close position to infer which extreme "
-               "came first.")
+    out.append("`_intrabar_order` now infers the path from open/close (down bar → o-h-l-c, "
+               "up bar → o-l-h-c) and both ZigZags walk the bar's extremes in that order. "
+               "The 1H last leg now reads **down** to $394.16, as the tape does.")
+    out.append("")
+    out.append("Scope of the change: the 1W/1D/4H **primary** counts and every level in this "
+               "report are unchanged — the artifact only bit bars whose high-low range alone "
+               "exceeded the reversal threshold, which on the higher timeframes never "
+               "affected the top-ranked count. The ranked *alternates* on those timeframes "
+               "did shift slightly, since they draw on finer scales. Guarded by "
+               "`tests/test_intrabar_order.py`.")
+    out.append("")
+    out.append("_Separate, still-open defect:_ the ZigZag seed prices its first pivot at bar "
+               "0's **close** rather than an extreme, so every series opens with a slightly "
+               "synthetic pivot. Pre-existing and untouched here; it only affects the first "
+               "bar.")
 
     # ---------------- invalidation ------------------------------------------
     out.append("\n## 5. Levels that change the count\n")

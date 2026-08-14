@@ -14,14 +14,14 @@ _Computed 2026-08-14 by `scripts/wave_report.py` on the live TradingView snapsho
     - **4**: $67.78 (2021-12-27) → $41.51 (2022-10-10)  · MONOWAVE
     - **5**: $41.51 (2022-10-10) → $414.61 (2025-12-08)  · WXY  [sub: W=185.16 X=128.50 Y=414.61]
     - _impulse hard-rule check:_ R1 wave2 <100% of wave1=PASS; R2 wave3 not shortest=PASS; R3 wave4/wave1 no overlap=PASS
-- Alternates: ZIGZAG 56%; WXY 14%; FLAT 8%
+- Alternates: ZIGZAG 56%; WXY 14%; WXY 10%
 
 **NEOWAVE (Neely)**
-- Full-range swing count (22 monowaves; 7 motive / 13 corrective):
-    :?↓2.64  :3↑3.80  :sL3↓2.74  :5↑15.05  :sL3↓10.00  :5↑28.57  :3↓19.75  :3↑33.16  :5↓15.57  :3↑24.48  :sL3↓17.77  :5↑67.78  :sL3↓41.51  :5↑185.16  :3↓128.50  :5↑228.70  :3↓169.73  :3↑251.88  :3↓138.10  :5↑414.61  :3↓289.96  :?↑495.00
+- Full-range swing count (18 monowaves; 5 motive / 11 corrective):
+    :?↓2.64  :3↑3.80  :sL3↓2.74  :5↑15.05  :sL3↓10.00  :5↑28.57  :3↓19.75  :3↑33.16  :sL3↓15.57  :5↑67.78  :sL3↓41.51  :5↑185.16  :3↓128.50  :3↑251.88  :3↓138.10  :5↑414.61  :3↓289.96  :?↑495.00
 - Similarity & Balance (recent A vs C): WARN — price 2.06x (ok=True), time 3.89x (ok=False)  band [0.33,3.0]
 - Terminal check (last 5 legs): no overlap -> directional impulse, not a terminal
-- Special structures (last 5 legs): running triangle
+- Special structures (last 5 legs): none
 
 **FORECAST**: corrective A-B-C (down) → 0.382 retrace $257.24, 0.500 retrace $208.63, 0.618 retrace $160.01 · invalidation $2.64 · conf 29%
 - Fibonacci confluence: **$160.01** (1 projections overlap)
@@ -37,14 +37,14 @@ _Computed 2026-08-14 by `scripts/wave_report.py` on the live TradingView snapsho
     - **4**: $414.61 (2025-12-10) → $289.96 (2026-03-30)  · MONOWAVE
     - **5**: $289.96 (2026-03-30) → $495.00 (2026-06-03)  · MONOWAVE
     - _impulse hard-rule check:_ R1 wave2 <100% of wave1=PASS; R2 wave3 not shortest=PASS; R3 wave4/wave1 no overlap=PASS
-- Alternates: WXY 31%; FLAT 30%; WXY 19%
+- Alternates: FLAT 30%; FLAT 14%; FLAT 12%
 
 **NEOWAVE (Neely)**
-- Full-range swing count (17 monowaves; 4 motive / 11 corrective):
-    :?↓51.34  :3↑64.53  :5↓46.39  :3↑56.06  :sL3↓41.51  :5↑185.16  :3↓128.50  :3↑172.42  :sL3↓134.90  :5↑251.88  :3↓196.23  :3↑237.93  :sL3↓138.10  :5↑414.61  :3↓289.96  :3↑495.00  :?↓356.43
-- Similarity & Balance (recent A vs C): WARN — price 1.09x (ok=True), time 3.79x (ok=False)  band [0.33,3.0]
+- Full-range swing count (29 monowaves; 7 motive / 20 corrective):
+    :?↓41.93  :3↑67.78  :3↓51.34  :3↑64.53  :5↓51.24  :3↑59.09  :3↓46.39  :3↑56.06  :sL3↓41.51  :5↑92.18  :sL3↓77.64  :5↑143.82  :sL3↓120.40  :3↑185.16  :3↓128.50  :3↑172.42  :3↓134.90  :5↑186.42  :sL3↓157.54  :5↑251.88  :3↓196.23  :3↑237.93  :sL3↓138.10  :5↑414.61  :5↓295.30  :3↑353.14  :sL3↓289.96  :3↑495.00  :?↓356.43
+- Similarity & Balance (recent A vs C): PASS — price 0.60x (ok=True), time 0.69x (ok=True)  band [0.33,3.0]
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
-- Special structures (last 5 legs): running triangle
+- Special structures (last 5 legs): none
 
 **FORECAST**: corrective A-B-C (down) → 0.382 retrace $321.77, 0.500 retrace $268.25, 0.618 retrace $214.74 · invalidation $41.51 · conf 55%
 - Fibonacci confluence: **$138.56** (1 projections overlap)
@@ -60,7 +60,7 @@ _Computed 2026-08-14 by `scripts/wave_report.py` on the live TradingView snapsho
     - **4**: $185.13 (2024-06-18) → $128.50 (2024-08-05)  · MONOWAVE
     - **5**: $128.50 (2024-08-05) → $414.60 (2025-12-10)  · FLAT  [sub: A=251.88 B=138.10 C=414.60]
     - _impulse hard-rule check:_ R1 wave2 <100% of wave1=PASS; R2 wave3 not shortest=PASS; R3 wave4/wave1 no overlap=PASS
-- Alternates: TRIANGLE 34%; TRIANGLE 26%; FLAT 7%
+- Alternates: TRIANGLE 34%; FLAT 10%; FLAT 5%
 
 **NEOWAVE (Neely)**
 - Full-range swing count (25 monowaves; 6 motive / 17 corrective):
@@ -76,30 +76,31 @@ _Computed 2026-08-14 by `scripts/wave_report.py` on the live TradingView snapsho
 ### AVGO · 1H — 200 bars, 2026-07-06→2026-08-14, last $394.29
 
 **ELLIOTT WAVE**
-- Primary: **WXY @ Minuette** · confidence 37% · coverage 82%
-    - **W**: $383.42 (2026-07-13) → $399.92 (2026-07-31)  · FLAT  [sub: A=398.56 B=369.96 C=399.92]
-    - **X**: $399.92 (2026-07-31) → $395.13 (2026-08-14)  · FLAT  [sub: A=374.61 B=432.70 C=395.13]
-    - **Y**: $395.13 (2026-08-14) → $412.36 (2026-08-14)  · MONOWAVE
-- Alternates: FLAT 36%; FLAT 23%; MONOWAVE 100%
+- Primary: **FLAT @ Minuette** · confidence 36% · coverage 63%
+    - **A**: $407.51 (2026-07-09) → $357.80 (2026-07-17)  · MONOWAVE
+    - **B**: $357.80 (2026-07-17) → $398.56 (2026-07-22)  · MONOWAVE
+    - **C**: $398.56 (2026-07-22) → $369.52 (2026-07-29)  · MONOWAVE
+- Alternates: FLAT 30%; WXY 21%; MONOWAVE 100%
 
 **NEOWAVE (Neely)**
-- Full-range swing count (14 monowaves; 3 motive / 9 corrective):
-    :?↓362.01  :5↑407.51  :3↓383.42  :sL3↑398.92  :3↓357.80  :3↑398.56  :5↓369.52  :3↑386.11  :3↓369.96  :3↑399.92  :3↓374.61  :3↑432.70  :5↓395.13  :?↑412.36
-- Similarity & Balance (recent A vs C): WARN — price 3.38x (ok=False), time nanx (ok=False)  band [0.33,3.0]
+- Full-range swing count (12 monowaves; 2 motive / 8 corrective):
+    :?↓362.01  :5↑407.51  :3↓383.42  :sL3↑398.92  :3↓357.80  :3↑398.56  :5↓369.52  :3↑386.11  :3↓369.96  :3↑399.92  :3↓374.61  :?↑432.70
+- Similarity & Balance (recent A vs C): WARN — price 0.54x (ok=True), time 0.25x (ok=False)  band [0.33,3.0]
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
 - Special structures (last 5 legs): none
 
-**FORECAST**: new impulse (down) → 1.000x (equal legs) $377.06, 1.618x (Blue Box top) $366.41, 2.618x extension $349.18 · invalidation $412.36 · conf 37%
-- Fibonacci confluence: **$369.39** (2 projections overlap)
+**FORECAST**: new impulse (up) → 1.000x (equal legs) $423.33, 1.618x (Blue Box top) $441.28, 2.618x extension $470.32 · invalidation $369.52 · conf 36%
+- Fibonacci confluence: **$427.28** (2 projections overlap)
+- time: next wave likely completes in ~2-21 days (NeoWave S&B vs the 7-day prior wave)
 
 ### AVGO · 15M — 120 bars, 2026-08-07→2026-08-14, last $394.30
 
 **ELLIOTT WAVE**
-- Primary: **FLAT @ Subminuette** · confidence 37% · coverage 70%
+- Primary: **FLAT @ Subminuette** · confidence 31% · coverage 60%
     - **A**: $413.24 (2026-08-11) → $426.63 (2026-08-12)  · MONOWAVE
-    - **B**: $426.63 (2026-08-12) → $405.85 (2026-08-14)  · FLAT  [sub: A=411.50 B=424.92 C=405.85]
-    - **C**: $405.85 (2026-08-14) → $412.36 (2026-08-14)  · MONOWAVE
-- Alternates: FLAT 31%
+    - **B**: $426.63 (2026-08-12) → $411.50 (2026-08-13)  · MONOWAVE
+    - **C**: $411.50 (2026-08-13) → $424.92 (2026-08-13)  · MONOWAVE
+- Alternates: FLAT 23%
 
 **NEOWAVE (Neely)**
 - insufficient swings
