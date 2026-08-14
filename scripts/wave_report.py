@@ -23,7 +23,7 @@ sys.path.insert(0, ROOT)
 import wavelib as wl
 
 LIVE = os.path.join(ROOT, "data", "live")
-OUTMD = os.path.join(ROOT, "reports", "WAVE_COUNTS_AVGO_MRVL.md")
+REPORTS = os.path.join(ROOT, "reports")
 TFS = [("1W", "1w", (0.05, 0.10, 0.18, 0.30)),
        ("1D", "1d", (0.04, 0.08, 0.14, 0.22)),
        ("4H", "4h", (0.03, 0.06, 0.10, 0.16)),
@@ -31,12 +31,17 @@ TFS = [("1W", "1w", (0.05, 0.10, 0.18, 0.30)),
        ("15M", "15m", (0.015, 0.03, 0.05, 0.09))]
 
 
+SNAPSHOTS = ("2026-08", "2026-06")   # newest first; first hit wins
+
+
 def load(tag, slug):
-    p = os.path.join(LIVE, f"{slug}_{tag}_2026-06.json")
-    if not os.path.exists(p):
-        return None
-    d = json.load(open(p))
-    return [(b["t"], b["o"], b["h"], b["l"], b["c"], b.get("v", 0) or 0) for b in d["bars"]]
+    for snap in SNAPSHOTS:
+        p = os.path.join(LIVE, f"{slug}_{tag}_{snap}.json")
+        if os.path.exists(p):
+            d = json.load(open(p))
+            return [(b["t"], b["o"], b["h"], b["l"], b["c"], b.get("v", 0) or 0)
+                    for b in d["bars"]]
+    return None
 
 
 def dd(t):
@@ -162,10 +167,13 @@ def main():
             section(out, sym, tf_label, tag, scales)
         out.append("\n---")
     text = "\n".join(out) + "\n"
-    os.makedirs(os.path.dirname(OUTMD), exist_ok=True)
-    open(OUTMD, "w").write(text)
+    # name the output after what was actually run, so a partial run (one symbol,
+    # or an older snapshot) cannot overwrite a fuller report
+    outmd = os.path.join(REPORTS, "WAVE_COUNTS_" + "_".join(syms) + ".md")
+    os.makedirs(REPORTS, exist_ok=True)
+    open(outmd, "w").write(text)
     print(text)
-    print(f"\nwrote {OUTMD}")
+    print(f"\nwrote {outmd}")
 
 
 if __name__ == "__main__":

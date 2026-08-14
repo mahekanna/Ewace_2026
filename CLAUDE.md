@@ -88,10 +88,25 @@ Still open: F2 (de-dup `similarity_and_balance`/`project_wave5`/terminal-window
 across `rules.py`/`toolkit.py`); deeper Neely sub-type labels (`:F3`/`:c3`/…);
 the real cycle-model integration (item 2).
 
-## Current market state baked into data (Jun 5 2026)
-- AVGO $385.74 — in $358–410 (IV) zone, A-B-C corrective, 2-4 line $301 unbroken,
-  invalidation $251.88, confluence 1/7.
-- MRVL $263.47 — in $229–266 ((4)) zone, blow-off off $324, confluence 1/7.
+## Current market state baked into data
+Live snapshots are suffixed by month (`data/live/<sym>_<tf>_<YYYY-MM>.json`);
+`scripts/merge_live.py` folds a fresh pull into the prior month's history.
+Readers pick the newest snapshot present — see `SNAPSHOTS` in `scripts/wave_report.py`.
+
+**AVGO — 2026-08-14 snapshot ($395.29), all TFs.** Primary five read COMPLETE at
+$495.00 (2026-06-03); live structure is the correction off that high. A $495→$356.43,
+B $356.43→$432.73 (55% of A), C down opening. Confluence for a bullish reversal:
+1/7 weekly, 1/7 daily, 3/7 4H, 2/7 1H, 2/7 15M. Invalidation $495.00; count fails
+below $138.10. Full write-up: `reports/AVGO_LIVE_2026-08-14.md`.
+
+_Known artifact:_ `zigzag_causal` can emit a low and a high pivot from the **same**
+bar in the wrong order when that bar's range alone exceeds the reversal threshold
+(its falling branch updates the running low before testing the threshold against
+it). This inverted the 1H/15M last leg on 2026-08-14. Unfixed — a fix changes engine
+behaviour repo-wide; see §4 of the AVGO report.
+
+**MRVL — Jun 5 2026 snapshot ($263.47)** — in $229–266 ((4)) zone, blow-off off
+$324, confluence 1/7. Not refreshed in the 2026-08 pull.
 
 ## Not in scope
 Trade execution / sizing / advice. This is analysis tooling only.
