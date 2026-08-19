@@ -1,10 +1,10 @@
 # Elliott + NeoWave wave counts — AVGO
 
-_Computed 2026-08-14 by `scripts/wave_report.py` on the live TradingView snapshots. Engine output, not hand-counted; confidence is calibrated and typically low (counts are genuinely ambiguous). Not investment advice._
+_Computed 2026-08-19 by `scripts/wave_report.py` on the live TradingView snapshots. Engine output, not hand-counted; confidence is calibrated and typically low (counts are genuinely ambiguous). Not investment advice._
 
 ## AVGO
 
-### AVGO · 1W — 889 bars, 2009-08-03→2026-08-10, last $395.35
+### AVGO · 1W — 890 bars, 2009-08-03→2026-08-17, last $363.24
 
 **ELLIOTT WAVE**
 - Primary: **IMPULSE @ Cycle** · confidence 29% · coverage 100%
@@ -27,7 +27,7 @@ _Computed 2026-08-14 by `scripts/wave_report.py` on the live TradingView snapsho
 - Fibonacci confluence: **$160.01** (1 projections overlap)
 - time: next wave likely completes in ~385-3465 days (NeoWave S&B vs the 1155-day prior wave)
 
-### AVGO · 1D — 1423 bars, 2020-12-14→2026-08-14, last $395.29
+### AVGO · 1D — 1426 bars, 2020-12-14→2026-08-19, last $363.58
 
 **ELLIOTT WAVE**
 - Primary: **IMPULSE @ Primary** · confidence 55% · coverage 100%
@@ -40,17 +40,17 @@ _Computed 2026-08-14 by `scripts/wave_report.py` on the live TradingView snapsho
 - Alternates: FLAT 30%; FLAT 14%; FLAT 12%
 
 **NEOWAVE (Neely)**
-- Full-range swing count (29 monowaves; 7 motive / 20 corrective):
-    :?↓41.93  :3↑67.78  :3↓51.34  :3↑64.53  :5↓51.24  :3↑59.09  :3↓46.39  :3↑56.06  :sL3↓41.51  :5↑92.18  :sL3↓77.64  :5↑143.82  :sL3↓120.40  :3↑185.16  :3↓128.50  :3↑172.42  :3↓134.90  :5↑186.42  :sL3↓157.54  :5↑251.88  :3↓196.23  :3↑237.93  :sL3↓138.10  :5↑414.61  :5↓295.30  :3↑353.14  :sL3↓289.96  :3↑495.00  :?↓356.43
-- Similarity & Balance (recent A vs C): PASS — price 0.60x (ok=True), time 0.69x (ok=True)  band [0.33,3.0]
+- Full-range swing count (17 monowaves; 4 motive / 11 corrective):
+    :?↓51.34  :3↑64.53  :5↓46.39  :3↑56.06  :sL3↓41.51  :5↑185.16  :3↓128.50  :3↑172.42  :sL3↓134.90  :5↑251.88  :3↓196.23  :3↑237.93  :sL3↓138.10  :5↑414.61  :3↓289.96  :3↑495.00  :?↓356.43
+- Similarity & Balance (recent A vs C): WARN — price 1.09x (ok=True), time 3.79x (ok=False)  band [0.33,3.0]
 - Terminal check (last 5 legs): overlap present (terminal/diagonal)
-- Special structures (last 5 legs): none
+- Special structures (last 5 legs): running triangle
 
 **FORECAST**: corrective A-B-C (down) → 0.382 retrace $321.77, 0.500 retrace $268.25, 0.618 retrace $214.74 · invalidation $41.51 · conf 55%
 - Fibonacci confluence: **$138.56** (1 projections overlap)
 - time: next wave likely completes in ~22-196 days (NeoWave S&B vs the 65-day prior wave)
 
-### AVGO · 4H — 5095 bars, 2016-06-13→2026-08-14, last $395.47
+### AVGO · 4H — 5101 bars, 2016-06-13→2026-08-19, last $363.28
 
 **ELLIOTT WAVE**
 - Primary: **IMPULSE @ Primary** · confidence 67% · coverage 100%
@@ -60,7 +60,7 @@ _Computed 2026-08-14 by `scripts/wave_report.py` on the live TradingView snapsho
     - **4**: $185.13 (2024-06-18) → $128.50 (2024-08-05)  · MONOWAVE
     - **5**: $128.50 (2024-08-05) → $414.60 (2025-12-10)  · FLAT  [sub: A=251.88 B=138.10 C=414.60]
     - _impulse hard-rule check:_ R1 wave2 <100% of wave1=PASS; R2 wave3 not shortest=PASS; R3 wave4/wave1 no overlap=PASS
-- Alternates: TRIANGLE 34%; FLAT 10%; FLAT 5%
+- Alternates: TRIANGLE 33%; FLAT 10%; FLAT 5%
 
 **NEOWAVE (Neely)**
 - Full-range swing count (25 monowaves; 6 motive / 17 corrective):

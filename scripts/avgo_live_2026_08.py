@@ -1,4 +1,4 @@
-"""avgo_live_2026_08.py — the post-top picture for AVGO on the 2026-08-14 snapshot.
+"""avgo_live_2026_08.py — the post-top picture for AVGO on the current 2026-08 snapshot.
 
 `wave_report.py` answers "what is the count on each timeframe". This answers the
 follow-on question the count raises: the daily/weekly engine reads the Primary
@@ -22,7 +22,7 @@ sys.path.insert(0, ROOT)
 import wavelib as wl
 
 LIVE = os.path.join(ROOT, "data", "live")
-OUTMD = os.path.join(ROOT, "reports", "AVGO_LIVE_2026-08-14.md")
+REPORTS = os.path.join(ROOT, "reports")
 SNAPSHOTS = ("2026-08", "2026-06")
 
 # --- the Primary impulse the daily/4H engine labels (41.51 -> 495.00) ---------
@@ -51,8 +51,11 @@ def dd(t):
 
 
 def main():
+    # date the report from the data, not the wall clock, so a re-run on an old
+    # snapshot cannot overwrite a newer report
+    asof = json.load(open(os.path.join(LIVE, "avgo_1d_2026-08.json")))["asof"]
     out = ["# AVGO — live wave analysis, all timeframes",
-           f"\n_Snapshot 2026-08-14, `scripts/avgo_live_2026_08.py`. Engine output on "
+           f"\n_Snapshot {asof}, `scripts/avgo_live_2026_08.py`. Engine output on "
            "live TradingView bars, not hand-counted. Analysis tooling only — not "
            "investment advice._"]
 
@@ -162,10 +165,11 @@ def main():
                "Primary labelling fails.")
 
     text = "\n".join(out) + "\n"
-    os.makedirs(os.path.dirname(OUTMD), exist_ok=True)
-    open(OUTMD, "w").write(text)
+    outmd = os.path.join(REPORTS, f"AVGO_LIVE_{asof}.md")
+    os.makedirs(REPORTS, exist_ok=True)
+    open(outmd, "w").write(text)
     print(text)
-    print(f"\nwrote {OUTMD}")
+    print(f"\nwrote {outmd}")
 
 
 if __name__ == "__main__":
