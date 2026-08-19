@@ -193,20 +193,32 @@ class CountVerdict:
 
 
 def falsify_count(waves: Sequence[Wave], pattern: str, *, post: Optional[Wave] = None,
-                  uptrend: bool = True, terminal: bool = False) -> CountVerdict:
+                  uptrend: bool = True, terminal: bool = False,
+                  post_complete: bool = True) -> CountVerdict:
     """CC-9 (HARD). "No matter what you think of structure, if post-pattern
     behaviour is inconsistent with your labelling, your wave count is wrong."
 
-    Runs every applicable check and returns a verdict. A FAIL is not "unusual
-    behaviour" to be explained away — it means re-label, typically with the final
-    pivot moved later (the pattern was not finished).
+    Two families of check, and conflating them is a trap:
+
+    * STRUCTURAL (CC-4, FR-7) read only the completed pattern's own geometry and
+      timing. They are valid the moment the pattern is proposed, so they are safe
+      to use as an ENTRY gate.
+    * BEHAVIOURAL (CC-3, CC-5/FR-3) judge whether the move AFTER the pattern
+      confirmed it. They require a *finished* post-move. Asking an in-progress
+      thrust to already exceed the correction it follows is incoherent — the thrust
+      has not happened yet — and rejects essentially every live setup. Pass
+      `post_complete=False` (or omit `post`) at entry time; pass a completed `post`
+      when auditing a count after the fact.
+
+    A FAIL is not "unusual behaviour" to be explained away — it means re-label,
+    typically with the final pivot moved later (the pattern was not finished).
     """
     res: list[RuleResult] = []
     res += subwave_time_caps(waves, pattern)
     if pattern.upper() in ("IMPULSE", "DIAGONAL") and len(waves) == 5:
         res += preconstructive_filter(waves[0], waves[1], waves[2], waves[3],
                                       terminal=terminal or pattern.upper() == "DIAGONAL")
-    if post is not None:
+    if post is not None and post_complete:
         res.append(moves_further_and_faster(waves, post, uptrend))
         if pattern.upper() in ("ZIGZAG", "FLAT", "TRIANGLE", "WXY"):
             res += post_correction_thrust(waves, post, kind=pattern)

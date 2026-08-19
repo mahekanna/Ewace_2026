@@ -29,7 +29,7 @@ from .forecast import forecast_waves
 from .neowave_logic import falsify_count
 from .rules import Pivot, Status, Wave, two_four_confirmation
 from .toolkit import ATR_SCALES
-from .wavetree import wave_counts
+from .wavetree import _ewo, wave_counts
 
 _MOTIVE = ("IMPULSE", "DIAGONAL")
 
@@ -61,7 +61,43 @@ def _last_count(bars, window):
     return (recent, cs[0]) if cs else (recent, None)
 
 
-def plan_from_count(bars, *, window: int = 300):
+def momentum_direction(bars, lookback: int = 60):
+    """Direction from MOMENTUM instead of the opposite-last-leg reflex.
+
+    Every professional school gates wave identity on momentum, and the engine never
+    did (PRO_APPLICATION_SPEC P1, "the single biggest miss"; ghost-findings O9 —
+    momentum gated LABELLING but never the forecast's direction). The rule (EWI
+    I4/I5, EWF A8/C6):
+
+        a new price extreme WITHOUT momentum divergence  -> still wave 3, go WITH it
+        a new price extreme WITH momentum divergence     -> wave 5, FADE it
+
+    Returns "up" | "down" | None (no fresh extreme to judge).
+    """
+    closes = [b[4] for b in bars]
+    if len(closes) < 80:
+        return None
+    e = _ewo(closes)
+    seg = closes[-lookback:]
+    eseg = [x for x in e[-lookback:] if x is not None]
+    if len(eseg) < lookback // 2:
+        return None
+    half = len(seg) // 2
+    prior_hi, prior_lo = max(seg[:half]), min(seg[:half])
+    now_hi, now_lo = max(seg[half:]), min(seg[half:])
+    eh, el = len(eseg) // 2, len(eseg)
+    e_prior_hi, e_prior_lo = max(eseg[:eh]), min(eseg[:eh])
+    e_now_hi, e_now_lo = max(eseg[eh:el]), min(eseg[eh:el])
+    if now_hi > prior_hi:                       # fresh high
+        diverging = e_now_hi <= e_prior_hi      # price up, momentum not -> wave 5
+        return "down" if diverging else "up"
+    if now_lo < prior_lo:                       # fresh low
+        diverging = e_now_lo >= e_prior_lo
+        return "up" if diverging else "down"
+    return None
+
+
+def plan_from_count(bars, *, window: int = 300, direction_mode: str = "reflex"):
     """The un-gated proposal: direction, entry trigger, structural stop, target.
 
     Separated from the gates so a backtest can run the SAME proposal through gated
@@ -74,7 +110,13 @@ def plan_from_count(bars, *, window: int = 300):
         return None
     legs = [n for _lab, n in count.labels]
     last = legs[-1]
-    direction = "long" if fc.direction == "up" else "short"
+    if direction_mode == "momentum":
+        md = momentum_direction(bars)
+        if md is None:
+            return None
+        direction = "long" if md == "up" else "short"
+    else:
+        direction = "long" if fc.direction == "up" else "short"
     entry = last.end.price
     swing_lo = min(last.start.price, last.end.price)
     swing_hi = max(last.start.price, last.end.price)
@@ -112,7 +154,10 @@ def gated_signal(bars, *, symbol: str = "", conf_min: int = 3, min_rr: float = 2
             end = legs[-1].end
             post = Wave(end, Pivot(t, price, "H" if price > end.price else "L"))
             up = legs[-1].end.price > legs[0].start.price
-            v = falsify_count(legs, p["pattern"], post=post, uptrend=up)
+            # structural family only: at entry the post-move is by definition
+            # unfinished, so CC-3/CC-5 cannot fairly judge it yet
+            v = falsify_count(legs, p["pattern"], post=post, uptrend=up,
+                              post_complete=False)
             if v.falsified:
                 return GateReject(t, f"CC-9 {v.reason[:40]}") if explain else None
 

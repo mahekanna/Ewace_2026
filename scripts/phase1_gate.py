@@ -74,20 +74,26 @@ def resolve(bars, i0, direction, entry, stop, target, max_hold=MAX_HOLD):
 def run_symbol(bars, symbol, arms):
     """Walk once; feed the same per-bar proposal to every arm."""
     state = {a: None for a in arms}          # arm -> exit bar index
-    plan, plan_at = None, -10 ** 9
+    plan, mplan, plan_at = None, None, -10 ** 9
     for i in range(WARMUP, len(bars) - 2):
-        busy = [a for a in arms if state[a] is not None and i < state[a]]
-        if len(busy) == len(arms):
-            continue
+        # recount on a fixed schedule, never conditioned on arm state, so adding an
+        # arm cannot shift when the others see a plan
         if i - plan_at >= RECOUNT_EVERY:
-            plan, plan_at = plan_from_count(bars[:i + 1]), i
+            plan = plan_from_count(bars[:i + 1])
+            mplan = plan_from_count(bars[:i + 1], direction_mode="momentum")
+            plan_at = i
         if plan is None:
+            continue
+        if all(state[a] is not None and i < state[a] for a in arms):
             continue
         for a in arms:
             if state[a] is not None and i < state[a]:
                 continue
-            if a in ("gated", "falsified"):
-                sig = gated_signal(bars[:i + 1], symbol=symbol, plan=plan,
+            if a in ("gated", "falsified", "momentum"):
+                use = mplan if a == "momentum" else plan
+                if use is None:
+                    continue
+                sig = gated_signal(bars[:i + 1], symbol=symbol, plan=use,
                                    conf_min=CONF_MIN, min_rr=MIN_RR,
                                    falsify=(a == "falsified"))
                 if sig is None or not hasattr(sig, "direction"):
@@ -131,7 +137,7 @@ def main():
     if fast:
         paths = paths[:6]
 
-    arms = {"ungated": [], "gated": [], "falsified": []}
+    arms = {"ungated": [], "gated": [], "falsified": [], "momentum": []}
     bh = []
     for sym, path in paths:
         bars = load(path)
@@ -148,6 +154,7 @@ def main():
     print(f"UNGATED    {stats(arms['ungated'])}")
     print(f"GATED      {stats(arms['gated'])}")
     print(f"FALSIFIED  {stats(arms['falsified'])}")
+    print(f"MOMENTUM   {stats(arms['momentum'])}")
     print(f"B&H       n={len(bh)} instruments, mean total return "
           f"{statistics.mean(bh)*100:+.1f}%")
     g, u, f_ = arms["gated"], arms["ungated"], arms["falsified"]
