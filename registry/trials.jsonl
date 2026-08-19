@@ -63,3 +63,6 @@
 {"strategy": "forecast_driven", "tf": "1d", "mode": "zone", "conf_min": 0.25, "events": 1801, "sharpe": -0.5442546923560047, "expectancy_r": -0.5812724836803291}
 {"strategy": "forecast_driven", "tf": "1d", "mode": "bos", "conf_min": 0.15, "events": 1009, "sharpe": 0.5632427711886334, "expectancy_r": 0.551407441741559}
 {"strategy": "forecast_driven", "tf": "1d", "mode": "bos", "conf_min": 0.25, "events": 835, "sharpe": 0.4913309322113955, "expectancy_r": 0.5172836959264023}
+{"study": "xs_forecast_ic", "date": "2026-05-05", "feature": "signed_conviction", "horizon": 5, "universe": 18, "n_dates": 202, "mean_ic": -0.01094, "t_ic_raw": -0.462, "t_ic_adj": -0.462, "spread_pct": -0.105, "t_spread_adj": -0.415, "result": "fail"}
+{"study": "xs_forecast_ic", "date": "2026-05-05", "feature": "signed_conviction", "horizon": 21, "universe": 18, "n_dates": 202, "mean_ic": -0.01411, "t_ic_raw": -0.637, "t_ic_adj": -0.637, "spread_pct": -0.6116, "t_spread_adj": -1.332, "result": "fail"}
+{"study": "xs_forecast_ic", "date": "2026-05-05", "feature": "signed_conviction", "horizon": 63, "universe": 18, "n_dates": 200, "mean_ic": -0.01966, "t_ic_raw": -0.881, "t_ic_adj": -0.509, "spread_pct": -3.1482, "t_spread_adj": -1.746, "result": "fail"}
