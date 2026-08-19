@@ -25,7 +25,7 @@ REPORT = os.path.join(ROOT, "reports", "DSR_2026-06.md")
 REGISTRY = os.path.join(ROOT, "registry", "trials.jsonl")
 SYMBOLS = ["avgo", "mrvl", "nvda", "amd", "tsm", "mu"]
 WINDOW = 300
-DEGREES = (0.05, 0.10)
+DEGREES = (3.0, 8.0)          # ATR multiples
 MAX_HOLD = 20                       # vertical (time) barrier in bars
 # parameter grid (the "trials"): score threshold x (take-profit, stop-loss)
 SCORE_THRESHOLDS = (3, 4)

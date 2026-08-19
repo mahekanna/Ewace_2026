@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 from .toolkit import fib_retrace, fib_cluster
 from .rules import triangle_thrust
+from .toolkit import ATR_SCALES
 from .wavetree import wave_counts
 from .automation import swing_sequence
 
@@ -150,7 +151,7 @@ def forecast_waves(bars, window: int = None) -> "WaveForecast":
     counts = wave_counts(data, max_alternates=0)      # top-down primary
     if not counts:
         return None
-    seq = swing_sequence(bars=data, pct=0.10)
+    seq = swing_sequence(bars=data, pct=8.0)
     return forecast_from_count(counts[0], data[-1][4], seq["status"])
 
 
@@ -204,7 +205,7 @@ def trade_plan(bars, symbol: str = "", window: int = 300) -> "TradePlan":
     fc = forecast_waves(bars, window=window)
     if fc is None:
         return None
-    counts = wave_counts(recent, (0.03, 0.05, 0.08), max_alternates=1)
+    counts = wave_counts(recent, ATR_SCALES[:3], max_alternates=1)
     if not counts:
         return None
     legs = [n for _lab, n in counts[0].labels]

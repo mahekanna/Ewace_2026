@@ -29,11 +29,9 @@ OUT = os.path.join(ROOT, "charts", "png")
 SYMS = [("avgo", "AVGO · Broadcom"), ("nvda", "NVDA · Nvidia"),
         ("amd", "AMD"), ("mrvl", "MRVL · Marvell"), ("tsm", "TSM · TSMC")]
 # (label, tag, scales)
-TFS = [("1W", "1w", (0.05, 0.10, 0.18, 0.30)),
-       ("1D", "1d", (0.04, 0.08, 0.14, 0.22)),
-       ("4H", "4h", (0.03, 0.06, 0.10, 0.16)),
-       ("1H", "1h", (0.02, 0.04, 0.07, 0.12)),
-       ("15M", "15m", (0.015, 0.03, 0.05, 0.09))]
+SCALES = wl.ATR_SCALES[:4]   # one ATR ladder for every timeframe
+TFS = [("1W", "1w", SCALES), ("1D", "1d", SCALES), ("4H", "4h", SCALES),
+       ("1H", "1h", SCALES), ("15M", "15m", SCALES)]
 
 GOLD, CYAN, RED, GREEN, GRID, INK, BG = (
     "#f2b134", "#27e0c4", "#ff5d57", "#48d97a", "#1c252b", "#e8eef0", "#0a0d0f")
@@ -55,8 +53,8 @@ def adaptive_zigzag(bars, target=28):
     """Causal zigzag whose threshold is chosen so the FULL history reduces to a
     readable number of major swings (~target), spanning start->end."""
     best = []
-    for pct in (0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.20, 0.25, 0.30):
-        piv = [p for p in wl.zigzag_causal(bars, pct=pct) if p.confirmed_t is not None]
+    for pct in wl.ATR_SCALES:
+        piv = [p for p in wl.zigzag_causal(bars, pct=pct, atr_n=14) if p.confirmed_t is not None]
         if not best or abs(len(piv) - target) < abs(len(best) - target):
             best = piv
         if len(piv) <= target:

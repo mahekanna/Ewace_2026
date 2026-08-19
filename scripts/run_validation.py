@@ -60,14 +60,14 @@ def section(sym, cfg, out):
     # bounded causal replay on the recent window (full-history bar-by-bar is too slow)
     bt = bars[-BACKTEST_WINDOW:]
     rets = wl.reversal_returns(bt, score_threshold=4, min_reversal_pct=0.05,
-                               degrees=(0.05, 0.10), bullish=True, min_history=60)
+                               degrees=(3.0, 8.0), bullish=True, min_history=60)
     n_ev = len(rets)
     hit = (sum(1 for r in rets if r > 0) / n_ev) if n_ev else 0.0
     sr = wl.sharpe_ratio(rets)
     sk, ku = wl.skew_kurt(rets)
     psr = wl.probabilistic_sharpe_ratio(sr, 0.0, n_ev, sk, ku) if n_ev >= 2 else 0.0
     cp = wl.cpcv_profit_factor(rets)
-    swseq = wl.swing_sequence(bars=bt, pct=0.10)   # current developing sequence (recent window)
+    swseq = wl.swing_sequence(bars=bt, pct=8.0)   # current developing sequence (recent window)
 
     out.append(f"## {sym} — {cfg.get('desc', sym)}")
     out.append(f"- **{len(bars)} daily bars**, last close ${data['price']:,.2f}")
@@ -86,7 +86,7 @@ def section(sym, cfg, out):
         out.append(f"- **Forecast next**: {fc.next_wave} → targets [{tg}], "
                    f"invalidation {fc.invalidation} (confidence {fc.confidence:.0%})")
     # NeoWave (Neely) surfaced: monowave bias + S&B on the recent structure
-    rp = [p for p in wl.zigzag_causal(bt, pct=0.06) if p.confirmed_t is not None]
+    rp = [p for p in wl.zigzag_causal(bt, pct=5.0, atr_n=14) if p.confirmed_t is not None]
     if len(rp) >= 4:
         lab = wl.label_monowaves(rp)
         mm = sum(1 for _w, l in lab if l.startswith(":5"))

@@ -112,7 +112,7 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
     fibs = fib_retrace(top.price, launch.price)
     targets = [[round(v, 2), f"{r:.3f}  ${v:,.0f}", 0.85] for r, v in sorted(fibs.items())]
 
-    cands = label_and_validate(recent, degrees=(0.05, 0.10, 0.15), max_candidates=1)
+    cands = label_and_validate(recent, degrees=(3.0, 8.0, 13.0), max_candidates=1)
     best = cands[0] if cands else None
     # EWF Blue Box: reaction zone of the recent up-leg (launch->top) projected from
     # the pullback low — surfaced as an extra confluence strand.

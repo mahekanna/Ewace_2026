@@ -32,7 +32,7 @@ REPORT = os.path.join(ROOT, "reports", "MULTIREGIME_2026-06.md")
 REGISTRY = os.path.join(ROOT, "registry", "trials.jsonl")
 
 MAX_HOLD = 13                       # ~one quarter on weekly bars (vertical barrier)
-DEGREES = (0.08, 0.15)             # weekly swings are larger than daily
+DEGREES = (5.0, 13.0)              # ATR multiples (same ladder on every TF now)
 MIN_HISTORY = 80                   # bars of warm-up before the first signal
 MIN_BARS = 200                     # ignore series too short to be meaningful
 LABEL_LOOKBACK = 300               # cap labelling context (~6y weekly) -> linear replay

@@ -603,7 +603,7 @@ def anchor_count(bars, scales=ATR_SCALES[:4], atr_n=DEFAULT_ATR_N):
     return cs[0] if cs else None
 
 
-def best_count(bars, scales=(0.04, 0.07, 0.12, 0.20)):
+def best_count(bars, scales=ATR_SCALES[:4]):
     """Pick the single best macro count: build the tree at several ZigZag scales
     and return the one whose dominant top structure best covers the data with the
     highest confidence. Coarser scales yield fewer pivots and a cleaner macro
