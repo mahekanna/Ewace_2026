@@ -36,14 +36,14 @@ IMPULSE_BARS = make_bars([100, 150, 120, 200, 170, 230, 200])
 
 class TestLabelAndValidate(unittest.TestCase):
     def test_finds_clean_impulse(self):
-        cands = label_and_validate(IMPULSE_BARS)
+        cands = label_and_validate(IMPULSE_BARS, degrees=(0.03, 0.07, 0.15), atr_n=None)
         self.assertTrue(cands)
         self.assertEqual(cands[0].hard_fails, 0)               # best is clean
         self.assertTrue(any(c.count_type == "IMPULSE" for c in cands))
 
     def test_no_pivots_no_candidates(self):
         straight = make_bars([100, 300], per=20)               # monotonic, no reversal
-        self.assertEqual(label_and_validate(straight), [])
+        self.assertEqual(label_and_validate(straight, degrees=(0.03, 0.07, 0.15), atr_n=None), [])
 
 
 class TestMultiscale(unittest.TestCase):

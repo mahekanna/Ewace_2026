@@ -23,7 +23,7 @@ from itertools import combinations
 
 from .rules import (Pivot, Wave, Status, RuleResult, Degree, elliott_hard_rules,
                     classify_correction, similarity_and_balance)
-from .toolkit import zigzag_causal
+from .toolkit import zigzag_causal, adaptive_atr_pivots, ATR_SCALES, DEFAULT_ATR_N
 
 _MOTIVE = {"IMPULSE", "DIAGONAL"}
 _CORRECTIVE = {"ZIGZAG", "FLAT", "TRIANGLE", "CORRECTION", "COMPLEX", "WXY"}
@@ -346,10 +346,11 @@ def build_tree_from_pivots(pivots, max_levels: int = 6, momentum=None):
     return nodes
 
 
-def build_wave_tree(bars, base_pct: float = 0.03, max_levels: int = 6, use_momentum: bool = True):
+def build_wave_tree(bars, base_pct: float = 3.0, max_levels: int = 6, use_momentum: bool = True,
+                    atr_n=DEFAULT_ATR_N):
     """Causal entry point: ZigZag -> confirmed pivots -> recursive wave tree. By
     default the EWO momentum gate is applied (the professional wave-3 confirmation)."""
-    pivots = [p for p in zigzag_causal(bars, pct=base_pct) if p.confirmed_t is not None]
+    pivots = [p for p in zigzag_causal(bars, pct=base_pct, atr_n=atr_n) if p.confirmed_t is not None]
     mom = momentum_lookup(bars) if use_momentum and len(bars) >= 40 else None
     return build_tree_from_pivots(pivots, max_levels, momentum=mom)
 
@@ -471,17 +472,11 @@ def _scale_score(roots):
 # ENTIRE move (full coverage by construction), then drill down. This is the pass
 # that lets a secular advance read as a 5-wave IMPULSE rather than an A-B-C.
 # =========================================================================== #
-def _coarse_pivots(bars, target: int = 15):
-    """Confirmed zigzag pivots at a threshold chosen so the full history reduces to
-    ~`target` MAJOR swings (the degree the macro count lives at)."""
-    best = []
-    for pct in (0.05, 0.07, 0.10, 0.14, 0.20, 0.28, 0.40, 0.55):
-        piv = [p for p in zigzag_causal(bars, pct=pct) if p.confirmed_t is not None]
-        if not best or abs(len(piv) - target) < abs(len(best) - target):
-            best = piv
-        if len(piv) <= target:
-            break
-    return best
+def _coarse_pivots(bars, target: int = 15, atr_n: int = DEFAULT_ATR_N):
+    """Confirmed pivots at the threshold that reduces the full history to ~`target`
+    MAJOR swings (the degree the macro count lives at). ATR-relative, so the same
+    call means the same structural significance on any instrument."""
+    return adaptive_atr_pivots(bars, target=target, atr_n=atr_n)
 
 
 def _impulse_partitions(piv, a, b, mom):
@@ -529,11 +524,12 @@ def _child_node(piv, a, b, mom):
     return WaveNode(piv[a], piv[b], 1, "leg", "CORRECTION", list(roots))
 
 
-def top_down_count(bars, target: int = 15, momentum=None, max_pivots: int = 22):
+def top_down_count(bars, target: int = 15, momentum=None, max_pivots: int = 22,
+                   atr_n: int = DEFAULT_ATR_N):
     """Anchor the dominant low<->high span and return the best full-range top-degree
     WaveNode (a 5-wave impulse where the structure supports it, else the best
     correction). Full coverage by construction. Returns None if nothing valid."""
-    piv = _coarse_pivots(bars, target)
+    piv = _coarse_pivots(bars, target, atr_n=atr_n)
     if len(piv) < 6 or len(piv) > max_pivots:    # too few to be 5 waves / too many to search
         if len(piv) > max_pivots:
             piv = piv[-max_pivots:]              # most recent major swings
@@ -568,14 +564,14 @@ def top_down_count(bars, target: int = 15, momentum=None, max_pivots: int = 22):
     return WaveNode(piv[idx[0]], piv[idx[-1]], deg, role, pattern, children, [], conf)
 
 
-def wave_counts(bars, scales=(0.04, 0.07, 0.12, 0.20), max_alternates: int = 3,
-                top_down: bool = True):
+def wave_counts(bars, scales=ATR_SCALES[:4], max_alternates: int = 3,
+                top_down: bool = True, atr_n=DEFAULT_ATR_N):
     """Return a RANKED list of AnchoredCounts (primary first). A TOP-DOWN full-range
     count (the professional anchoring) is computed first and becomes primary when it
     is a valid structure; bottom-up multi-scale counts supply alternates."""
     out, seen = [], set()
     if top_down:
-        td = top_down_count(bars)
+        td = top_down_count(bars, atr_n=atr_n)
         if td is not None and td.confidence >= 0.25:
             mw = _count_monowaves(td)
             ac = _anchored_from(td, td.confidence, 1.0, mw)
@@ -584,7 +580,7 @@ def wave_counts(bars, scales=(0.04, 0.07, 0.12, 0.20), max_alternates: int = 3,
             out.append((sel, ac))
             seen.add((td.pattern, int(td.start.t), int(td.end.t)))
     for s in scales:
-        roots = build_wave_tree(bars, base_pct=s)
+        roots = build_wave_tree(bars, base_pct=s, atr_n=atr_n)
         if not roots:
             continue
         total = sum(_span(r) for r in roots) or 1.0
@@ -600,10 +596,10 @@ def wave_counts(bars, scales=(0.04, 0.07, 0.12, 0.20), max_alternates: int = 3,
     return [ac for _, ac in out][:1 + max_alternates]
 
 
-def anchor_count(bars, scales=(0.04, 0.07, 0.12, 0.20)):
+def anchor_count(bars, scales=ATR_SCALES[:4], atr_n=DEFAULT_ATR_N):
     """Commit to ONE count (the highest-scoring across scales). See wave_counts
     for the primary + alternates list."""
-    cs = wave_counts(bars, scales, max_alternates=0)
+    cs = wave_counts(bars, scales, max_alternates=0, atr_n=atr_n)
     return cs[0] if cs else None
 
 
@@ -614,7 +610,7 @@ def best_count(bars, scales=(0.04, 0.07, 0.12, 0.20)):
     count; finer scales show detail. Returns a dict (or None)."""
     best = None
     for s in scales:
-        roots = build_wave_tree(bars, base_pct=s)
+        roots = build_wave_tree(bars, base_pct=s, atr_n=atr_n)
         if not roots:
             continue
         total = sum(_span(r) for r in roots) or 1.0

@@ -29,7 +29,7 @@ class TestWave3Long(unittest.TestCase):
         return _bars(prices)
 
     def test_fires_long_on_break(self):
-        sig = wave3_signal(self._setup(), pct=0.02, use_momentum=False)
+        sig = wave3_signal(self._setup(), pct=0.02, atr_n=None, use_momentum=False)
         self.assertIsInstance(sig, Wave3Signal)
         self.assertEqual(sig.direction, "long")
         self.assertAlmostEqual(sig.entry, 120, delta=1.0)        # wave-1 high
@@ -39,21 +39,21 @@ class TestWave3Long(unittest.TestCase):
 
     def test_no_fire_without_break(self):
         # last bar 119 -> never crosses the 120 wave-1 high
-        sig = wave3_signal(self._setup(last2=(118, 119)), pct=0.02, use_momentum=False)
+        sig = wave3_signal(self._setup(last2=(118, 119)), pct=0.02, atr_n=None, use_momentum=False)
         self.assertIsNone(sig)
 
     def test_no_fire_when_wave2_exceeds_origin(self):
         # wave 2 retraces past wave-1 origin (100) -> invalid impulse (R1)
         prices = ([95] * 15 + _lin(95, 110, 8) + _lin(110, 100, 8) + _lin(100, 120, 12)
                   + _lin(120, 95, 10) + [100, 110, 121])
-        self.assertIsNone(wave3_signal(_bars(prices), pct=0.02, use_momentum=False))
+        self.assertIsNone(wave3_signal(_bars(prices), pct=0.02, atr_n=None, use_momentum=False))
 
 
 class TestWave3Short(unittest.TestCase):
     def test_fires_short_on_break(self):
         prices = ([105] * 15 + _lin(105, 90, 8) + _lin(90, 100, 8) + _lin(100, 80, 12)
                   + _lin(80, 90, 8) + [88, 86, 84, 81, 79])
-        sig = wave3_signal(_bars(prices), pct=0.02, use_momentum=False)
+        sig = wave3_signal(_bars(prices), pct=0.02, atr_n=None, use_momentum=False)
         self.assertIsInstance(sig, Wave3Signal)
         self.assertEqual(sig.direction, "short")
         self.assertGreater(sig.stop, 90)                          # above wave-2 high

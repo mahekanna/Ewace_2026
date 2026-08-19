@@ -91,7 +91,7 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
     line = [[b[0], b[4]] for b in recent]
     last_close = closes[-1]
 
-    piv = [p for p in zigzag_causal(recent, pct=0.06)]
+    piv = [p for p in zigzag_causal(recent, pct=5.0, atr_n=14)]
     if len(piv) < 2:
         piv = [Pivot(recent[0][0], recent[0][4], "L"), Pivot(recent[-1][0], last_close, "H")]
     top_i = max(range(len(piv)), key=lambda i: piv[i].price)

@@ -17,7 +17,7 @@ from .rules import (
     elliott_hard_rules, validate_impulse, validate_correction,
     label_monowaves, group_polywaves,
 )
-from .toolkit import zigzag_causal, zigzag_multiscale, pivots_to_waves
+from .toolkit import ATR_SCALES, DEFAULT_ATR_N, zigzag_causal, zigzag_multiscale, pivots_to_waves
 
 _FIB = (0.382, 0.5, 0.618, 0.786, 1.0, 1.272, 1.618, 2.0, 2.618, 3.618)
 
@@ -72,7 +72,7 @@ def _make_candidate(pivots, waves, ctype, results, degree) -> CandidateCount:
                           hard, warns, _fib_score(waves), degree)
 
 
-def label_and_validate(bars, degrees=(0.03, 0.07, 0.15), atr_n=None,
+def label_and_validate(bars, degrees=ATR_SCALES[:3], atr_n=DEFAULT_ATR_N,
                        max_candidates: int = 20, diagonal: bool = False):
     """
     Multi-scale auto-labeling engine (docs/research/04 §4 Item 3).
@@ -163,14 +163,15 @@ _MOTIVE_SEQ = {5, 9, 13, 17, 21}
 _CORRECTIVE_SEQ = {3, 7, 11, 15, 19}
 
 
-def swing_sequence(bars=None, pivots=None, pct: float = 0.05):
+def swing_sequence(bars=None, pivots=None, pct: float = 3.0, atr_n=DEFAULT_ATR_N):
     """EWF swing-sequence count on confirmed ZigZag pivots (docs/research/deep/09,10).
     Counts alternating swings: motive sequences complete at 5/9/13..., corrective at
     3/7/11...; an in-between count is INCOMPLETE -> the move is expected to extend
     (the actionable signal). Returns a dict with the count, status, and the next
     motive/corrective targets. Causal (confirmed pivots only)."""
     if pivots is None:
-        pivots = [p for p in zigzag_causal(bars or [], pct=pct) if p.confirmed_t is not None]
+        pivots = [p for p in zigzag_causal(bars or [], pct=pct, atr_n=atr_n)
+                  if p.confirmed_t is not None]
     n = max(0, len(pivots) - 1)
     if n in _MOTIVE_SEQ:
         status = "MOTIVE-COMPLETE"

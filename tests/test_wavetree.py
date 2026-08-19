@@ -140,7 +140,8 @@ class TestStage4Diagonals(unittest.TestCase):
     def test_anchor_count_labels_legs(self):
         from wavelib.wavetree import anchor_count
         # clean 5-wave impulse + trailing pullback so wave 5 is causally confirmed
-        ac = anchor_count(_bars([100, 150, 130, 200, 180, 240, 205]))
+        ac = anchor_count(_bars([100, 150, 130, 200, 180, 240, 205]),
+                          scales=(0.04, 0.07, 0.12, 0.20), atr_n=None)  # idealised flat-OHLC fixture: pin percentage mode (ATR is undefined-ish on synthetic bars)
         self.assertIsNotNone(ac)
         self.assertEqual(ac.pattern, "IMPULSE")
         self.assertEqual([lab for lab, _ in ac.labels], ["1", "2", "3", "4", "5"])

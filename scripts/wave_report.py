@@ -24,11 +24,12 @@ import wavelib as wl
 
 LIVE = os.path.join(ROOT, "data", "live")
 REPORTS = os.path.join(ROOT, "reports")
-TFS = [("1W", "1w", (0.05, 0.10, 0.18, 0.30)),
-       ("1D", "1d", (0.04, 0.08, 0.14, 0.22)),
-       ("4H", "4h", (0.03, 0.06, 0.10, 0.16)),
-       ("1H", "1h", (0.02, 0.04, 0.07, 0.12)),
-       ("15M", "15m", (0.015, 0.03, 0.05, 0.09))]
+# ONE scale ladder for every timeframe and every instrument. Thresholds are ATR
+# multiples, so "a swing" means the same structural thing on EURUSD as on BTC and
+# on 15M as on 1W — the per-timeframe percentage tuples this replaced were
+# instrument-specific tuning (audit root-cause R5).
+SCALES = wl.ATR_SCALES[:4]
+TFS = [("1W", "1w"), ("1D", "1d"), ("4H", "4h"), ("1H", "1h"), ("15M", "15m")]
 
 
 SNAPSHOTS = ("2026-08", "2026-06")   # newest first; first hit wins
@@ -55,14 +56,9 @@ def subseq(pattern, n):
 
 
 def adaptive_zigzag(bars, target=24):
-    best = []
-    for pct in (0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.20, 0.25, 0.30):
-        piv = [p for p in wl.zigzag_causal(bars, pct=pct) if p.confirmed_t is not None]
-        if not best or abs(len(piv) - target) < abs(len(best) - target):
-            best = piv
-        if len(piv) <= target:
-            break
-    return best
+    """ATR-relative adaptive pivots — converges on every asset class, unlike the
+    fixed-percentage ladder it replaced (which topped out and silently truncated)."""
+    return wl.adaptive_atr_pivots(bars, target=target)
 
 
 def section(out, sym, tf_label, tag, scales):
@@ -163,8 +159,8 @@ def main():
            "Not investment advice._"]
     for sym in syms:
         out.append(f"\n## {sym}")
-        for tf_label, tag, scales in TFS:
-            section(out, sym, tf_label, tag, scales)
+        for tf_label, tag in TFS:
+            section(out, sym, tf_label, tag, SCALES)
         out.append("\n---")
     text = "\n".join(out) + "\n"
     # name the output after what was actually run, so a partial run (one symbol,

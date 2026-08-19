@@ -152,7 +152,12 @@ def zigzag(bars, pct: float = 0.10) -> list[Pivot]:
 
 
 def _causal_atr(bars, n: int) -> list:
-    """Wilder ATR, right-aligned (atr[i] uses bars[:i+1]); None until i+1>=n. Causal."""
+    """Wilder ATR, right-aligned (atr[i] uses bars[:i+1]). Causal.
+
+    Defined from bar 0 (expanding mean of true range during warm-up, Wilder
+    thereafter) so ATR-mode thresholds never fall back to a percentage of price
+    mid-series — with an ATR *multiple* as the threshold that fallback would mean
+    a 500%-of-price bar."""
     atr = [None] * len(bars)
     prev_c = None
     trs = []
@@ -161,9 +166,11 @@ def _causal_atr(bars, n: int) -> list:
         tr = (h - l) if prev_c is None else max(h - l, abs(h - prev_c), abs(l - prev_c))
         trs.append(tr)
         prev_c = c
-        if i + 1 == n:
+        if i + 1 < n:
+            atr[i] = sum(trs) / len(trs)      # expanding mean during warm-up
+        elif i + 1 == n:
             atr[i] = sum(trs[:n]) / n
-        elif i + 1 > n:
+        else:
             atr[i] = (atr[i - 1] * (n - 1) + tr) / n
     return atr
 
@@ -240,11 +247,42 @@ def zigzag_causal(bars, pct: float = 0.10, atr_n=None) -> list[Pivot]:
     return out
 
 
-def zigzag_multiscale(bars, scales=(0.03, 0.07, 0.15, 0.30), atr_n=None) -> dict:
+DEFAULT_ATR_N = 14
+# Fibonacci-spaced ATR multiples — the instrument-agnostic degree ladder. A "swing"
+# is k times the instrument's own recent true range, so the same k means the same
+# structural significance on EURUSD, KO, NVDA and BTC. Fixed percentages do not:
+# at pct=0.05 pivot density runs 5.5/1k bars on EURUSD and 941/1k on VIX (171x).
+ATR_SCALES = (2.0, 3.0, 5.0, 8.0, 13.0, 21.0, 34.0, 55.0)
+
+
+def adaptive_atr_pivots(bars, target: int = 15, atr_n: int = DEFAULT_ATR_N,
+                        ladder=ATR_SCALES):
+    """Confirmed pivots at the coarsest ATR multiple that still leaves >= `target`
+    major swings — the degree the macro count lives at.
+
+    Walks the ladder upward and stops at the first scale at or below `target`. In
+    ATR units the multiple needed is instrument-independent, so this converges for
+    every asset class; the old fixed-percentage ladder topped out at 0.55 and on a
+    volatile series never reached `target`, silently truncating early history."""
+    best = []
+    for k in ladder:
+        piv = [p for p in zigzag_causal(bars, pct=k, atr_n=atr_n)
+               if p.confirmed_t is not None]
+        if not best or abs(len(piv) - target) < abs(len(best) - target):
+            best = piv
+        if len(piv) <= target:
+            break
+    return best
+
+
+def zigzag_multiscale(bars, scales=ATR_SCALES[:4], atr_n=DEFAULT_ATR_N) -> dict:
     """
     One causal Pivot stream per scale (docs/research/04 §4 Item 2). Smaller scales
     = finer degree (Minor); larger = coarser (Primary+). Keys are the scale values.
     Pivot count is non-increasing as scale grows.
+
+    Scales are ATR multiples by default (see ATR_SCALES). Pass `atr_n=None` to fall
+    back to percentage-of-price thresholds, which are volatility-blind.
     """
     return {s: zigzag_causal(bars, pct=s, atr_n=atr_n) for s in scales}
 

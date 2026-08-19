@@ -23,7 +23,7 @@ only bars up to the entry candle. Pure stdlib.
 from __future__ import annotations
 from dataclasses import dataclass
 
-from .toolkit import zigzag_causal
+from .toolkit import DEFAULT_ATR_N, zigzag_causal
 from .wavetree import momentum_lookup
 
 
@@ -45,7 +45,7 @@ class Wave3Signal:
     w1_bars: int = 0        # wave-1 duration in bars (for the S&B time budget)
 
 
-def wave3_signal(bars, *, pct: float = 0.02, retr_lo: float = 0.382,
+def wave3_signal(bars, *, pct: float = 2.0, atr_n=DEFAULT_ATR_N, retr_lo: float = 0.382,
                  retr_hi: float = 0.786, min_w1_frac: float = 0.01,
                  buf: float = 0.001, use_momentum: bool = True):
     """Return a Wave3Signal iff the CURRENT (last) candle confirms a wave-3 entry
@@ -53,7 +53,7 @@ def wave3_signal(bars, *, pct: float = 0.02, retr_lo: float = 0.382,
     else None. Causal."""
     if len(bars) < 50:
         return None
-    piv = [p for p in zigzag_causal(bars, pct=pct) if p.confirmed_t is not None]
+    piv = [p for p in zigzag_causal(bars, pct=pct, atr_n=atr_n) if p.confirmed_t is not None]
     if len(piv) < 3:
         return None
     a, b, c = piv[-3], piv[-2], piv[-1]          # a->b = wave 1, b->c = wave 2
@@ -129,7 +129,7 @@ _CORR_LABELS = (":3", ":c3", ":sL3", ":F3", ":L3")
 
 def wave3_signal_strict(bars, *, conf_min: int = 3, min_rr: float = 2.0,
                         retr_lo: float = 0.382, retr_hi: float = 0.618,
-                        deep_hi: float = 0.764, pct: float = 0.02,
+                        deep_hi: float = 0.764, pct: float = 2.0, atr_n=DEFAULT_ATR_N,
                         buf: float = 0.001, use_momentum: bool = True):
     """Rule-faithful wave-3 long entry, or None. Reuses the documented rule
     components (NeoWave structure label, score_reversal confluence, Fib targets,
@@ -138,7 +138,7 @@ def wave3_signal_strict(bars, *, conf_min: int = 3, min_rr: float = 2.0,
         return None
     from .rules import label_monowaves
     from .confluence import score_reversal
-    piv = [p for p in zigzag_causal(bars, pct=pct) if p.confirmed_t is not None]
+    piv = [p for p in zigzag_causal(bars, pct=pct, atr_n=atr_n) if p.confirmed_t is not None]
     if len(piv) < 4:
         return None
     a, b, c = piv[-3], piv[-2], piv[-1]                  # a->b = W1, b->c = W2
