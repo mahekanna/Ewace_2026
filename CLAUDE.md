@@ -35,8 +35,10 @@ avgo_mrvl_wave_research/
 │   ├── toolkit.py         ZigZag, Fibonacci, terminal/wave-5 projection
 │   └── confluence.py      reversal-confidence scoring (momentum/volume/structure)
 ├── data/
-│   ├── avgo.py            WEEKLY / H4 / H1 / FRESH_4H_VOL arrays
-│   └── mrvl.py            FRESH_4H_VOL / MACRO_PIVOTS
+│   ├── fetch.py           load_bars() (stdlib) + yfinance fetch/refresh of snapshots & fixtures
+│   ├── avgo.py            WEEKLY / DAILY / H4 / H1 / FRESH_4H_VOL (auto-generated)
+│   ├── mrvl.py            same arrays + hand-curated MACRO_PIVOTS (preserved on regen)
+│   └── live/              <slug>_<tf>_<YYYY-MM>.json snapshots (2026-06 baseline, 2026-11 fresh)
 ├── examples/              01 validate · 02 confluence · 03 zigzag pipeline
 └── charts/                hand-built SVG/HTML charts + index.html dashboard
 ```
@@ -46,8 +48,12 @@ avgo_mrvl_wave_research/
 python3 wavelib/rules.py            # self-test (AVGO impulse + terminal + MRVL audit + channels)
 python3 wavelib/toolkit.py          # self-test
 cd examples && python3 02_confluence_score.py
+python3 -m unittest discover -s tests            # full suite
+python3 scripts/run_validation.py --tag 2026-11 --symbols AVGO MRVL   # daily (1d) stack on fresh data
 ```
-All three examples must run clean. If you touch `rules.py` Pivot/Wave, re-check
+All examples must run clean. To refresh data: `pip install yfinance` (optional extra),
+then `python3 data/fetch.py AVGO MRVL --fixtures` (see DOCUMENTATION §5). Do not
+overwrite the `2026-06` snapshots — they are the recorded forward-test baseline. If you touch `rules.py` Pivot/Wave, re-check
 `toolkit.py` (it imports them in package context, falls back to local defs standalone).
 
 ## Conventions
@@ -88,10 +94,13 @@ Still open: F2 (de-dup `similarity_and_balance`/`project_wave5`/terminal-window
 across `rules.py`/`toolkit.py`); deeper Neely sub-type labels (`:F3`/`:c3`/…);
 the real cycle-model integration (item 2).
 
-## Current market state baked into data (Jun 5 2026)
-- AVGO $385.74 — in $358–410 (IV) zone, A-B-C corrective, 2-4 line $301 unbroken,
-  invalidation $251.88, confluence 1/7.
-- MRVL $263.47 — in $229–266 ((4)) zone, blow-off off $324, confluence 1/7.
+## Current market state baked into data (Nov 5 2026 close, via data/fetch.py)
+- AVGO $291.53 — gapped below the old $301 2-4 line and the $358–410 (IV) zone cited
+  in README/examples (those are the June-2026 session findings, kept as history).
+  Daily stack: recent count CORRECTION, macro count ambiguous (IMPULSE 29%), confluence 1/7.
+- MRVL $133.55 — far below the old $229–266 ((4)) zone; recent count CORRECTION, macro
+  WXY 18%, confluence 0/7. `MACRO_PIVOTS` still ends at the $324.20 Jun-3 high (hand-curated).
+- Full report: `reports/VALIDATION_2026-11.md`. June baseline: `reports/VALIDATION_2026-06.md`.
 
 ## Not in scope
 Trade execution / sizing / advice. This is analysis tooling only.

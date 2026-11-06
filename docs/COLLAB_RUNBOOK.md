@@ -45,6 +45,10 @@ If the Alpaca MCP is the only way you have data (no REST keys), use the MCP's
 get-bars tool and save the result into `data/live/<sym>_<tf>_2026-06.json` in the
 shape below — that's all the dev tools need.
 
+No Alpaca at all? `pip install yfinance && python3 data/fetch.py AVGO MRVL` writes the
+same contract from Yahoo Finance under a fresh `<YYYY-MM>` tag (1d/1w/1h/4h; 15m limited
+to 60 days). `python3 scripts/run_validation.py --tag <YYYY-MM>` runs the daily stack on it.
+
 ## DEV session — exact steps (here)
 
 ```bash

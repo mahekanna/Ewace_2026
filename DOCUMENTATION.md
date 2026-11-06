@@ -171,13 +171,40 @@ context and falls back to local copies when run standalone.
 
 - `zigzag` and chart pipelines expect bars as `(t, o, h, l, c)`, `t` in unix seconds.
 - `score_reversal` expects `(t, o, h, l, c, v)` (volume required for the volume strand).
-- `data/avgo.py`: `WEEKLY (t,h,l,c)`, `H4 (t,o,h,l,c)`, `H1 (t,o,h,l,c)`,
-  `FRESH_4H_VOL (t,o,h,l,c,v)`.
-- `data/mrvl.py`: `FRESH_4H_VOL (t,o,h,l,c,v)`, `MACRO_PIVOTS [(date,price,kind)]`.
+- `data/avgo.py`, `data/mrvl.py` (auto-generated fixtures): `WEEKLY (t,h,l,c)`,
+  `DAILY (t,o,h,l,c,v)`, `H4 (t,h,l,c)`, `H1 (t,o,h,l,c)`, `FRESH_4H_VOL (t,o,h,l,c,v)`.
+  `data/mrvl.py` also carries the hand-curated `MACRO_PIVOTS [(date,price,kind)]` below a
+  marker line that the generator preserves verbatim.
+- `data/live/<slug>_<tf>_<tag>.json` (snapshots, `tf` ∈ 15m/1h/4h/1d/1w, `tag` = YYYY-MM):
+  `{"symbol","interval","asof","bars":[{t,o,h,l,c,v}]}` — the contract every script under
+  `scripts/` reads (see `docs/COLLAB_RUNBOOK.md`). The `2026-06` tag is the June-2026
+  baseline (TradingView/Alpaca); `2026-11` was pulled with `data/fetch.py`.
 
-To refresh, pull new OHLCV from your data source (this session used TVremix MCP:
-exchange-prefixed `NASDAQ:AVGO`, `get_ohlcv` with `summary:False`) and overwrite the
-arrays, keeping the tuple shape.
+### `data/fetch.py` — loader + refresher
+
+```python
+from data.fetch import load_bars
+bars = load_bars("AVGO", "1d")              # newest snapshot tag -> [(t,o,h,l,c,v), ...]
+bars, meta = load_bars("MRVL", "1w", tag="2026-11", with_meta=True)
+```
+Loading is stdlib-only. Fetching needs the optional `yfinance` extra:
+
+```bash
+pip install yfinance
+python3 data/fetch.py                         # AVGO + MRVL -> data/live/*_{1d,1w,1h,4h}_<YYYY-MM>.json
+python3 data/fetch.py AVGO MRVL --fixtures    # ...and regenerate data/avgo.py / data/mrvl.py
+python3 data/fetch.py NVDA --tf 1d 1w --tag 2026-11
+```
+Conventions baked in: regular session only; split-adjusted but *not* dividend-adjusted
+(`auto_adjust=False`, identical to Alpaca `adjustment=split` — the two agree to the cent);
+daily bars stamped midnight ET; 4h bars built from 1h bars at 09:30/13:30 ET; weekly bars
+built from daily bars (Mon–Fri, stamped Monday) because Yahoo's native weekly series is not
+week-aligned for every ticker. Yahoo depth caps: 15m ≤ 60 days, 1h ≤ 730 days.
+
+Run the full daily stack on a snapshot with
+`python3 scripts/run_validation.py --tag 2026-11 --symbols AVGO MRVL` → writes
+`reports/VALIDATION_<tag>.md` + `charts/<sym>_analysis_<tag>.html`. Hand-set reversal zones
+apply only to the `2026-06` baseline; other tags derive the zone from the recent up-leg.
 
 ---
 

@@ -6,3 +6,4 @@
 # pandas>=2.0          # optional: dataframe workflows
 # numpy>=1.24          # optional: vectorized indicators
 # requests>=2.31       # optional: pulling live OHLCV from an API
+# yfinance>=0.2        # optional: data/fetch.py — pull/refresh AVGO·MRVL snapshots + fixtures from Yahoo

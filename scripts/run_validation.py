@@ -7,8 +7,15 @@ multi-scale auto-labeling, bottom-up degree assignment, reversal confluence, and
 a causal walk-forward backtest — then writes reports/VALIDATION_2026-06.md and
 SVG charts under charts/.
 
-Run:  python3 scripts/run_validation.py
+Run:  python3 scripts/run_validation.py                       # June-2026 baseline snapshots
+      python3 scripts/run_validation.py --tag 2026-11 --symbols AVGO MRVL
+                                                              # a newer data/live snapshot tag
+                                                              # (e.g. from data/fetch.py)
+Hand-set reversal zones apply only to the baseline tag; for any other tag the zone
+is derived from the recent up-leg (zone=None), because those levels were tied to the
+June-2026 structure.
 """
+import argparse
 import datetime
 import json
 import os
@@ -22,38 +29,44 @@ from wavelib.report_chart import analyze_symbol, render_analysis_page
 
 LIVE = os.path.join(ROOT, "data", "live")
 CHARTS = os.path.join(ROOT, "charts")
-REPORT = os.path.join(ROOT, "reports", "VALIDATION_2026-06.md")
+DEFAULT_TAG = "2026-06"          # the snapshot tag the hand-set zones below were drawn on
 
 # Semiconductor-AI watchlist. zone=None -> derived from the recent up-leg.
 SYMBOLS = {
-    "AVGO": {"file": "avgo_1d_2026-06.json", "zone": (358, 410), "desc": "Broadcom · NASDAQ:AVGO"},
-    "MRVL": {"file": "mrvl_1d_2026-06.json", "zone": (229, 266), "desc": "Marvell · NASDAQ:MRVL"},
-    "NVDA": {"file": "nvda_1d_2026-06.json", "zone": None, "desc": "Nvidia · NASDAQ:NVDA"},
-    "AMD":  {"file": "amd_1d_2026-06.json",  "zone": None, "desc": "AMD · NASDAQ:AMD"},
-    "TSM":  {"file": "tsm_1d_2026-06.json",  "zone": None, "desc": "TSMC · NYSE:TSM"},
-    "MU":   {"file": "mu_1d_2026-06.json",   "zone": None, "desc": "Micron · NASDAQ:MU"},
-    "ARM":  {"file": "arm_1d_2026-06.json",  "zone": None, "desc": "Arm Holdings · NASDAQ:ARM"},
-    "SMCI": {"file": "smci_1d_2026-06.json", "zone": None, "desc": "Super Micro · NASDAQ:SMCI"},
-    "QCOM": {"file": "qcom_1d_2026-06.json", "zone": None, "desc": "Qualcomm · NASDAQ:QCOM"},
-    "ASML": {"file": "asml_1d_2026-06.json", "zone": None, "desc": "ASML · NASDAQ:ASML"},
-    "LRCX": {"file": "lrcx_1d_2026-06.json", "zone": None, "desc": "Lam Research · NASDAQ:LRCX"},
-    "AMAT": {"file": "amat_1d_2026-06.json", "zone": None, "desc": "Applied Materials · NASDAQ:AMAT"},
+    "AVGO": {"zone": (358, 410), "desc": "Broadcom · NASDAQ:AVGO"},
+    "MRVL": {"zone": (229, 266), "desc": "Marvell · NASDAQ:MRVL"},
+    "NVDA": {"zone": None, "desc": "Nvidia · NASDAQ:NVDA"},
+    "AMD":  {"zone": None, "desc": "AMD · NASDAQ:AMD"},
+    "TSM":  {"zone": None, "desc": "TSMC · NYSE:TSM"},
+    "MU":   {"zone": None, "desc": "Micron · NASDAQ:MU"},
+    "ARM":  {"zone": None, "desc": "Arm Holdings · NASDAQ:ARM"},
+    "SMCI": {"zone": None, "desc": "Super Micro · NASDAQ:SMCI"},
+    "QCOM": {"zone": None, "desc": "Qualcomm · NASDAQ:QCOM"},
+    "ASML": {"zone": None, "desc": "ASML · NASDAQ:ASML"},
+    "LRCX": {"zone": None, "desc": "Lam Research · NASDAQ:LRCX"},
+    "AMAT": {"zone": None, "desc": "Applied Materials · NASDAQ:AMAT"},
 }
 BACKTEST_WINDOW = 300   # bar-by-bar replay over the recent window (full history is too slow)
 
 
-def load_bars(fname):
-    with open(os.path.join(LIVE, fname)) as fh:
+def snapshot_file(sym, tag):
+    return os.path.join(LIVE, f"{sym.lower()}_1d_{tag}.json")
+
+
+def load_bars(path):
+    with open(path) as fh:
         d = json.load(fh)
     return [(b["t"], b["o"], b["h"], b["l"], b["c"], b["v"]) for b in d["bars"]]
 
 
-def section(sym, cfg, out):
+def section(sym, cfg, out, tag=DEFAULT_TAG):
     """Analyze one symbol: build its rich page, run a bounded causal backtest, and
     append a compact markdown block. Returns a summary dict for the dashboard."""
-    bars = load_bars(cfg["file"])
-    data = analyze_symbol(sym, bars, cfg.get("zone"), bullish=True, desc=cfg.get("desc", sym))
-    render_analysis_page(data, output_path=os.path.join(CHARTS, f"{sym.lower()}_analysis.html"))
+    bars = load_bars(snapshot_file(sym, tag))
+    zone_in = cfg.get("zone") if tag == DEFAULT_TAG else None   # hand zones are June-2026 levels
+    page = f"{sym.lower()}_analysis.html" if tag == DEFAULT_TAG else f"{sym.lower()}_analysis_{tag}.html"
+    data = analyze_symbol(sym, bars, zone_in, bullish=True, desc=cfg.get("desc", sym))
+    render_analysis_page(data, output_path=os.path.join(CHARTS, page))
     zone = tuple(data["zone"])
     macro = data["macro"]
 
@@ -69,8 +82,9 @@ def section(sym, cfg, out):
     cp = wl.cpcv_profit_factor(rets)
     swseq = wl.swing_sequence(bars=bt, pct=0.10)   # current developing sequence (recent window)
 
+    last_day = datetime.datetime.fromtimestamp(bars[-1][0], datetime.timezone.utc).date()
     out.append(f"## {sym} — {cfg.get('desc', sym)}")
-    out.append(f"- **{len(bars)} daily bars**, last close ${data['price']:,.2f}")
+    out.append(f"- **{len(bars)} daily bars** through {last_day}, last close ${data['price']:,.2f}")
     if macro:
         alt = ("; alternates: " + ", ".join(f"{p} {c:.0%}" for p, c in macro["alternates"])
                if macro["alternates"] else "")
@@ -101,20 +115,21 @@ def section(sym, cfg, out):
               else f"CPCV needs ≥6 events (have {n_ev})")
     out.append(f"- Causal backtest (last {len(bt)} bars, score≥4, +5% target): "
                f"decided events={n_ev} hit_rate={hit:.0%}; statistical power: {power}; {cpline}")
-    out.append(f"- Chart: `charts/{sym.lower()}_analysis.html`\n")
+    out.append(f"- Chart: `charts/{page}`\n")
     return {"sym": sym, "desc": cfg.get("desc", sym), "price": data["price"],
-            "change": data["change"], "macro": macro}
+            "change": data["change"], "macro": macro, "page": page, "last_day": last_day}
 
 
-def write_dashboard(summaries):
+def write_dashboard(summaries, tag=DEFAULT_TAG):
     """Build the index that links each symbol's standalone analysis page."""
     today = datetime.date.today().isoformat()
+    asof = max(s["last_day"] for s in summaries).isoformat() if summaries else "n/a"
     cards = []
     for s in summaries:
         mc = (f"macro {s['macro']['pattern']} {s['macro']['score']:.0%}"
               if s["macro"] else "macro n/a")
         cards.append(
-            f"<a class='tile' href='{s['sym'].lower()}_analysis.html'>"
+            f"<a class='tile' href='{s['page']}'>"
             f"<div class='sym'>{s['sym']}</div>"
             f"<div class='meta'>{s['desc']}</div>"
             f"<div class='meta'>last ${s['price']:,.2f} · {s['change']}</div>"
@@ -132,42 +147,52 @@ def write_dashboard(summaries):
              ".open{margin-top:12px;font-size:12px;color:#f2b134}.foot{color:#7c8a91;font-size:11px;margin-top:24px}"
              "</style></head><body><div class='wrap'>"
              "<h1>Elliott Wave / NeoWave — analysis dashboard</h1>"
-             f"<div class='sub'>Regenerated {today} · data as of 2026-06-05 close · "
+             f"<div class='sub'>Regenerated {today} · snapshot {tag} · data through {asof} close · "
              "analysis tooling only, not investment advice</div>"
              f"<div class='tiles'>{''.join(cards)}</div>"
              "<div class='foot'>Each page: causal ZigZag pivots &rarr; Elliott/NeoWave rule checks "
              "&rarr; Fibonacci target levels &rarr; live reversal-confluence score, drawn on the "
              "daily price line.</div></div></body></html>")
-    path = os.path.join(CHARTS, "analysis_2026-06.html")
+    path = os.path.join(CHARTS, f"analysis_{tag}.html")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(index)
     return path
 
 
-def main():
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="wavelib end-to-end validation on daily snapshots")
+    ap.add_argument("--tag", default=DEFAULT_TAG,
+                    help=f"data/live snapshot tag, e.g. 2026-11 (default {DEFAULT_TAG})")
+    ap.add_argument("--symbols", nargs="+", default=None,
+                    help="subset of symbols to run (default: all in SYMBOLS)")
+    a = ap.parse_args(argv)
+    tag = a.tag
+    syms = [s.upper() for s in a.symbols] if a.symbols else list(SYMBOLS)
+    report = os.path.join(ROOT, "reports", f"VALIDATION_{tag}.md")
     today = datetime.date.today().isoformat()
     out = ["# Validation Report — wavelib on live daily data",
            "",
-           f"_Regenerated {today} by `scripts/run_validation.py` on TradingView/tvremix "
-           "daily snapshots in `data/live/` (price data as of 2026-06-05 close). "
-           "Analysis tooling only — not investment advice._", ""]
+           f"_Regenerated {today} by `scripts/run_validation.py` on the `{tag}` daily snapshots "
+           "in `data/live/`. Analysis tooling only — not investment advice._", ""]
     summaries = []
-    for sym, cfg in SYMBOLS.items():
-        if not os.path.exists(os.path.join(LIVE, cfg["file"])):
+    for sym in syms:
+        cfg = SYMBOLS.get(sym, {"zone": None, "desc": sym})
+        if not os.path.exists(snapshot_file(sym, tag)):
             out.append(f"## {sym} — {cfg.get('desc', sym)}\n- _data not available; skipped._\n")
             out.append("---\n")
             continue
-        summaries.append(section(sym, cfg, out))
+        summaries.append(section(sym, cfg, out, tag=tag))
         out.append("---\n")
-    dash = write_dashboard(summaries)
+    dash = write_dashboard(summaries, tag=tag)
     out.append("### How to reproduce\n")
-    out.append("```\npython3 scripts/run_validation.py\npython3 -m unittest discover -s tests\n```")
+    cmd = "python3 scripts/run_validation.py" + ("" if tag == DEFAULT_TAG else f" --tag {tag}")
+    out.append(f"```\n{cmd}\npython3 -m unittest discover -s tests\n```")
     text = "\n".join(out) + "\n"
-    os.makedirs(os.path.dirname(REPORT), exist_ok=True)
-    with open(REPORT, "w") as fh:
+    os.makedirs(os.path.dirname(report), exist_ok=True)
+    with open(report, "w") as fh:
         fh.write(text)
     print(text)
-    print(f"\nwrote {REPORT}")
+    print(f"\nwrote {report}")
     print(f"wrote {dash}")
 
 
