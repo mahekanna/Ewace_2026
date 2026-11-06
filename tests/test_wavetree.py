@@ -227,3 +227,43 @@ class PivotKindConsistency(unittest.TestCase):
                 self.assertNotEqual(a, b, f"non-alternating pivots in {cs[0].pattern}: {kinds}")
             for n in legs:
                 self.assertEqual(n.end.kind, "H" if n.end.price > n.start.price else "L")
+
+
+class LegEndIsItsExtreme(unittest.TestCase):
+    """Regression: a wave's end must be its extreme. AVGO's 495.00 all-time high
+    (2026-06-03) was swallowed inside a 'B' leg 414.61 -> 356.43 of the primary read."""
+
+    def test_helper(self):
+        from wavelib.wavetree import _leg_extremes_ok
+        self.assertTrue(_leg_extremes_ok(100, 150, 149, 101))
+        self.assertFalse(_leg_extremes_ok(100, 150, 151, 101))      # interior above an up leg's end
+        self.assertTrue(_leg_extremes_ok(100, 150, 150, 80))        # start overshoot 20 <= 0.5*50
+        self.assertFalse(_leg_extremes_ok(100, 150, 150, 70))       # start overshoot 30 > 25
+        self.assertFalse(_leg_extremes_ok(414.61, 356.43, 495.0, 289.96))   # the AVGO case
+        self.assertTrue(_leg_extremes_ok(495.0, 356.43, 440.0, 356.43))
+
+    def test_top_down_partition_rejects_swallowed_extreme(self):
+        from wavelib.wavetree import _pivots_consistent
+        from wavelib.rules import Pivot
+        piv = [Pivot(1, 311.0, "L"), Pivot(2, 414.61, "H"), Pivot(3, 289.96, "L"),
+               Pivot(4, 495.0, "H"), Pivot(5, 356.43, "L"), Pivot(6, 432.73, "H")]
+        self.assertFalse(_pivots_consistent(piv, [0, 1, 4, 5]))    # B 414.61->356.43 hides 495
+        self.assertTrue(_pivots_consistent(piv, [0, 3, 4, 5]))     # A ends at 495: fine
+
+    def test_no_primary_leg_hides_a_bigger_extreme_on_real_data(self):
+        from data.avgo import DAILY
+        from wavelib.wavetree import wave_counts
+        for end in range(400, len(DAILY) + 1, 100):
+            w = DAILY[end - 300:end]
+            cs = wave_counts(w, max_alternates=0)
+            if not cs:
+                continue
+            for lab, n in cs[0].labels:
+                seg = [b for b in w if n.start.t < b[0] < n.end.t]
+                if not seg:
+                    continue
+                hi, lo = max(b[2] for b in seg), min(b[3] for b in seg)
+                if n.end.price > n.start.price:
+                    self.assertLessEqual(hi, n.end.price + 1e-6, f"{cs[0].pattern} {lab} hides {hi}")
+                else:
+                    self.assertGreaterEqual(lo, n.end.price - 1e-6, f"{cs[0].pattern} {lab} hides {lo}")

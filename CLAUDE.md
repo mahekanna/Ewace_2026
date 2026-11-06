@@ -102,10 +102,15 @@ the real cycle-model integration (item 2).
 ## Current market state baked into data (Nov 5 2026 close, via data/fetch.py)
 - AVGO $291.53 — gapped below the old $301 2-4 line and the $358–410 (IV) zone cited
   in README/examples (those are the June-2026 session findings, kept as history).
-  Daily stack: recent count CORRECTION, macro count ambiguous (IMPULSE 29%), confluence 1/7.
-- MRVL $133.55 — far below the old $229–266 ((4)) zone; recent count CORRECTION, macro
-  WXY 18%, confluence 0/7. `MACRO_PIVOTS` still ends at the $324.20 Jun-3 high (hand-curated).
-- Full report: `reports/VALIDATION_2026-11.md`. June baseline: `reports/VALIDATION_2026-06.md`.
+  300-bar read: FLAT A@495.00 (Jun 3 ATH) → B@356.43 (Jul 2) → C@432.73 (Aug 10), 38%;
+  brief stance CONFIRMED BIAS down (break of 356.43 on Oct 26), void above 432.73.
+- MRVL $133.55 — far below the old $229–266 ((4)) zone; 300-bar read IMPULSE 1-5 ending
+  $329.88 (Jun 18), 37%; brief stance PLAYED OUT (price past every projected level).
+- Honest replay scorecard (nearest-target hit rate of next-wave projections, graded causally):
+  AVGO 23%, MRVL 31% — the forecaster is a bias, not an edge. Enforcing structural
+  correctness (Nov 2026 wavetree fixes) made counts *right* but not more *predictive*.
+- Reports: `reports/VALIDATION_2026-11.md`, `reports/COUNT_HISTORY_2026-11.md`,
+  `reports/BRIEF_2026-11.md`. June baseline: `reports/VALIDATION_2026-06.md`.
 
 ## Not in scope
 Trade execution / sizing / advice. This is analysis tooling only.

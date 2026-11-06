@@ -296,12 +296,18 @@ def _build_level(nodes, degree, momentum=None):
 
     def seg(i, k):
         grp = nodes[i:i + k]
+        node = None
         if k == 5:
-            return (_impulse_node(grp, degree, momentum) or _diagonal_node(grp, degree)
+            node = (_impulse_node(grp, degree, momentum) or _diagonal_node(grp, degree)
                     or _triangle_node(grp, degree))
-        if k == 3:
-            return _correction_node(grp, degree)
-        return None
+        elif k == 3:
+            node = _correction_node(grp, degree)
+        if node is None or node.pattern == "TRIANGLE":   # triangles end inside their range
+            return node
+        inner = [p.price for p in _leaf_pivots(node)]
+        if inner and not _leg_extremes_ok(node.start.price, node.end.price, max(inner), min(inner)):
+            return None                                   # the group's end is not its extreme
+        return node
 
     def value(node):
         # reward coverage (children consumed) x quality, with a motive bonus so a
@@ -496,7 +502,37 @@ def _pivots_consistent(piv, idx) -> bool:
         up = p1.price > p0.price
         if (up and p1.kind != "H") or (not up and p1.kind != "L"):
             return False
+        inner = [q.price for q in piv[idx[k] + 1:idx[k + 1]]]
+        if inner and not _leg_extremes_ok(p0.price, p1.price, max(inner), min(inner)):
+            return False
     return True
+
+
+_START_OVERSHOOT = 0.5    # interior may exceed a leg's START by at most this x leg length
+                          # (an expanded-flat B inside a corrective leg) — never its END
+
+
+def _leg_extremes_ok(p0: float, p1: float, inner_hi: float, inner_lo: float) -> bool:
+    """A wave's END must be its extreme: nothing inside an up leg may trade above
+    its end (or a down leg below its end). AVGO's 495.00 all-time high could
+    otherwise be swallowed inside a 'B' leg from 414.61 down to 356.43."""
+    length = abs(p1 - p0) or 1e-9
+    eps = 1e-9 * max(1.0, abs(p1))
+    if p1 > p0:
+        return inner_hi <= p1 + eps and inner_lo >= p0 - _START_OVERSHOOT * length
+    return inner_lo >= p1 - eps and inner_hi <= p0 + _START_OVERSHOOT * length
+
+
+def _leaf_pivots(node) -> list:
+    """All monowave boundary pivots inside a node (recursive), excluding its own ends."""
+    if not node.children:
+        return []
+    out = []
+    for i, c in enumerate(node.children):
+        out.extend(_leaf_pivots(c))
+        if i < len(node.children) - 1:
+            out.append(c.end)
+    return out
 
 
 def _impulse_partitions(piv, a, b, mom):
