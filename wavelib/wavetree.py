@@ -484,11 +484,28 @@ def _coarse_pivots(bars, target: int = 15):
     return best
 
 
+def _pivots_consistent(piv, idx) -> bool:
+    """A partition may skip pivots, but every chosen leg must still end on the right
+    KIND of pivot: an up leg at a high, a down leg at a low, and consecutive chosen
+    pivots must alternate H/L. Without this a 'down' leg can end on a lower HIGH
+    (e.g. A@386 H -> B@353 H -> C@433 H), which is not a wave boundary at all."""
+    for k in range(len(idx) - 1):
+        p0, p1 = piv[idx[k]], piv[idx[k + 1]]
+        if p0.kind == p1.kind:
+            return False
+        up = p1.price > p0.price
+        if (up and p1.kind != "H") or (not up and p1.kind != "L"):
+            return False
+    return True
+
+
 def _impulse_partitions(piv, a, b, mom):
     """All valid 5-wave impulse partitions of piv[a..b] -> (confidence, 'IMPULSE', idx)."""
     out = []
     for i1, i2, i3, i4 in combinations(range(a + 1, b), 4):
         idx = [a, i1, i2, i3, i4, b]
+        if not _pivots_consistent(piv, idx):
+            continue
         waves = [Wave(piv[idx[k]], piv[idx[k + 1]]) for k in range(5)]
         if not _alternating(waves):
             continue
@@ -507,6 +524,8 @@ def _correction_partitions(piv, a, b):
     out = []
     for i1, i2 in combinations(range(a + 1, b), 2):
         idx = [a, i1, i2, b]
+        if not _pivots_consistent(piv, idx):
+            continue
         waves = [Wave(piv[idx[k]], piv[idx[k + 1]]) for k in range(3)]
         if waves[0].up == waves[1].up or waves[0].up != waves[2].up:
             continue

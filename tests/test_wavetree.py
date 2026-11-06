@@ -195,3 +195,35 @@ class TestStage3Confidence(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PivotKindConsistency(unittest.TestCase):
+    """Regression: a top-down partition may skip pivots but every chosen leg must end
+    on the right KIND of pivot (up leg -> H, down leg -> L) and alternate. Before
+    the fix AVGO's primary read was ZIGZAG A@386.48(H) -> B@353.14(H) -> C@432.73(H)."""
+
+    def test_pivots_consistent_helper(self):
+        from wavelib.wavetree import _pivots_consistent
+        from wavelib.rules import Pivot
+        piv = [Pivot(1, 311.0, "L"), Pivot(2, 386.48, "H"), Pivot(3, 340.0, "L"),
+               Pivot(4, 353.14, "H"), Pivot(5, 289.96, "L"), Pivot(6, 432.73, "H")]
+        self.assertTrue(_pivots_consistent(piv, [0, 1, 4, 5]))     # L H L H, directions match
+        self.assertFalse(_pivots_consistent(piv, [0, 1, 3, 5]))    # L H H H -> B ends on a high
+        self.assertTrue(_pivots_consistent(piv, [2, 3, 4, 5]))     # L H L H again
+        # direction/kind mismatch: an 'up' leg that ends on an L is not a boundary
+        bad = [Pivot(1, 100.0, "H"), Pivot(2, 120.0, "L"), Pivot(3, 90.0, "H"), Pivot(4, 130.0, "L")]
+        self.assertFalse(_pivots_consistent(bad, [0, 1, 2, 3]))
+
+    def test_primary_counts_alternate_on_real_data(self):
+        from data.avgo import DAILY
+        from wavelib.wavetree import wave_counts
+        for end in range(400, len(DAILY) + 1, 150):
+            cs = wave_counts(DAILY[end - 300:end], max_alternates=0)
+            if not cs:
+                continue
+            legs = [n for _l, n in cs[0].labels]
+            kinds = [legs[0].start.kind] + [n.end.kind for n in legs]
+            for a, b in zip(kinds, kinds[1:]):
+                self.assertNotEqual(a, b, f"non-alternating pivots in {cs[0].pattern}: {kinds}")
+            for n in legs:
+                self.assertEqual(n.end.kind, "H" if n.end.price > n.start.price else "L")
