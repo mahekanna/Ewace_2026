@@ -201,6 +201,23 @@ daily bars stamped midnight ET; 4h bars built from 1h bars at 09:30/13:30 ET; we
 built from daily bars (Mon–Fri, stamped Monday) because Yahoo's native weekly series is not
 week-aligned for every ticker. Yahoo depth caps: 15m ≤ 60 days, 1h ≤ 730 days.
 
+### Count continuation — the count held at every bar
+
+`analyze_symbol` labels the end of the series. `wavelib/count_history.py` replays the
+history causally (at bar *i* the engine sees `bars[:i]` only) and records, per bar, the
+**anchored** count (`wave_counts` on the trailing window: pattern, degree, confidence,
+labelled legs) and the **recent** validated candidate (`label_and_validate`). Runs of
+identical labelling are compressed into `CountSegment`s with a transition tag — EXTEND
+(same origin, legs advanced), RELABEL (pattern changed), SHIFT (same pattern, new anchor),
+NEW/LOST. `render_count_history_page` emits a self-contained page: price line, a pattern
+band per bar, a scrubber/play-head that redraws the as-of legs (only bars left of the head
+were visible), and the segments table.
+
+```bash
+python3 scripts/count_history.py AVGO MRVL --tag 2026-11 [--window 300] [--stride 1] [--start 2021-01-01]
+# -> charts/<sym>_count_history_<tag>.html, reports/COUNT_HISTORY_<tag>.md
+```
+
 Run the full daily stack on a snapshot with
 `python3 scripts/run_validation.py --tag 2026-11 --symbols AVGO MRVL` → writes
 `reports/VALIDATION_<tag>.md` + `charts/<sym>_analysis_<tag>.html`. Hand-set reversal zones
