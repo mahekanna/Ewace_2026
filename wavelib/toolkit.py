@@ -87,27 +87,34 @@ def zigzag(bars, pct: float = 0.10) -> list[Pivot]:
     piv: list[Pivot] = []
     trend = 0                                  # +1 up, -1 down, 0 unseeded
     et, ep = bars[0][0], bars[0][4]            # extreme time / price
-    for t, o, h, l, c in bars:
+    # seed: track BOTH the running high and the running low until the first
+    # reversal, so the series' first extreme (its origin) is never lost
+    ht, hp, lt, lp = bars[0][0], bars[0][2], bars[0][0], bars[0][3]
+    for bar in bars:
+        t, o, h, l, c = bar[:5]
         if trend > 0:                          # tracking a high
             if h > ep:
-                et, ep = t, h
+                et, ep = t, h                  # a bar that EXTENDS the extreme cannot also
+                continue                       # confirm the reversal (intrabar order unknown)
             if l < ep * (1 - pct):
                 piv.append(Pivot(et, ep, "H"))
                 trend, et, ep = -1, t, l
         elif trend < 0:                        # tracking a low
             if l < ep:
                 et, ep = t, l
+                continue
             if h > ep * (1 + pct):
                 piv.append(Pivot(et, ep, "L"))
                 trend, et, ep = 1, t, h
-        else:                                  # seed (avoid dual-branch corruption)
-            if h > ep * (1 + pct):
-                piv.append(Pivot(et, ep, "L")); trend, et, ep = 1, t, h
-            elif l < ep * (1 - pct):
-                piv.append(Pivot(et, ep, "H")); trend, et, ep = -1, t, l
-            else:
-                if h > ep: et, ep = t, h
-                if l < bars[0][3]: pass
+        else:                                  # seed
+            if h > hp:
+                ht, hp = t, h
+            if l < lp:
+                lt, lp = t, l
+            if h > lp * (1 + pct):             # first move up from the running low
+                piv.append(Pivot(lt, lp, "L")); trend, et, ep = 1, ht, hp
+            elif l < hp * (1 - pct):           # first move down from the running high
+                piv.append(Pivot(ht, hp, "H")); trend, et, ep = -1, lt, lp
     piv.append(Pivot(et, ep, "H" if trend > 0 else "L"))
     # collapse consecutive same-kind pivots, keep the more extreme
     out: list[Pivot] = []
@@ -166,28 +173,32 @@ def zigzag_causal(bars, pct: float = 0.10, atr_n=None) -> list[Pivot]:
     piv: list[Pivot] = []
     trend = 0                                  # +1 up, -1 down, 0 unseeded
     et, ep = bars[0][0], bars[0][4]            # extreme time / price
+    ht, hp, lt, lp = bars[0][0], bars[0][2], bars[0][0], bars[0][3]   # seed extremes
     for i, bar in enumerate(bars):
         t, h, l = bar[0], bar[2], bar[3]
         if trend > 0:                          # tracking a high
             if h > ep:
-                et, ep = t, h
+                et, ep = t, h                  # a bar that EXTENDS the extreme cannot also
+                continue                       # confirm the reversal (no intrabar look-ahead)
             if l < ep - thr(ep, i):            # reversal confirmed at THIS bar
                 piv.append(Pivot(et, ep, "H", confirmed_t=t))
                 trend, et, ep = -1, t, l
         elif trend < 0:                        # tracking a low
             if l < ep:
                 et, ep = t, l
+                continue
             if h > ep + thr(ep, i):
                 piv.append(Pivot(et, ep, "L", confirmed_t=t))
                 trend, et, ep = 1, t, h
-        else:                                  # seed (mirror of zigzag)
-            if h > ep + thr(ep, i):
-                piv.append(Pivot(et, ep, "L", confirmed_t=t)); trend, et, ep = 1, t, h
-            elif l < ep - thr(ep, i):
-                piv.append(Pivot(et, ep, "H", confirmed_t=t)); trend, et, ep = -1, t, l
-            else:
-                if h > ep: et, ep = t, h
-                if l < bars[0][3]: pass
+        else:                                  # seed: both extremes until the first reversal
+            if h > hp:
+                ht, hp = t, h
+            if l < lp:
+                lt, lp = t, l
+            if h > lp + thr(lp, i):
+                piv.append(Pivot(lt, lp, "L", confirmed_t=t)); trend, et, ep = 1, ht, hp
+            elif l < hp - thr(hp, i):
+                piv.append(Pivot(ht, hp, "H", confirmed_t=t)); trend, et, ep = -1, lt, lp
     # final extreme: not yet confirmed by a reversal -> provisional
     piv.append(Pivot(et, ep, "H" if trend > 0 else "L", confirmed_t=None))
     # collapse consecutive same-kind pivots, keep the more extreme (with its timing)

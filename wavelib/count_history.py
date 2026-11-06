@@ -59,11 +59,16 @@ class CountSegment:
 
     @property
     def signature(self):
-        return (self.pattern, tuple(int(l[3]) for l in self.legs))
+        ip = bool(self.detail.get("in_progress")) if self.detail else False
+        ends = [int(l[3]) for l in self.legs]
+        if ip and ends:
+            ends = ends[:-1]                 # the running leg's end moves with price
+        return (self.pattern, tuple(ends), ip)
 
     def describe(self) -> str:
         legs = " → ".join(f"{lab}@{p1:,.2f}" for lab, _t0, _p0, _t1, p1 in self.legs)
-        return f"{self.pattern}: {legs}" if legs else self.pattern
+        ip = " (in progress)" if (self.detail and self.detail.get("in_progress")) else ""
+        return f"{self.pattern}{ip}: {legs}" if legs else self.pattern
 
 
 @dataclass
@@ -95,11 +100,14 @@ def _anchored_read(sub, scales):
     if not cs:
         return None
     c = cs[0]
-    legs = [(lab, n.start.t, round(n.start.price, 4), n.end.t, round(n.end.price, 4))
-            for lab, n in c.labels]
+    ip = bool(getattr(c, "in_progress", False))
+    legs = [(lab + ("…" if ip and k == len(c.labels) - 1 else ""),
+             n.start.t, round(n.start.price, 4), n.end.t, round(n.end.price, 4))
+            for k, (lab, n) in enumerate(c.labels)]
     return c.pattern, legs, {"degree_label": c.degree_label,
                              "confidence": round(c.confidence, 3),
-                             "coverage": round(c.coverage, 3)}, c
+                             "coverage": round(c.coverage, 3),
+                             "in_progress": ip}, c
 
 
 def _project(count, t: float, price: float) -> dict | None:
@@ -161,11 +169,15 @@ def _push(segs: list, kind: str, read, t: float, price: float = 0.0) -> int:
         count = read[3] if len(read) > 3 else None
     else:
         pattern, legs, detail, count = "NONE", [], {}, None
-    sig = (pattern, tuple(int(l[3]) for l in legs))
+    ip = bool(detail.get("in_progress")) if detail else False
+    ends = [int(l[3]) for l in legs]
+    sig = (pattern, tuple(ends[:-1] if (ip and ends) else ends), ip)
     if segs and segs[-1].signature == sig:
         segs[-1].end_t = t
         segs[-1].n_bars += 1
         segs[-1].detail = detail        # confidence drifts within a segment; keep latest
+        if ip:
+            segs[-1].legs = legs        # the running leg extends with price
     else:
         seg = CountSegment(kind, pattern, t, t, 1, legs, detail)
         seg.transition = _transition(segs[-1] if segs else None, seg)

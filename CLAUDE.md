@@ -79,7 +79,8 @@ overwrite the `2026-06` snapshots — they are the recorded forward-test baselin
 ## Roadmap status (see docs/research/ for the full spec + audit)
 
 Deep research in `docs/research/00_index.md..04_*.md` drove a 5-phase build
-(Phases 0–4) — all implemented and tested (90 unit tests in `tests/`):
+(Phases 0–4) — all implemented and tested (229 unit tests in `tests/`, incl. the
+16-rule counter audit `test_rule_audit.py` — see `docs/RULESET.md` §I):
 
 1. ✅ `label_and_validate(bars)` — multi-scale auto-segmentation → ranked candidate
    counts (`wavelib/automation.py`). Removes hand-picking.
@@ -100,15 +101,15 @@ across `rules.py`/`toolkit.py`); deeper Neely sub-type labels (`:F3`/`:c3`/…);
 the real cycle-model integration (item 2).
 
 ## Current market state baked into data (Nov 5 2026 close, via data/fetch.py)
-- AVGO $291.53 — gapped below the old $301 2-4 line and the $358–410 (IV) zone cited
-  in README/examples (those are the June-2026 session findings, kept as history).
-  300-bar read: FLAT A@495.00 (Jun 3 ATH) → B@356.43 (Jul 2) → C@432.73 (Aug 10), 38%;
-  brief stance CONFIRMED BIAS down (break of 356.43 on Oct 26), void above 432.73.
-- MRVL $133.55 — far below the old $229–266 ((4)) zone; 300-bar read IMPULSE 1-5 ending
-  $329.88 (Jun 18), 37%; brief stance PLAYED OUT (price past every projected level).
-- Honest replay scorecard (nearest-target hit rate of next-wave projections, graded causally):
-  AVGO 23%, MRVL 31% — the forecaster is a bias, not an edge. Enforcing structural
-  correctness (Nov 2026 wavetree fixes) made counts *right* but not more *predictive*.
+- AVGO $291.53 — 300-bar read: ZIGZAG with wave **C IN PROGRESS**: A 495.00 (Jun 3 ATH) →
+  356.43 (Jul 2), B → 432.73 (Aug 10), C running from 432.73, now 290.12; C = A target
+  294.16 reached, 1.618×A = 208.52; the read is void above 432.73. Brief: CONFIRMED BIAS down.
+- MRVL $133.55 — 300-bar read: IMPULSE 1-5 ending $301.27 (Oct 6, truncated fifth under
+  the $324.20 wave-3 top) with the crash since as the unlabelled correction starting;
+  brief stance PLAYED OUT (price past every projected level).
+- Causal replay scorecard (nearest-target hit rate of next-wave projections), after the
+  Nov-2026 rule audit (`docs/RULESET.md` §I, `tests/test_rule_audit.py`): AVGO **48%**,
+  MRVL **43%** (were 23% / 31% before the counter applied the rules). A bias, not an edge.
 - Reports: `reports/VALIDATION_2026-11.md`, `reports/COUNT_HISTORY_2026-11.md`,
   `reports/BRIEF_2026-11.md`. June baseline: `reports/VALIDATION_2026-06.md`.
 

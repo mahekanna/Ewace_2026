@@ -114,3 +114,43 @@ Minimum viable = **D-1 Fib zone + (D-2/D-3 momentum divergence) + (D-6/D-7 struc
 6. **Targets + management:** T1 1.618×W1, T2 2.618× (C-1); **take 50% at T1, stop→breakeven, trail under W3 sub-waves** (E-5/E-6). Exit logic governed by structure, with an S&B-time *monitor* ([⅓,3×] vs W1), not a fixed bar count.
 7. **Gate:** require **R:R ≥ 2:1** (E-2) and confluence ≥ 3 or no trade.
 8. **Re-run the year-long ghost forward test** on the rule-faithful version and compare to the current +0.17–0.44R — to see whether *the rules themselves* add edge over the crude skeleton.
+
+
+---
+
+## I. AUDIT — the COUNTER vs this ruleset (Nov 2026)
+
+`tests/test_rule_audit.py` exercises the code paths that PRODUCE a count
+(`wavetree` node constructors, the top-down partition search, `wave_counts`,
+`forecast_from_count`) — a rule the validator knows but the counter ignores is a
+rule that is not applied. State before/after the audit:
+
+| Rule | Before | Now |
+|---|---|---|
+| R1/R2/R3 [H] | enforced | enforced (R2 waits while wave 5 is running) |
+| Pivot kind matches leg direction; boundaries alternate | **missing** (B could end on a HIGH) | enforced, both counters |
+| A wave's END is its extreme (interior may overshoot the START ≤ 0.5× leg: expanded-flat B) | **missing** (495.00 ATH sat inside a 'B' leg) | enforced at pivot AND bar level; triangles exempt; truncated fifth allowed with a haircut |
+| NeoWave extension ≥ 1.618× next-longest [H] | **missing** (quality score only) | enforced (`neowave_extension_rule`) |
+| Similarity & Balance: ≥ 1 of price/time in [⅓, 3×] [H] | WARN only | FAIL when neither holds → count rejected |
+| 2-4 line unbroken by W3/W5 [H] | **missing** in counting | enforced on interior pivots (`two_four_line_rule`; a touch within 3% of W3 is not a break) |
+| Zigzag: C surpasses A's end [H] | **missing** | enforced in `classify_correction` |
+| Regular flat: C ≈ A (B 61.8–100%) | **missing** (C of 35% of A passed) | double failure (B<100%, C<0.9A) rejected |
+| Expanded / running flat | ok | ok |
+| Triangle: 5 corrective legs, converging/diverging | ok | ok |
+| Ranking | top-down +0.4 and ×1.3 motive bonus; ×1.15 motive in scale score; +0.2 in partition pick | **one score**: confidence × coverage; present-ending structures first (current count); `present_first=False` for the macro view |
+| Final wave IN PROGRESS (Reverse Logic: least-complete plausible count) | **impossible** (count forced to complete at the last confirmed pivot) | top-down partitions may end on the provisional extreme; `AnchoredCount.in_progress`; forecast = completion of the running wave |
+| Forecast anchored to the confirmed pivot | re-anchored to current price | measured from the confirmed pivot only |
+| ZigZag seeding | series' first extreme LOST when it starts by trending | both running extremes tracked until the first reversal |
+| ZigZag confirmation | a bar could confirm the reversal of the extreme it had just set (intrabar look-ahead) | a bar that extends the extreme cannot confirm on the same bar |
+
+Still NOT enforced by the counter: monowave structure labels (§E `:5`/`:3`, seven
+retracement rules) as the pattern-identity test before grouping; triangle position
+(W4/B/X only); combination rules beyond X < 61.8% (implied); the two-stage 2-4
+completion timing as a *post-constructive* veto on a completed impulse. These are
+the next audit items.
+
+**Effect (causal replay scorecard, nearest projected target reached, daily, 300-bar window):**
+AVGO 23% → **48%** (535 decided), MRVL 31% → **43%** (598 decided). Projections from
+completed zigzags/impulses now land ~50–60%; W-X-Y projections remain poor (17–24%).
+Still a bias, not an edge on its own — but a bias that improved only when the rules
+were actually applied.

@@ -167,6 +167,43 @@ def elliott_hard_rules(w: Sequence[Wave]) -> list[RuleResult]:
     return r
 
 
+def neowave_extension_rule(w: Sequence[Wave], require: bool = True) -> RuleResult:
+    """NeoWave [H] (RULESET §A, 02 §2.4): exactly one of W1/W3/W5 EXTENDS, and an
+    extension is >= 1.618x the next-longest motive wave (LOG magnitude). No 161.8%
+    => no extension => not an impulse. `require=False` (final wave still running)
+    accepts W1 or W3 extending, or W5 not yet decided."""
+    if len(w) != 5:
+        return RuleResult("NeoWave extension", Status.NA, f"need 5 waves, got {len(w)}")
+    l1, l3, l5 = w[0].log_length, w[2].log_length, w[4].log_length
+    ordered = sorted((l1, l3, l5), reverse=True)
+    ratio = ordered[0] / ordered[1] if ordered[1] else float("inf")
+    ok = ratio >= EXTENSION_MIN
+    if not ok and not require:            # W5 running: W1 or W3 may already extend vs the other
+        ok = max(l1, l3) / (min(l1, l3) or 1e-9) >= EXTENSION_MIN
+    which = ("W1", "W3", "W5")[(l1, l3, l5).index(ordered[0])]
+    return RuleResult("NeoWave extension (one wave >= 1.618x next-longest)", _ok(ok),
+                      f"longest {which} = {ratio:.2f}x next-longest (log)")
+
+
+def two_four_line_rule(w2_end: Pivot, w4_end: Pivot, interior: Sequence[Pivot], up: bool,
+                       tol: float = 0.002, tol_abs: float = 0.0) -> RuleResult:
+    """NeoWave 2-4 line [H] (RULESET §E): no part of W3 or W5 breaks the line
+    through the ends of waves 2 and 4. `interior` = the pivots inside W3 and W5.
+    A break must be material: beyond `tol` (relative) or `tol_abs` (price units,
+    e.g. a few % of the wave's own length) — a touch is not a break."""
+    if w4_end.t == w2_end.t:
+        return RuleResult("NeoWave 2-4 line", Status.NA, "degenerate line")
+    for p in interior:
+        lv = line_value(w2_end, w4_end, p.t)
+        slack = max(abs(lv) * tol, tol_abs)
+        broke = (p.price < lv - slack) if up else (p.price > lv + slack)
+        if broke:
+            return RuleResult("NeoWave 2-4 line (W3/W5 must not break it)", Status.FAIL,
+                              f"pivot {p.price} at t={p.t:.0f} crosses the 2-4 line ({lv:.2f})")
+    return RuleResult("NeoWave 2-4 line (W3/W5 must not break it)", Status.PASS,
+                      f"{len(interior)} interior pivots stay on the right side")
+
+
 def elliott_guidelines(w: Sequence[Wave]) -> list[RuleResult]:
     """Probabilistic guidelines (not inviolable)."""
     if len(w) != 5:
@@ -236,6 +273,8 @@ def project_wave5(w1_len, w3_len, w4_end, prior_high) -> dict:
 # Canonical correction thresholds (Frost & Prechter; docs/research/01_elliott_wave.md §4 Task 1)
 ZIGZAG_B_MAX = 0.618    # zigzag: B retraces <= 61.8% of A (sharp)
 REG_FLAT_B_MAX = 1.00   # regular flat: B within (0.618, 1.00]; expanded/running: B > 1.00
+REG_FLAT_C_MIN = 0.90   # regular flat: C ~= A (RULESET §B: "C≈A"); shorter C with B<100% = no flat
+EXTENSION_MIN = 1.618   # NeoWave [H]: one of W1/W3/W5 must be >= 1.618x the next-longest (02 §2.4)
 BARRIER_FLAT_TOL = 0.03  # one triangle boundary "flat" within 3% of its mean price
 
 
@@ -258,12 +297,20 @@ def classify_correction(w: Sequence[Wave]) -> RuleResult:
     a_down = A.end.price < A.start.price            # direction of leg A
     # does C's endpoint surpass A's endpoint, in A's direction?
     c_beyond_a_end = (C.end.price < A.end.price) if a_down else (C.end.price > A.end.price)
-    # ZIGZAG: sharp, B <= 61.8% of A (boundary inclusive)
+    # ZIGZAG: sharp, B <= 61.8% of A (boundary inclusive); C surpasses the end of A [H]
     if b_retr <= ZIGZAG_B_MAX + 1e-9:
+        if not c_beyond_a_end:
+            return RuleResult("correction = ZIGZAG? C fails to surpass A end", Status.FAIL,
+                              f"B retraces {b_retr:.0%} of A but C ends at {C.end.price} vs A end "
+                              f"{A.end.price} -> not a zigzag (RULESET §B)")
         return RuleResult("correction = ZIGZAG (5-3-5)", Status.PASS,
                           f"B retraces {b_retr:.0%} of A (<=61.8%); C/A={c_vs_a:.2f}; sharp")
     # FLAT family: B > 61.8% of A (sideways)
     if b_retr <= REG_FLAT_B_MAX:
+        if c_vs_a < REG_FLAT_C_MIN and not c_beyond_a_end:
+            return RuleResult("correction = FLAT? double failure (B<100%, C<<A)", Status.FAIL,
+                              f"B {b_retr:.0%}, C/A={c_vs_a:.2f}: a regular flat needs C~=A "
+                              "(RULESET §B); this is not a flat")
         note = "" if b_retr >= 0.81 else " (shallow B 0.618-0.81: verify vs combination)"
         return RuleResult("correction = REGULAR FLAT (3-3-5)", Status.PASS,
                           f"B retraces {b_retr:.0%} of A (61.8-100%); C/A={c_vs_a:.2f}{note}")
@@ -423,7 +470,8 @@ def similarity_and_balance(a: Wave, b: Wave, lo=1/3, hi=3.0, context: str = "") 
     pr = a.log_length / b.log_length if b.log_length else float("nan")
     tr = a.days / b.days if b.days else float("nan")
     pok, tok = (lo <= pr <= hi), (lo <= tr <= hi)
-    st = Status.PASS if (pok and tok) else Status.WARN
+    # RULESET §E: price AND time ideally within [1/3, 3x]; AT LEAST ONE must hold [H]
+    st = Status.PASS if (pok and tok) else Status.WARN if (pok or tok) else Status.FAIL
     label = "NeoWave Similarity & Balance" + (f" ({context})" if context else "")
     return RuleResult(label, st,
                       f"price {pr:.2f}x (ok={pok}), time {tr:.2f}x (ok={tok})  band [{lo:.2f},{hi:.1f}]")

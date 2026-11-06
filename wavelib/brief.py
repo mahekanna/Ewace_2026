@@ -98,11 +98,20 @@ def decision_brief(symbol: str, bars, window: int = 300, scorecard: dict | None 
 
     legs = [n for _l, n in pc.labels]
     last = legs[-1]
+    running = bool(getattr(pc, "in_progress", False))
     up = fc.direction == "up"
     sgn = 1 if up else -1
     # --- levels -----------------------------------------------------------
-    trigger = last.start.price                   # break of the pivot BEFORE the final leg
-    stop = round(last.end.price * (0.99 if up else 1.01), 2)
+    if running:
+        # the final wave is underway: it is CONFIRMED once price exceeds the end of
+        # the previous wave in the same direction (A's end for a running C, wave 3's
+        # end for a running 5); the reference stop is just beyond the wave's origin
+        same_dir = legs[-3] if len(legs) >= 3 else legs[0]
+        trigger = same_dir.end.price
+        stop = round(last.start.price * (0.99 if up else 1.01), 2)
+    else:
+        trigger = last.start.price               # break of the pivot BEFORE the final leg
+        stop = round(last.end.price * (0.99 if up else 1.01), 2)
     void = fc.invalidation
     good = sorted((p for _lab, p in fc.targets if sgn * (p - price) > 0), key=lambda p: sgn * p)
     t1 = good[0] if good else None
@@ -143,22 +152,28 @@ def decision_brief(symbol: str, bars, window: int = 300, scorecard: dict | None 
     dirword = "UP" if up else "DOWN"
     above, below = ("above", "below") if up else ("below", "above")
     vside = "above" if void > price else "below"      # the void can sit on either side
-    legs_txt = ", ".join(f"{lab} ended {_d(n.end.t)} at ${n.end.price:,.2f}" for lab, n in pc.labels)
+    legs_txt = ", ".join(f"{lab} ended {_d(n.end.t)} at ${n.end.price:,.2f}"
+                         for lab, n in (pc.labels[:-1] if running else pc.labels))
+    last_lab = pc.labels[-1][0] if pc.labels else "?"
     where = [
-        f"On the last {len(recent)} daily bars the engine's best read is a completed "
-        f"{fc.pattern} ({pc.degree_label} degree) with {pc.confidence:.0%} confidence — "
-        "low numbers are normal here; Elliott counts are interpretive.",
-        f"Its legs: {legs_txt}.",
+        (f"On the last {len(recent)} daily bars the engine's best read is a {fc.pattern} whose "
+         f"final wave {last_lab} is STILL RUNNING ({pc.degree_label} degree, {pc.confidence:.0%} "
+         "confidence — low numbers are normal here; Elliott counts are interpretive)."
+         if running else
+         f"On the last {len(recent)} daily bars the engine's best read is a completed "
+         f"{fc.pattern} ({pc.degree_label} degree) with {pc.confidence:.0%} confidence — "
+         "low numbers are normal here; Elliott counts are interpretive."),
+        f"Its legs: {legs_txt}" + (f"; wave {last_lab} running since {_d(last.start.t)} "
+                                   f"(${last.start.price:,.2f}), now ${last.end.price:,.2f}." if running else "."),
         f"Price now: ${price:,.2f} ({as_of}).",
     ]
     expect = [
         f"Expected next: {fc.next_wave} — i.e. a move {dirword}.",
-        (f"Target zone: first ${t1:,.2f}, then up to ${far:,.2f}"
+        ((f"Target: ${t1:,.2f}" if t1 == far else f"Target zone: first ${t1:,.2f}, then up to ${far:,.2f}")
          + (f"; the strongest Fibonacci overlap is ${cluster:,.2f}" if cluster else "") + "."
          if t1 else "No target in the expected direction from here (price already past them)."),
-        f"These levels are recomputed from today's price; the dashed projection on the chart is "
-        f"the original one made when the count was adopted ({_d(adoption_t)}), so its numbers "
-        "can differ.",
+        "Targets are measured from the confirmed pivots, never from today's price; only the "
+        f"levels still ahead of price are listed (the count was adopted {_d(adoption_t)}).",
         f"Time: the move should complete within ~{fc.time_lo_days:.0f}-{fc.time_hi_days:.0f} days "
         f"of {_d(adoption_t)} (by about {_d(deadline_t)}), measured against the prior "
         f"{(last.end.t - last.start.t) / 86400:.0f}-day wave"
@@ -175,8 +190,11 @@ def decision_brief(symbol: str, bars, window: int = 300, scorecard: dict | None 
         prog = (f"Price is {pct(price, trigger):.0%} away from the trigger ${trigger:,.2f}; "
                 "nothing has been confirmed yet.")
     confirm = [
-        f"Confirmation: a daily close {above} ${trigger:,.2f} (the pivot before the last leg). "
-        "Until then this is only a bias.",
+        (f"Confirmation: a daily close {above} ${trigger:,.2f} (the end of the previous wave in "
+         "this direction) proves the running wave is genuine. Until then this is only a bias."
+         if running else
+         f"Confirmation: a daily close {above} ${trigger:,.2f} (the pivot before the last leg). "
+         "Until then this is only a bias."),
         prog,
         f"Proven wrong: a move {vside} ${void:,.2f} voids the count — the expectation is cancelled.",
     ]
@@ -211,7 +229,8 @@ def decision_brief(symbol: str, bars, window: int = 300, scorecard: dict | None 
     elif confirmed_t:
         stance = "CONFIRMED BIAS"
         bl = (f"{dirword} bias, confirmed on {_d(confirmed_t)} by the break {above} ${trigger:,.2f}. "
-              f"Target zone ${t1:,.2f}-${far:,.2f}; the read is wrong {vside} ${void:,.2f}; "
+              + (f"Target ${t1:,.2f}" if t1 == far else f"Target zone ${t1:,.2f}-${far:,.2f}")
+              + f"; the read is wrong {vside} ${void:,.2f}; "
               f"expect resolution by about {_d(deadline_t)}."
               + (" Reliability is weak for this kind of call, so treat it as a lean, not a conviction."
                  if weak else ""))
@@ -230,7 +249,8 @@ def decision_brief(symbol: str, bars, window: int = 300, scorecard: dict | None 
                       "A fresh count will form once price makes a new confirmed swing; check back then."]
     elif stance == "CONFIRMED BIAS":
         what_to_do = [
-            f"Treat the structure as leaning {dirword} toward ${t1:,.2f} (then ${far:,.2f}).",
+            f"Treat the structure as leaning {dirword} toward ${t1:,.2f}"
+            + (f" (then ${far:,.2f})." if far != t1 else "."),
             f"The read is cancelled {vside} ${void:,.2f}."
             + (f" A nearer protective reference is ${stop:,.2f}." if pct(stop, void) > 0.03 else ""),
             f"If nothing happens by {_d(deadline_t)}, drop the read."]

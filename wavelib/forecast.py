@@ -54,6 +54,8 @@ def forecast_from_count(pc, price, sequence_status="INCOMPLETE") -> "WaveForecas
     legs = [n for _lab, n in pc.labels]
     if not legs:
         return None
+    if getattr(pc, "in_progress", False):
+        return _forecast_running_leg(pc, price, sequence_status)
     first, last = legs[0], legs[-1]
     struct_up = last.end.price > first.start.price
     last_up = last.end.price > last.start.price
@@ -82,12 +84,10 @@ def forecast_from_count(pc, price, sequence_status="INCOMPLETE") -> "WaveForecas
         # 3-wave correction complete -> a new impulse; project Fibonacci EXTENSIONS of
         # the last leg, incl. the EWF Blue Box (100%-161.8% equal-legs reaction zone).
         ll = last.length
-        # RE-ANCHOR to current price when an unconfirmed impulse leg is already
-        # developing (price has run in the forecast direction past the last confirmed
-        # pivot). Anchoring extensions to the stale pivot is what made ~half of
-        # intraday forecasts unusable (forward test); projecting from where price IS
-        # keeps the target ahead of price.
-        base = price if sgn * (price - anchor) > 0 else anchor
+        # Projections are measured from the CONFIRMED pivot, never re-anchored to the
+        # current price: a target that moves with price is not a projection. If price
+        # has already run past the levels, the honest read is "played out".
+        base = anchor
         ext = {r: base + sgn * r * ll for r in (0.618, 1.0, 1.272, 1.618, 2.618)}
         targets = [("1.000x (equal legs)", ext[1.0]), ("1.618x (Blue Box top)", ext[1.618]),
                    ("2.618x extension", ext[2.618])]
@@ -95,13 +95,13 @@ def forecast_from_count(pc, price, sequence_status="INCOMPLETE") -> "WaveForecas
         invalid = anchor                              # a break past the last pivot voids it
         nxt = f"new impulse ({direction})"
         why = ("3-wave correction appears complete; trend resumption is expected, "
-               "projected as Fibonacci EXTENSIONS of the last leg (Blue Box = 1.0-1.618x), "
-               "re-anchored to current price when the leg is already developing.")
+               "projected as Fibonacci EXTENSIONS of the last leg (Blue Box = 1.0-1.618x) "
+               "measured from the last confirmed pivot.")
     elif pat == "TRIANGLE":
         widest = max(l.length for l in legs)
         direction = "up" if struct_up else "down"
         sgn = 1 if direction == "up" else -1
-        base = price if sgn * (price - anchor) > 0 else anchor   # re-anchor to live price
+        base = anchor                                  # measured from the confirmed pivot
         th = triangle_thrust(widest, base, sgn)
         targets = [("thrust min (0.75x)", th["min"]), ("thrust max (1.25x)", th["max"])]
         proj = [th["min"], th["max"], base + sgn * widest]
@@ -138,6 +138,55 @@ def forecast_from_count(pc, price, sequence_status="INCOMPLETE") -> "WaveForecas
                         pc.confidence, sequence_status, why + " " + seq_note + caveat,
                         cluster=cluster, time_lo_days=round(t_lo, 1),
                         time_hi_days=round(t_hi, 1), time_note=time_note)
+
+
+def _forecast_running_leg(pc, price, sequence_status="INCOMPLETE") -> "WaveForecast":
+    """The count's FINAL wave is still running (ends on the provisional extreme):
+    project where THAT wave should complete, measured from the confirmed pivot it
+    started at. C of a zigzag/flat: 0.618/1.0/1.618 x A from B's end; wave 5:
+    = W1 / 0.618 x net(W1->W3) / 1.618 x W1 from W4's end; Y of a W-X-Y: = W.
+    Void = the running wave's own origin (its start pivot)."""
+    legs = [n for _lab, n in pc.labels]
+    labels = [lab for lab, _n in pc.labels]
+    run = legs[-1]
+    direction = "up" if run.end.price > run.start.price else "down"
+    sgn = 1 if direction == "up" else -1
+    base = run.start.price                             # confirmed pivot the wave started from
+    pat = pc.pattern
+    if pat in ("IMPULSE", "DIAGONAL") and len(legs) == 5:
+        w1, w3 = legs[0], legs[2]
+        net13 = abs(w3.end.price - w1.start.price)
+        proj = {"= wave 1": base + sgn * w1.length,
+                "0.618 x net(1->3)": base + sgn * 0.618 * net13,
+                "1.618 x wave 1": base + sgn * 1.618 * w1.length}
+        ref_days = (w1.end.t - w1.start.t) / 86400.0
+        nxt, why = (f"wave 5 completion ({direction})",
+                    "wave 5 is running; targets are the classic wave-5 relationships to waves 1-3, "
+                    "measured from the wave-4 pivot.")
+    elif len(legs) == 3:
+        A = legs[0]
+        proj = {"0.618 x A": base + sgn * 0.618 * A.length,
+                "1.0 x A (equal legs)": base + sgn * A.length,
+                "1.618 x A": base + sgn * 1.618 * A.length}
+        ref_days = (A.end.t - A.start.t) / 86400.0
+        lab = labels[-1] if labels else "C"
+        nxt, why = (f"wave {lab} completion ({direction})",
+                    f"wave {lab} is running; a corrective final leg typically equals the first "
+                    "leg (0.618-1.618x), measured from the pivot it started at.")
+    else:
+        return None
+    lo_c, hi_c = price * 0.3, price * 3
+    targets = [(k, round(v, 2)) for k, v in proj.items() if lo_c < v < hi_c]
+    cluster = fib_cluster([v for v in proj.values() if lo_c < v < hi_c], tol=0.02)
+    cluster = [c for c in cluster if c[1] >= 2] or cluster[:1]
+    t_lo, t_hi = ref_days / 3.0, ref_days * 3.0
+    time_note = (f"time: the running wave likely completes in ~{t_lo:.0f}-{t_hi:.0f} days "
+                 f"from its start (NeoWave S&B vs the {ref_days:.0f}-day reference wave)")
+    seq_note = (f"swing-sequence {sequence_status}" if sequence_status else "")
+    return WaveForecast(price, pat, nxt, direction, targets, round(base, 2), pc.confidence,
+                        sequence_status, why + " " + seq_note, cluster=cluster,
+                        time_lo_days=round(t_lo, 1), time_hi_days=round(t_hi, 1),
+                        time_note=time_note)
 
 
 def forecast_waves(bars, window: int = None) -> "WaveForecast":

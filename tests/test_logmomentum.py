@@ -96,7 +96,7 @@ class TestTopDownImpulse(unittest.TestCase):
         # a clean 5-wave impulse with deep (zigzag-detectable) corrections + a
         # trailing leg so the wave-5 high confirms as a pivot; wave 3 is biggest.
         # lead-in (120->100 confirms the impulse low), then 1-2-3-4-5, then a trail
-        pts = [120, 100, 140, 116, 190, 150, 210, 180]
+        pts = [120, 100, 140, 116, 220, 170, 235, 205]
         bars, t = [], 0
         for a, b in zip(pts, pts[1:]):
             for k in range(1, 41):                 # 40 bars/leg -> EWO warms up

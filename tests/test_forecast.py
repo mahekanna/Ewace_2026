@@ -60,7 +60,7 @@ class TestForecastFromCount(unittest.TestCase):
 
 class TestForecastEndToEnd(unittest.TestCase):
     def test_impulse_bars_forecast_down_correction(self):
-        fc = forecast_waves(_bars([100, 150, 130, 200, 180, 240, 205]))
+        fc = forecast_waves(_bars([100, 140, 120, 260, 230, 275, 245]))
         self.assertIsNotNone(fc)
         self.assertEqual(fc.direction, "down")
         self.assertTrue(0.0 <= fc.confidence <= 1.0)             # honest, inherited
@@ -104,7 +104,7 @@ class TestTradePlan(unittest.TestCase):
     def test_plan_synthesizes_direction_and_gates(self):
         # completed up-impulse -> forecast a down correction -> plan is SHORT,
         # gated on a break below the last pivot, with a finite confirm window.
-        plan = trade_plan(_bars([100, 150, 130, 200, 180, 240, 205]), symbol="TEST")
+        plan = trade_plan(_bars([100, 140, 120, 260, 230, 275, 245]), symbol="TEST")
         self.assertIsInstance(plan, TradePlan)
         self.assertEqual(plan.direction, "short")
         self.assertIn("break BELOW", plan.entry_trigger)
@@ -120,7 +120,7 @@ class TestTradePlan(unittest.TestCase):
     def test_plan_carries_phase5_discipline(self):
         # the plan must expose R:R, a confluence target, a confirmation gate count,
         # and an alternate flip-price (the professional trade-management fields)
-        plan = trade_plan(_bars([100, 150, 130, 200, 180, 240, 205, 230, 195, 250]),
+        plan = trade_plan(_bars([100, 140, 120, 260, 230, 275, 245, 265, 235, 285]),
                           symbol="TEST")
         self.assertIsInstance(plan, TradePlan)
         self.assertGreaterEqual(plan.reward_risk, 0.0)

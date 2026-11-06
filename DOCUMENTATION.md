@@ -232,23 +232,21 @@ python3 scripts/count_history.py AVGO MRVL --tag 2026-11 [--window 300] [--strid
 # -> charts/<sym>_count_history_<tag>.html, reports/COUNT_HISTORY_<tag>.md (brief + scorecard + ledger + segments)
 ```
 
-### Two structural rules every count must obey (added Nov 2026)
+### What every count must obey (Nov 2026 audit — `docs/RULESET.md` §I)
 
 Both counters (`wavetree.top_down_count` partition search and the bottom-up
-`_build_level` grouping) now enforce, for every labelled leg:
-
-1. **Pivot kind matches direction** — an up leg ends on a HIGH, a down leg on a LOW, and
-   consecutive boundaries alternate. (Before: AVGO ZIGZAG A@386.48 H → B@353.14 H → C@432.73 H.)
-2. **A leg's end is its extreme** — nothing inside an up leg trades above its end (or below a
-   down leg's end); the interior may overshoot the leg's *start* by at most 0.5× the leg
-   (an expanded-flat B). Triangles are exempt (they end inside their range). (Before: the
-   495.00 all-time high of 2026-06-03 sat inside a 'B' leg 414.61 → 356.43 — the most
-   important pivot in the window was not a wave boundary at all. 81/158 AVGO and 58/164
-   MRVL 300-bar windows had such a leg; now 0.)
-
-Known limitation that remains: a count always *completes* at the last confirmed pivot, so
-"wave C down is in progress" cannot be expressed — the engine will instead label the last
-completed 3 swings and forecast from there.
+`_build_level` grouping) enforce, for every labelled wave: R1/R2/R3; pivot kind matches
+leg direction with alternating boundaries; a wave's end is its extreme (pivot AND bar
+level; truncated fifth allowed with a haircut; triangles exempt); the NeoWave extension
+(one of 1/3/5 ≥ 1.618× the next-longest); Similarity & Balance with at least one of
+price/time in [⅓, 3×]; the 2-4 line unbroken by the interiors of waves 3 and 5; zigzag C
+beyond A's end; regular flats with C ≈ A. Candidates are ranked by one score, confidence ×
+coverage, with structures that end at the window end (the present) first — including
+counts whose **final wave is still running** (`AnchoredCount.in_progress`), for which the
+forecast is the completion of that wave. `wave_counts(..., present_first=False)` gives the
+macro view (dominant structure). The ZigZag no longer loses a series' first extreme nor
+confirms a reversal on the bar that set the extreme. `tests/test_rule_audit.py` is the
+executable version of this list.
 
 ### The plain-language read — `wavelib/brief.py`
 

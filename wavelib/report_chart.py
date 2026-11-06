@@ -119,7 +119,7 @@ def analyze_symbol(symbol, bars, zone=None, bullish=True, desc="", window=300):
     post = [p.price for p in piv if p.t > top.t]
     bb = blue_box_zone(launch.price, top.price, min(post) if post else last_close)
     rep = score_reversal(symbol, full[-250:], zone, bullish=bullish, blue_box=bb)
-    counts = wave_counts(full, max_alternates=2)
+    counts = wave_counts(full, max_alternates=2, present_first=False)   # macro = dominant structure
     primary = counts[0] if counts else None
     alternates = counts[1:]
 

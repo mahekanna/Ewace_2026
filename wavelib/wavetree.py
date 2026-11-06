@@ -22,7 +22,8 @@ from dataclasses import dataclass, field
 from itertools import combinations
 
 from .rules import (Pivot, Wave, Status, RuleResult, Degree, elliott_hard_rules,
-                    classify_correction, similarity_and_balance)
+                    classify_correction, similarity_and_balance, neowave_extension_rule,
+                    two_four_line_rule, ZIGZAG_B_MAX)
 from .toolkit import zigzag_causal
 
 _MOTIVE = {"IMPULSE", "DIAGONAL"}
@@ -135,6 +136,7 @@ class WaveNode:
     children: list = field(default_factory=list)
     results: list = field(default_factory=list)
     confidence: float = 1.0
+    in_progress: bool = False   # final leg still running (ends on the provisional pivot)
 
     @property
     def up(self) -> bool:
@@ -168,12 +170,64 @@ def _confidence(results, children, motive_idx, corr_idx) -> float:
     return max(0.0, min(1.0, conf))
 
 
-def _impulse_node(group, degree, momentum=None):
-    waves = [n.as_wave() for n in group]
+def _impulse_checks(waves, interior_35, in_progress=False):
+    """Every rule an IMPULSE must obey to be COUNTED as one (RULESET §A, §E):
+    R1/R2/R3 [H]; NeoWave extension [H]; Similarity & Balance W2 vs W4 (at least
+    one of price/time) [H]; 2-4 line unbroken by W3/W5 interiors [H]. With the fifth
+    wave still running, R2 and the extension are judged on what is complete.
+    Returns the RuleResult list, or None if any hard rule fails."""
     if not _alternating(waves):
         return None
     hard = elliott_hard_rules(waves)
-    if any(h.status is Status.FAIL for h in hard):
+    for i, h in enumerate(hard):
+        if h.status is Status.FAIL and not (in_progress and i == 1):   # R2 waits for W5
+            return None
+    ext = neowave_extension_rule(waves, require=not in_progress)
+    if ext.status is Status.FAIL:
+        return None
+    sb = similarity_and_balance(waves[1], waves[3], context="w2 vs w4")
+    if sb.status is Status.FAIL:
+        return None
+    tf = two_four_line_rule(waves[1].end, waves[3].end, interior_35, waves[0].up,
+                            tol_abs=0.03 * waves[2].length)    # a touch is not a break
+    if tf.status is Status.FAIL:
+        return None
+    return hard + [ext, sb, tf]
+
+
+def _correction_checks(waves, in_progress=False):
+    """Every rule a 3-wave CORRECTION must obey to be counted (RULESET §B, §E):
+    A/C same direction, B opposite; zigzag B <= 61.8% with C beyond A's end; flat
+    B > 61.8% with C ~= A (regular) / beyond A (expanded) / short with B > 100%
+    (running); Similarity & Balance A vs C [H]. With C still running only the A/B
+    relation can be judged. Returns (pattern, results) or None."""
+    A, B, C = waves
+    if A.up == B.up or A.up != C.up:
+        return None
+    if in_progress:
+        b_retr = B.retr(A)
+        if b_retr != b_retr or b_retr > 2.618:          # B cannot be an x-wave-sized move
+            return None
+        pattern = "ZIGZAG" if b_retr <= ZIGZAG_B_MAX + 1e-9 else "FLAT"
+        rr = RuleResult(f"correction = {pattern} (C in progress)", Status.PASS,
+                        f"B retraces {b_retr:.0%} of A; C running")
+        return pattern, [rr]
+    rr = classify_correction(waves)
+    if rr.status is not Status.PASS:
+        return None
+    pattern = ("ZIGZAG" if "ZIGZAG" in rr.rule else
+               "FLAT" if "FLAT" in rr.rule else "CORRECTION")
+    sb = similarity_and_balance(A, C, context="A vs C")
+    if sb.status is Status.FAIL:
+        return None
+    return pattern, [rr, sb]
+
+
+def _impulse_node(group, degree, momentum=None, in_progress=False):
+    waves = [n.as_wave() for n in group]
+    interior = _leaf_pivots(group[2]) + _leaf_pivots(group[4])
+    results = _impulse_checks(waves, interior, in_progress)
+    if results is None:
         return None                            # not a clean impulse (diagonals: later stage)
     # Real impulse sub-structure (5-3-5-3-5): once the children are themselves
     # classified (degree >= 2), motive legs 1/3/5 must be impulses and corrective
@@ -184,12 +238,11 @@ def _impulse_node(group, degree, momentum=None):
             return None
         if not all(group[i].pattern in _CORRECTIVE for i in (1, 3)):
             return None
-    results = hard + [similarity_and_balance(waves[1], waves[3], context="w2 vs w4")]
     conf = _confidence(results, group, (0, 2, 4), (1, 3)) * (0.4 + 0.6 * _impulse_quality(waves))
     if momentum is not None:                    # EWO wave-3 confirmation gate
         conf = max(0.0, min(1.0, conf * _momentum_multiplier(waves, momentum)))
     return WaveNode(group[0].start, group[-1].end, degree, "motive", "IMPULSE",
-                    list(group), results, conf)
+                    list(group), results, conf, in_progress=in_progress)
 
 
 def _triangle_geometry(group):
@@ -262,28 +315,30 @@ def _triangle_node(group, degree):
                     list(group), [rr], conf)
 
 
-def _correction_node(group, degree):
+def _correction_node(group, degree, in_progress=False):
     waves = [n.as_wave() for n in group]
-    if waves[0].up == waves[1].up or waves[0].up != waves[2].up:
-        return None                            # A,C same direction; B opposite
-    rr = classify_correction(waves)
-    if rr.status is not Status.PASS:
+    checked = _correction_checks(waves, in_progress)
+    if checked is None:
         return None
-    pattern = ("ZIGZAG" if "ZIGZAG" in rr.rule else
-               "FLAT" if "FLAT" in rr.rule else "CORRECTION")
+    pattern, results = checked
     # EWF ABC-vs-WXY discipline (docs/research/deep/09): a true zigzag (ABC, 5-3-5)
     # requires motive A & C; if A/C are themselves corrective (3s) it is a WXY
     # double-three combination, not a zigzag.
-    if degree >= 2 and pattern == "ZIGZAG" and not (
+    if degree >= 2 and pattern == "ZIGZAG" and not in_progress and not (
             group[0].pattern in _MOTIVE and group[2].pattern in _MOTIVE):
         pattern = "WXY"
-    results = [rr, similarity_and_balance(waves[0], waves[2], context="A vs C")]
     # sub-structure expectation: zigzag = 5-3-5 (A,C motive), flat = 3-3-5 (C motive)
     m_idx, c_idx = ((0, 2), (1,)) if pattern == "ZIGZAG" else \
                    ((2,), (0, 1)) if pattern == "FLAT" else ((), (0, 1, 2))
-    conf = _confidence(results, group, m_idx, c_idx) * _correction_quality(pattern, waves)
+    if in_progress:                              # C's proportions are not known yet
+        m_idx = tuple(i for i in m_idx if i != 2)
+        c_idx = tuple(i for i in c_idx if i != 2)
+        q = (0.65 if pattern == "ZIGZAG" else 0.5) * 0.8
+    else:
+        q = _correction_quality(pattern, waves)
+    conf = _confidence(results, group, m_idx, c_idx) * q
     return WaveNode(group[0].start, group[-1].end, degree, "corrective", pattern,
-                    list(group), results, conf)
+                    list(group), results, conf, in_progress=in_progress)
 
 
 def _build_level(nodes, degree, momentum=None):
@@ -306,6 +361,17 @@ def _build_level(nodes, degree, momentum=None):
             return node
         inner = [p.price for p in _leaf_pivots(node)]
         if inner and not _leg_extremes_ok(node.start.price, node.end.price, max(inner), min(inner)):
+            # Truncated fifth (Elliott guideline, rare): an impulse whose wave 5 fails
+            # to exceed wave 3's end. Allowed ONLY when wave 3's end is the sole
+            # interior point beyond the end, with a confidence haircut.
+            if node.pattern in _MOTIVE and len(grp) == 5:
+                w3_end = grp[2].end.price
+                rest = [p for p in inner if p != w3_end]
+                if rest and _leg_extremes_ok(node.start.price, node.end.price, max(rest), min(rest)):
+                    node.confidence *= 0.85
+                    node.results = list(node.results) + [RuleResult(
+                        "truncated fifth", Status.WARN, f"W5 end {node.end.price} fails W3 end {w3_end}")]
+                    return node
             return None                                   # the group's end is not its extreme
         return node
 
@@ -414,9 +480,12 @@ class AnchoredCount:
     coverage: float
     degree_label: str           # estimated Elliott degree (Neely complexity window)
     note: str
+    in_progress: bool = False   # the final labelled wave is still running
+    ends_now: bool = True       # the structure ends at the window end (present), not earlier
 
     def __str__(self):
-        head = (f"{self.pattern} @ {self.degree_label} (tree degree {self.degree}) — "
+        head = (f"{self.pattern}{' (final wave IN PROGRESS)' if self.in_progress else ''} @ "
+                f"{self.degree_label} (tree degree {self.degree}) — "
                 f"confidence {self.confidence:.0%} (coverage {self.coverage:.0%}); {self.note}")
         legs = "\n".join(f"  wave {lab}: {n.start.price:.2f} -> {n.end.price:.2f} "
                          f"[{n.pattern}]" for lab, n in self.labels)
@@ -456,7 +525,8 @@ def _anchored_from(top, confidence, coverage, series_monowaves=None) -> Anchored
             else "LOW confidence — one of several plausible counts; not a committed call")
     deg = anchored_degree(top, series_monowaves)
     return AnchoredCount(top.pattern, top.degree, labels, confidence, coverage,
-                         deg.name.replace("_", " ").title(), note)
+                         deg.name.replace("_", " ").title(), note,
+                         in_progress=getattr(top, "in_progress", False))
 
 
 def _scale_score(roots):
@@ -465,8 +535,7 @@ def _scale_score(roots):
     probability."""
     top = max(roots, key=_span)
     conf = tree_confidence(roots)
-    score = conf * (0.05 if top.pattern == "MONOWAVE"
-                    else 1.15 if top.pattern in _MOTIVE else 1.0)
+    score = conf * (0.05 if top.pattern == "MONOWAVE" else 1.0)   # a monowave is no count
     return top, conf, score
 
 
@@ -477,17 +546,21 @@ def _scale_score(roots):
 # ENTIRE move (full coverage by construction), then drill down. This is the pass
 # that lets a secular advance read as a 5-wave IMPULSE rather than an A-B-C.
 # =========================================================================== #
-def _coarse_pivots(bars, target: int = 15):
+def _coarse_pivots(bars, target: int = 15, with_provisional: bool = False):
     """Confirmed zigzag pivots at a threshold chosen so the full history reduces to
-    ~`target` MAJOR swings (the degree the macro count lives at)."""
-    best = []
+    ~`target` MAJOR swings (the degree the macro count lives at). With
+    `with_provisional` also return the running extreme (the unconfirmed last pivot)
+    so a final wave can be counted as IN PROGRESS."""
+    best, best_prov = [], None
     for pct in (0.05, 0.07, 0.10, 0.14, 0.20, 0.28, 0.40, 0.55):
-        piv = [p for p in zigzag_causal(bars, pct=pct) if p.confirmed_t is not None]
+        allp = zigzag_causal(bars, pct=pct)
+        piv = [p for p in allp if p.confirmed_t is not None]
+        prov = allp[-1] if allp and allp[-1].confirmed_t is None else None
         if not best or abs(len(piv) - target) < abs(len(best) - target):
-            best = piv
+            best, best_prov = piv, prov
         if len(piv) <= target:
             break
-    return best
+    return (best, best_prov) if with_provisional else best
 
 
 def _pivots_consistent(piv, idx) -> bool:
@@ -523,6 +596,23 @@ def _leg_extremes_ok(p0: float, p1: float, inner_hi: float, inner_lo: float) -> 
     return inner_lo >= p1 - eps and inner_hi <= p0 + _START_OVERSHOOT * length
 
 
+def _legs_ok_on_bars(bars, legs) -> bool:
+    """Bar-level check of 'a wave's end is its extreme' for a list of (t0,p0,t1,p1)
+    legs: sub-threshold wiggles are not ZigZag pivots, so the pivot-level check can
+    miss a bar that traded beyond a leg's end. Uses bisect on bar times."""
+    ts = [b[0] for b in bars]
+    for t0, p0, t1, p1 in legs:
+        i0, i1 = bisect.bisect_right(ts, t0), bisect.bisect_left(ts, t1)
+        if i1 <= i0:
+            continue
+        seg = bars[i0:i1]
+        hi = max(b[2] for b in seg)
+        lo = min(b[3] for b in seg)
+        if not _leg_extremes_ok(p0, p1, hi, lo):
+            return False
+    return True
+
+
 def _leaf_pivots(node) -> list:
     """All monowave boundary pivots inside a node (recursive), excluding its own ends."""
     if not node.children:
@@ -535,42 +625,41 @@ def _leaf_pivots(node) -> list:
     return out
 
 
-def _impulse_partitions(piv, a, b, mom):
-    """All valid 5-wave impulse partitions of piv[a..b] -> (confidence, 'IMPULSE', idx)."""
+def _impulse_partitions(piv, a, b, mom, in_progress=False):
+    """All valid 5-wave impulse partitions of piv[a..b] -> (confidence, 'IMPULSE', idx,
+    in_progress). Skipped pivots inside W3/W5 are the interiors for the 2-4 line."""
     out = []
     for i1, i2, i3, i4 in combinations(range(a + 1, b), 4):
         idx = [a, i1, i2, i3, i4, b]
         if not _pivots_consistent(piv, idx):
             continue
         waves = [Wave(piv[idx[k]], piv[idx[k + 1]]) for k in range(5)]
-        if not _alternating(waves):
+        interior = piv[i2 + 1:i3] + piv[i4 + 1:b]
+        if _impulse_checks(waves, interior, in_progress) is None:
             continue
-        hard = elliott_hard_rules(waves)
-        if any(h.status is Status.FAIL for h in hard):
-            continue                            # overlap (diagonal) / rule break -> not an impulse
         q = 0.4 + 0.6 * _impulse_quality(waves)
         if mom is not None:
             q *= _momentum_multiplier(waves, mom)
-        out.append((max(0.0, min(1.0, q)), "IMPULSE", idx))
+        out.append((max(0.0, min(1.0, q)), "IMPULSE", idx, in_progress))
     return out
 
 
-def _correction_partitions(piv, a, b):
-    """All valid 3-wave correction partitions of piv[a..b] -> (confidence, pattern, idx)."""
+def _correction_partitions(piv, a, b, in_progress=False):
+    """All valid 3-wave correction partitions of piv[a..b] -> (confidence, pattern, idx,
+    in_progress)."""
     out = []
     for i1, i2 in combinations(range(a + 1, b), 2):
         idx = [a, i1, i2, b]
         if not _pivots_consistent(piv, idx):
             continue
         waves = [Wave(piv[idx[k]], piv[idx[k + 1]]) for k in range(3)]
-        if waves[0].up == waves[1].up or waves[0].up != waves[2].up:
+        checked = _correction_checks(waves, in_progress)
+        if checked is None:
             continue
-        rr = classify_correction(waves)
-        if rr.status is not Status.PASS:
-            continue
-        pattern = ("ZIGZAG" if "ZIGZAG" in rr.rule else
-                   "FLAT" if "FLAT" in rr.rule else "CORRECTION")
-        out.append((_correction_quality(pattern, waves), pattern, idx))
+        pattern = checked[0]
+        q = ((0.65 if pattern == "ZIGZAG" else 0.5) * 0.8 if in_progress
+             else _correction_quality(pattern, waves))
+        out.append((q, pattern, idx, in_progress))
     return out
 
 
@@ -584,11 +673,14 @@ def _child_node(piv, a, b, mom):
     return WaveNode(piv[a], piv[b], 1, "leg", "CORRECTION", list(roots))
 
 
+_TRAILING_PENALTY = 0.9     # per unlabelled swing after the structure (<= 2 allowed)
+
+
 def top_down_count(bars, target: int = 15, momentum=None, max_pivots: int = 22):
     """Anchor the dominant low<->high span and return the best full-range top-degree
     WaveNode (a 5-wave impulse where the structure supports it, else the best
     correction). Full coverage by construction. Returns None if nothing valid."""
-    piv = _coarse_pivots(bars, target)
+    piv, prov = _coarse_pivots(bars, target, with_provisional=True)
     if len(piv) < 6 or len(piv) > max_pivots:    # too few to be 5 waves / too many to search
         if len(piv) > max_pivots:
             piv = piv[-max_pivots:]              # most recent major swings
@@ -596,19 +688,64 @@ def top_down_count(bars, target: int = 15, momentum=None, max_pivots: int = 22):
             return None
     mom = momentum if momentum is not None else (
         momentum_lookup(bars) if len(bars) >= 40 else None)
-    prices = [p.price for p in piv]
-    lo_i = min(range(len(piv)), key=lambda i: prices[i])
-    hi_i = max(range(len(piv)), key=lambda i: prices[i])
+    # The CURRENT count must END at the end of the window — on the last confirmed
+    # pivot (complete structure) or on the provisional extreme (final wave still
+    # running; NeoWave Reverse Logic treats the least-complete plausible count as a
+    # legitimate candidate). A structure that ends earlier, with swings after it
+    # unexplained, is history, not the current count.
+    def _cands_ending_at(src, end, in_prog):
+        out = []
+        pr = [p.price for p in src[:end + 1]]
+        lo_i = min(range(end + 1), key=lambda i: pr[i])
+        hi_i = max(range(end + 1), key=lambda i: pr[i])
+        if src[end].kind == "H" and end - lo_i >= 5:           # up impulse low ... end
+            imp = _impulse_partitions(src, lo_i, end, mom, in_progress=in_prog)
+            if end != hi_i and not in_prog:                      # wave 5 fails wave 3's top:
+                imp = [(c[0] * 0.85,) + c[1:] for c in imp]     # truncated fifth (rare)
+            out += imp
+        if src[end].kind == "L" and end - hi_i >= 5:           # down impulse high ... end
+            imp = _impulse_partitions(src, hi_i, end, mom, in_progress=in_prog)
+            if end != lo_i and not in_prog:
+                imp = [(c[0] * 0.85,) + c[1:] for c in imp]
+            out += imp
+        # corrections may start at the window start OR at the dominant extreme
+        # (the correction that FOLLOWS the dominant move)
+        for a in sorted({0, lo_i, hi_i}):
+            if end - a >= 3:
+                out += _correction_partitions(src, a, end, in_progress=in_prog)
+        return out
+    last = len(piv) - 1
     cands = []
-    if lo_i < hi_i and hi_i - lo_i >= 5:         # up impulse: low ... later high
-        cands += _impulse_partitions(piv, lo_i, hi_i, mom)
-    if hi_i < lo_i and lo_i - hi_i >= 5:         # down impulse: high ... later low
-        cands += _impulse_partitions(piv, hi_i, lo_i, mom)
-    cands += _correction_partitions(piv, 0, len(piv) - 1)
+    for trailing in (0, 1, 2):          # swings after the structure = next pattern starting
+        end = last - trailing
+        if end >= 3:
+            cands += [(c[0] * (_TRAILING_PENALTY ** trailing),) + c[1:]
+                      for c in _cands_ending_at(piv, end, False)]
+    pivx = piv + [prov] if (prov is not None and prov.kind != piv[-1].kind) else None
+    if pivx is not None:
+        cands += _cands_ending_at(pivx, len(pivx) - 1, True)
+    # every labelled leg must hold at BAR level too (end is its extreme)
+    def _bars_ok(c):
+        src = pivx if c[3] else piv
+        legs = [(src[c[2][k]].t, src[c[2][k]].price, src[c[2][k + 1]].t, src[c[2][k + 1]].price)
+                for k in range(len(c[2]) - 1)]
+        return _legs_ok_on_bars(bars, legs)
+    cands = [c for c in cands if _bars_ok(c)]
     if not cands:
         return None
-    # prefer a motive (impulse) reading when it is close — the professional bias
-    score, pattern, idx = max(cands, key=lambda c: c[0] + (0.2 if c[1] in _MOTIVE else 0.0))
+    t_lo, t_hi = bars[0][0], bars[-1][0]
+    span = (t_hi - t_lo) or 1.0
+    def _cov(c):
+        src = pivx if c[3] else piv
+        return (src[c[2][-1]].t - src[c[2][0]].t) / span
+    def _ends_now(c):
+        return c[3] or c[2][-1] == last
+    # A structure that ends exactly at the window end (complete on the last confirmed
+    # pivot, or with its final wave running) describes the PRESENT and takes priority;
+    # candidates that leave 1-2 swings unexplained are only a fallback.
+    pool = [c for c in cands if _ends_now(c)] or cands
+    # one score: rule-quality x coverage of the window (no motive / top-down bonus)
+    score, pattern, idx, in_prog = max(pool, key=lambda c: c[0] * _cov(c))
     # HONESTY: we picked the best of many partitions (selection bias) — if many
     # score nearly as high the count is genuinely ambiguous, so haircut confidence.
     # And no Elliott count is ever certain: hard-cap at 0.85.
@@ -617,42 +754,84 @@ def top_down_count(bars, target: int = 15, momentum=None, max_pivots: int = 22):
     n_close = sum(1 for v in same if v >= 0.9 * top_raw)
     decisiveness = 1.0 / (1.0 + 0.25 * (n_close - 1))
     conf = min(0.85, min(1.0, score) * decisiveness)
-    children = [_child_node(piv, idx[k], idx[k + 1], mom) for k in range(len(idx) - 1)]
+    src = pivx if in_prog else piv
+    children = [_child_node(src, idx[k], idx[k + 1], mom) for k in range(len(idx) - 1)]
+    if in_prog:
+        children[-1].in_progress = True
     deg = max((c.degree for c in children), default=0) + 1
     role = "motive" if pattern in _MOTIVE else "corrective"
-    return WaveNode(piv[idx[0]], piv[idx[-1]], deg, role, pattern, children, [], conf)
+    node = WaveNode(src[idx[0]], src[idx[-1]], deg, role, pattern, children, [], conf,
+                    in_progress=in_prog)
+    node.coverage = (src[idx[-1]].t - src[idx[0]].t) / span
+    node.ends_now = _ends_now((score, pattern, idx, in_prog))
+    return node
 
 
 def wave_counts(bars, scales=(0.04, 0.07, 0.12, 0.20), max_alternates: int = 3,
-                top_down: bool = True):
-    """Return a RANKED list of AnchoredCounts (primary first). A TOP-DOWN full-range
-    count (the professional anchoring) is computed first and becomes primary when it
-    is a valid structure; bottom-up multi-scale counts supply alternates."""
+                top_down: bool = True, present_first: bool = True):
+    """Return a RANKED list of AnchoredCounts (primary first). Candidates come from
+    the top-down partition search (complete, or with the final wave running) and
+    from the bottom-up tree at several scales. `present_first=True` (the CURRENT
+    count, for forecasting) ranks structures that end at the window end ahead of
+    ones that leave swings unexplained; `present_first=False` (a MACRO view) ranks
+    purely by confidence x coverage, i.e. the dominant structure."""
+    # RANKING (RULESET-faithful): one score for every candidate — honest confidence x
+    # coverage of the window. No top-down bonus, no motive bonus: a count wins only
+    # by obeying the rules better over more of the data.
     out, seen = [], set()
     if top_down:
         td = top_down_count(bars)
         if td is not None and td.confidence >= 0.25:
             mw = _count_monowaves(td)
-            ac = _anchored_from(td, td.confidence, 1.0, mw)
-            # rank ahead of bottom-up fragments; motive gets the professional bias
-            sel = td.confidence * (1.3 if td.pattern in _MOTIVE else 1.0) + 0.4
-            out.append((sel, ac))
-            seen.add((td.pattern, int(td.start.t), int(td.end.t)))
+            ac = _anchored_from(td, td.confidence, getattr(td, "coverage", 1.0), mw)
+            ac.ends_now = bool(getattr(td, "ends_now", True))
+            out.append((ac.ends_now, ac.confidence * ac.coverage, ac))
+            seen.add((td.pattern, int(td.start.t), int(td.end.t), td.in_progress))
     for s in scales:
         roots = build_wave_tree(bars, base_pct=s)
         if not roots:
             continue
         total = sum(_span(r) for r in roots) or 1.0
-        top, conf, score = _scale_score(roots)
-        key = (top.pattern, int(top.start.t), int(top.end.t))
+        # the CURRENT structure: the last real (non-monowave) root, allowing at most
+        # two trailing monowaves (the next pattern starting); earlier roots are history.
+        # MACRO view (present_first=False): the dominant (largest-span) real root.
+        top, trailing = None, 0
+        if present_first:
+            for r in reversed(roots):
+                if r.pattern == "MONOWAVE":
+                    trailing += _count_monowaves(r)
+                    continue
+                top = r
+                break
+            if top is None or trailing > 2:
+                continue
+        else:
+            real = [r for r in roots if r.pattern != "MONOWAVE"]
+            if not real:
+                continue
+            top = max(real, key=_span)
+            trailing = sum(_count_monowaves(r) for r in roots[roots.index(top) + 1:])
+            trailing = min(trailing, 2)              # ranking is by confidence x coverage here
+        if top.pattern != "TRIANGLE" and not _legs_ok_on_bars(
+                bars, [(c.start.t, c.start.price, c.end.t, c.end.price) for c in top.children]):
+            continue                                          # a leg hides a bigger extreme
+        conf = top.confidence * ((_TRAILING_PENALTY ** trailing) if present_first else 1.0)
+        key = (top.pattern, int(top.start.t), int(top.end.t), False)
         if key in seen:
             continue
         seen.add(key)
-        # degree reflects the FULL series complexity, not just the partial top node
+        # degree reflects the FULL series complexity, not just the partial node
         series_mw = sum(_count_monowaves(r) for r in roots)
-        out.append((score, _anchored_from(top, conf, _span(top) / total, series_mw)))
-    out.sort(key=lambda x: -x[0])
-    return [ac for _, ac in out][:1 + max_alternates]
+        ac = _anchored_from(top, conf, _span(top) / total, series_mw)
+        ac.ends_now = (trailing == 0)
+        out.append((ac.ends_now, ac.confidence * ac.coverage, ac))
+    # present first: a count that ends at the window end outranks one that leaves
+    # swings unexplained; within each group, confidence x coverage decides
+    if present_first:
+        out.sort(key=lambda x: (-int(x[0]), -x[1]))
+    else:
+        out.sort(key=lambda x: -x[1])
+    return [ac for _, _, ac in out][:1 + max_alternates]
 
 
 def anchor_count(bars, scales=(0.04, 0.07, 0.12, 0.20)):

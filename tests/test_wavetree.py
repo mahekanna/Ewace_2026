@@ -37,13 +37,19 @@ def _bars(points, per=6, vol=1000):
     return bars
 
 
-MI = [3, -1, 5, -1, 3]      # sub-impulse up (w3 longest, no overlap)
+MI = [3, -1, 6, -1, 3]      # sub-impulse up (w3 extended >= 1.618x, no overlap)
+MX = [6, -2, 13, -2, 6]     # the EXTENDED sub-impulse (wave 3 of the parent must extend)
 CD = [-2, 1, -2]            # sub-zigzag down (B retraces 50%)
+# parent-degree corrections for the fractal: wave 2 deeper and wave 4 larger so the
+# 2-4 trendline is flat enough that wave 5 (which rises ~2/day) never breaks it (NeoWave [H])
+C2 = [-4, 1, -3]
+C4 = [-6, 2, -6]
+M5 = [4, -1, 7, -1, 4]      # wave 5 strong enough to exceed wave 3's top (no truncation)
 
 
 class TestWaveTree(unittest.TestCase):
     def test_two_level_fractal(self):
-        roots = build_tree_from_pivots(_pivots(MI + CD + MI + CD + MI))
+        roots = build_tree_from_pivots(_pivots(MI + C2 + MX + C4 + M5))
         self.assertEqual(len(roots), 1)
         top = roots[0]
         self.assertEqual(top.pattern, "IMPULSE")
@@ -140,7 +146,7 @@ class TestStage4Diagonals(unittest.TestCase):
     def test_anchor_count_labels_legs(self):
         from wavelib.wavetree import anchor_count
         # clean 5-wave impulse + trailing pullback so wave 5 is causally confirmed
-        ac = anchor_count(_bars([100, 150, 130, 200, 180, 240, 205]))
+        ac = anchor_count(_bars([100, 140, 120, 260, 230, 275, 245]))
         self.assertIsNotNone(ac)
         self.assertEqual(ac.pattern, "IMPULSE")
         self.assertEqual([lab for lab, _ in ac.labels], ["1", "2", "3", "4", "5"])
@@ -149,7 +155,7 @@ class TestStage4Diagonals(unittest.TestCase):
 
     def test_wave_counts_primary_and_alternates(self):
         from wavelib.wavetree import wave_counts, anchor_count
-        bars = _bars([100, 150, 130, 200, 180, 240, 205])
+        bars = _bars([100, 140, 120, 260, 230, 275, 245])
         cs = wave_counts(bars, max_alternates=3)
         self.assertTrue(cs)
         # ranked: primary has the highest confidence
@@ -186,7 +192,7 @@ class TestStage3Confidence(unittest.TestCase):
         self.assertLess(tree_confidence([big, small]), 0.9)        # fragmented -> honest drop
 
     def test_best_count_returns_dominant(self):
-        roots = build_tree_from_pivots(_pivots(MI + CD + MI + CD + MI))
+        roots = build_tree_from_pivots(_pivots(MI + C2 + MX + C4 + M5))
         # the clean fractal: single root covering everything
         from wavelib.wavetree import tree_confidence
         self.assertEqual(len(roots), 1)
@@ -222,6 +228,8 @@ class PivotKindConsistency(unittest.TestCase):
             if not cs:
                 continue
             legs = [n for _l, n in cs[0].labels]
+            if not legs:
+                continue
             kinds = [legs[0].start.kind] + [n.end.kind for n in legs]
             for a, b in zip(kinds, kinds[1:]):
                 self.assertNotEqual(a, b, f"non-alternating pivots in {cs[0].pattern}: {kinds}")
@@ -259,6 +267,8 @@ class LegEndIsItsExtreme(unittest.TestCase):
             if not cs:
                 continue
             for lab, n in cs[0].labels:
+                if not cs[0].labels:
+                    continue
                 seg = [b for b in w if n.start.t < b[0] < n.end.t]
                 if not seg:
                     continue
