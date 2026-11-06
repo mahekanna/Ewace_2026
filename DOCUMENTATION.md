@@ -229,8 +229,24 @@ projection. On the 2026-11 daily replay the nearest-target hit rate is low (see
 
 ```bash
 python3 scripts/count_history.py AVGO MRVL --tag 2026-11 [--window 300] [--stride 1] [--start 2021-01-01]
-# -> charts/<sym>_count_history_<tag>.html, reports/COUNT_HISTORY_<tag>.md (scorecard + ledger + segments)
+# -> charts/<sym>_count_history_<tag>.html, reports/COUNT_HISTORY_<tag>.md (brief + scorecard + ledger + segments)
 ```
+
+### The plain-language read — `wavelib/brief.py`
+
+`decision_brief(symbol, bars, scorecard=..., adoption_t=...)` turns the current anchored
+count + projection into something a non-specialist can use: **Where we are** (the count in
+words), **What the engine expects next** (direction, first/far target, deadline), **What
+confirms it / what kills it** (the trigger = a close beyond the pivot before the last leg;
+the void = the count's invalidation; a protective reference beyond the last pivot; the
+live confluence x/7), **How reliable is this kind of call** (the replay scorecard row for
+that pattern, phrased as decent / coin-flip / weak), and **What to do**. It commits to one
+stance — `NO READ`, `WAIT FOR CONFIRMATION`, `CONFIRMED BIAS`, `PLAYED OUT`, `STAND ASIDE` —
+decided causally from the bars since the count was adopted (void crossed → stand aside;
+first target reached → played out; past the deadline unconfirmed → expired; trigger
+crossed → confirmed; else wait). The brief sits at the top of each count-history page with a
+glossary, and `python3 scripts/brief.py` prints it / writes `reports/BRIEF_<tag>.md`.
+It is a reading of structure, not advice on sizing or execution.
 
 Run the full daily stack on a snapshot with
 `python3 scripts/run_validation.py --tag 2026-11 --symbols AVGO MRVL` → writes

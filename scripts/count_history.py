@@ -26,7 +26,8 @@ sys.path.insert(0, ROOT)
 from data.fetch import load_bars, latest_tag          # noqa: E402
 from wavelib.count_history import (count_history, history_markdown,  # noqa: E402
                                    render_count_history_page, scorecard_markdown,
-                                   ledger_markdown)
+                                   ledger_markdown, forecast_scorecard)
+from wavelib.brief import decision_brief, brief_markdown, glossary_markdown  # noqa: E402
 
 CHARTS = os.path.join(ROOT, "charts")
 REPORTS = os.path.join(ROOT, "reports")
@@ -70,19 +71,25 @@ def main(argv=None):
                           min_history=a.min_history, progress=print)
         print(f"{sym}: {len(h.snapshots)} steps, {len(h.anchored)} anchored / "
               f"{len(h.recent)} recent segments in {time.time() - t:.1f}s")
+        brief = decision_brief(sym, bars, window=a.window,
+                               scorecard=forecast_scorecard(h.anchored),
+                               adoption_t=h.anchored[-1].start_t if h.anchored else None)
+        print(brief_markdown(brief))
         page = os.path.join(CHARTS, f"{sym.lower()}_count_history_{tag}.html")
         render_count_history_page(h, output_path=page, desc=f"{DESC.get(sym, sym)} · {a.tf} · "
-                                  f"snapshot {tag} · causal replay")
+                                  f"snapshot {tag} · causal replay", brief=brief)
         print(f"wrote {os.path.relpath(page, ROOT)}")
         md.append(f"## {sym} — {DESC.get(sym, sym)}")
         md.extend([f"- {len(bars)} {a.tf} bars {datetime.datetime.fromtimestamp(bars[0][0], datetime.timezone.utc).date()} → "
                   f"{datetime.datetime.fromtimestamp(bars[-1][0], datetime.timezone.utc).date()}, snapshot `{tag}`; "
                    f"interactive page: `charts/{os.path.basename(page)}`", ""])
+        md.append(brief_markdown(brief))
         md.append(scorecard_markdown(h))
         md.append(ledger_markdown(h))
         md.append(history_markdown(h, "anchored", min_bars=a.min_bars))
         md.append(history_markdown(h, "recent", min_bars=a.min_bars))
         md.append("---\n")
+    md.append(glossary_markdown())
     if tag_used:
         os.makedirs(REPORTS, exist_ok=True)
         rp = os.path.join(REPORTS, f"COUNT_HISTORY_{tag_used}.md")

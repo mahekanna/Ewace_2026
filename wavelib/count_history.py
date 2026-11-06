@@ -366,9 +366,12 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}tr.seg{cursor:pointer}tr
 .tag{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10.5px;font-weight:700;background:#1a2228}
 .tabs{display:flex;gap:8px;margin-top:18px}.tabs button.on{border-color:var(--teal);color:var(--teal)}
 .foot{margin-top:16px;font-size:10.5px;color:var(--dim);line-height:1.6;border-top:1px solid var(--grid);padding-top:12px}
+.brief{margin-top:16px;border-color:#2a3a44}.brief .stance{font-size:20px;font-weight:800;letter-spacing:1px;margin:4px 0 6px}.brief .bl{font-size:14.5px;line-height:1.55;color:var(--ink);margin-bottom:12px}
+.bgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}@media(max-width:760px){.bgrid{grid-template-columns:1fr}}.bsec h3{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px}
 </style></head><body><div class="wrap">
 <header><div><h1><small>__SUBTITLE__</small>__SYM__ — count continuation, bar by bar</h1></div>
 <div class="px"><div class="now" id="asof">—</div><div class="sub" id="asofsub">drag the scrubber · causal: only bars to the left of the play-head were visible</div></div></header>
+__BRIEF__
 <div class="chartbox"><svg id="c" viewBox="0 0 1100 600" preserveAspectRatio="xMidYMid meet"></svg></div>
 <div class="ctl"><button id="play">▶ play</button><button id="step">step ▸</button>
 <label>speed <select id="spd"><option value="1">1 bar</option><option value="3" selected>3 bars</option><option value="10">10 bars</option><option value="30">30 bars</option></select>/tick</label>
@@ -379,6 +382,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}tr.seg{cursor:pointer}tr
 <div class="grid2"><div class="card"><h2>Anchored count held at the play-head</h2><ul id="acard"></ul></div><div class="card"><h2>Next-wave projection from that count (made when it was adopted)</h2><ul id="fcard"></ul></div><div class="card"><h2>Recent validated candidate at the play-head</h2><ul id="rcard"></ul></div><div class="card"><h2>Forecast scorecard — whole replay, graded after the fact</h2><table id="score"><thead><tr><th>from pattern</th><th>n</th><th>decided</th><th>T1 hit</th><th>full</th><th>invalid.</th><th>expired</th><th>T1 hit-rate</th><th>med. bars→T1</th></tr></thead><tbody></tbody></table><div class="dim" style="font-size:11px;margin-top:8px">T1 = nearest projected target in the forecast direction. INVALIDATED = void level touched first; EXPIRED = nothing within 3x the prior wave's duration.</div></div></div>
 <div class="tabs"><button id="tabA" class="on">anchored segments (__NA__)</button><button id="tabR">recent segments (__NR__)</button><button id="tabF">forecast ledger (__NF__)</button></div>
 <div class="tbox"><table><thead id="thead"><tr><th>#</th><th>held from</th><th>to</th><th>bars</th><th>transition</th><th>count as labelled at the time</th><th>detail</th></tr></thead><tbody id="segs"></tbody></table></div>
+__GLOSSARY__
 <div class="foot">Replay of <b>__NSTEPS__</b> steps over <b>__NBARS__</b> daily bars (window __WINDOW__, stride __STRIDE__). At each step the engine saw only the bars up to the play-head, so every row is the count that was actually held then — including the ones later abandoned. EXTEND = same origin, legs advanced; RELABEL = pattern changed; SHIFT = same pattern, new anchor; LOST/NEW = count dropped/appeared. Each time a new anchored count was adopted, the next wave was projected from it with the bars visible then; the outcome shown is revealed only once the play-head has passed it. Analysis tooling only — not investment advice.</div>
 </div>
 <script>
@@ -393,7 +397,7 @@ const tIdx=new Map();D.line.forEach((d,i)=>tIdx.set(d[0],i));
 const idxOf=t=>{if(tIdx.has(t))return tIdx.get(t);let lo=0,hi=D.line.length-1;while(lo<hi){const m=(lo+hi)>>1;if(D.line[m][0]<t)lo=m+1;else hi=m}return lo};
 const fmt=t=>new Date(t*1000).toISOString().slice(0,10);
 const pos=document.getElementById("pos");pos.max=D.snaps.length-1;pos.value=D.snaps.length-1;
-let kind="A",cur=D.snaps.length-1,timer=null;
+let kind="A",cur=D.snaps.length-1,timer=null,userNav=false;
 const follow=document.getElementById("follow");
 function draw(){
   svg.innerHTML="";const s=D.snaps[cur];const iEnd=s[0]-1; // bars[:i] visible -> last index i-1
@@ -458,7 +462,7 @@ function draw(){
       `<li>Invalidation <span class='r'>$${fc.inv.toFixed(2)}</span> · NeoWave time window ${Math.round(fc.time_lo)}–${Math.round(fc.time_hi)} days (prior wave ${Math.round(fc.leg_days)} days)</li>`+
       `<li>Outcome: ${status}</li><li class='dim'>${fc.why}</li>`}
   document.querySelectorAll("tr.seg").forEach(tr=>tr.classList.toggle("cur",+tr.dataset.k===(kind==="R"?s[3]:s[2])));
-  const c=document.querySelector("tr.cur");if(c&&!timer)c.scrollIntoView({block:"nearest"});
+  const c=document.querySelector("tr.cur");if(c&&!timer&&userNav)c.scrollIntoView({block:"nearest"});
 }
 (function(){const tb=document.querySelector("#score tbody");const keys=Object.keys(D.score).filter(k=>k!=="ALL").sort().concat(D.score.ALL?["ALL"]:[]);
   keys.forEach(k=>{const r=D.score[k];const pct=v=>v==null?"—":Math.round(v*100)+"%";const tr=document.createElement("tr");if(k==="ALL")tr.style.fontWeight="700";
@@ -474,8 +478,8 @@ function table(){if(kind==="F")return ledger();document.getElementById("thead").
     const legs=g.legs.map(l=>`${l[0]}@${l[4].toFixed(2)}`).join(" → ");
     const tr=document.createElement("tr");tr.className="seg";tr.dataset.k=k;tr.innerHTML=`<td class='n'>${k+1}</td><td>${fmt(g.s)}</td><td>${fmt(g.e)}</td><td class='n'>${g.n}</td><td><span class='tag' style='color:${col(g.p)}'>${g.tr}</span></td><td><span style='color:${col(g.p)};font-weight:700'>${g.p}</span> ${legs}</td><td class='dim'>${g.p==="NONE"?"":det}</td>`;
     tr.onclick=()=>{const j=D.snaps.findIndex(s=>(kind==="A"?s[2]:s[3])===k);if(j>=0){cur=j;pos.value=j;draw()}};tb.appendChild(tr)});draw()}
-pos.oninput=()=>{cur=+pos.value;draw()};
-document.getElementById("step").onclick=()=>{cur=Math.min(D.snaps.length-1,cur+1);pos.value=cur;draw()};
+pos.oninput=()=>{userNav=true;cur=+pos.value;draw()};
+document.getElementById("step").onclick=()=>{userNav=true;cur=Math.min(D.snaps.length-1,cur+1);pos.value=cur;draw()};
 const play=document.getElementById("play");
 play.onclick=()=>{if(timer){clearInterval(timer);timer=null;play.textContent="▶ play";return}
   if(cur>=D.snaps.length-1)cur=0;play.textContent="❚❚ pause";
@@ -487,7 +491,10 @@ table();
 </script></body></html>"""
 
 
-def render_count_history_page(h: CountHistory, output_path=None, desc: str = "") -> str:
+def render_count_history_page(h: CountHistory, output_path=None, desc: str = "",
+                              brief=None) -> str:
+    """`brief` is a `wavelib.brief.Brief` (plain-language read) shown above the chart."""
+    from .brief import brief_html, glossary_html
     data = {
         "window": h.window,
         "line": [[b[0], b[4]] for b in h.bars],
@@ -502,6 +509,8 @@ def render_count_history_page(h: CountHistory, output_path=None, desc: str = "")
             .replace("__NF__", str(sum(1 for x in h.anchored if x.forecast)))
             .replace("__NSTEPS__", str(len(h.snapshots))).replace("__NBARS__", str(len(h.bars)))
             .replace("__WINDOW__", str(h.window)).replace("__STRIDE__", str(h.stride))
+            .replace("__BRIEF__", brief_html(brief) if brief else "")
+            .replace("__GLOSSARY__", glossary_html())
             .replace("__DATA__", json.dumps(data, separators=(",", ":"))))
     if output_path:
         with open(output_path, "w", encoding="utf-8") as fh:
