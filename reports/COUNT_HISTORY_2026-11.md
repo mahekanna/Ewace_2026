@@ -5,6 +5,64 @@ _Generated 2026-11-06 by `scripts/count_history.py`. At each step the engine saw
 ## AVGO — Broadcom · NASDAQ:AVGO
 - 4340 1d bars 2009-08-06 → 2026-11-05, snapshot `2026-11`; interactive page: `charts/avgo_count_history_2026-11.html`
 
+### AVGO — next-wave forecast scorecard (projection made on each adoption bar, graded on the bars that followed)
+
+| from pattern | forecasts | decided | T1 hit | full hit | invalidated | expired | open | T1 hit-rate | full-rate | median bars to T1 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| FLAT | 152 | 150 | 61 | 58 | 55 | 34 | 2 | 41% | 39% | 30 |
+| IMPULSE | 60 | 60 | 23 | 10 | 0 | 37 | 0 | 38% | 17% | 11 |
+| TRIANGLE | 5 | 5 | 1 | 1 | 3 | 1 | 0 | 20% | 20% | 45 |
+| WXY | 38 | 33 | 10 | 5 | 18 | 5 | 5 | 30% | 15% | 30 |
+| ZIGZAG | 89 | 88 | 32 | 24 | 35 | 21 | 1 | 36% | 27% | 19 |
+| ALL | 344 | 336 | 127 | 98 | 111 | 98 | 8 | 38% | 29% | 26 |
+
+T1 = nearest projected target in the forecast direction; full = farthest. A forecast is INVALIDATED when the count's void level is touched before T1, EXPIRED when nothing happens within the NeoWave time window (3x the prior wave's duration).
+
+### AVGO — forecast ledger (last 40 of 344)
+
+| adopted | from | expected next | dir | T1 | far | invalidation | window (days) | outcome | resolved | bars→T1 | MFE |
+|---|---|---|---|---:|---:|---:|---|---|---|---:|---:|
+| 2024-06-21 | IMPULSE | corrective A-B-C (down) | down | 142.41 | 115.99 | 73.24 | 20–180 | HIT | 2024-08-02 | 29 | 22.5% |
+| 2024-08-06 | FLAT | new impulse (down) | down | 79.51 | 79.51 | 143.82 | 55–495 | INVALIDATED | 2024-08-07 | — | 5.6% |
+| 2024-08-07 | FLAT | new impulse (down) | down | 68.00 | 68.00 | 150.10 | 95–858 | INVALIDATED | 2024-08-12 | — | 0.0% |
+| 2024-08-08 | IMPULSE | corrective A-B-C (down) | down | 144.80 | 119.87 | 79.51 | 20–180 | HIT | 2024-08-09 | 1 | 7.4% |
+| 2024-10-31 | FLAT | new impulse (up) | up | 207.29 | 268.00 | 134.90 | 6–54 | HIT_FULL | 2025-06-25 | 30 | 59.0% |
+| 2025-01-27 | ZIGZAG | new impulse (down) | down | 107.79 | 107.79 | 251.88 | 6–57 | EXPIRED | 2025-03-26 | — | 12.2% |
+| 2025-01-31 | ZIGZAG | new impulse (down) | down | 172.42 | 133.90 | 196.23 | 53–474 | INVALIDATED | 2025-02-28 | — | 12.7% |
+| 2025-02-25 | ZIGZAG | new impulse (down) | down | 137.03 | 96.54 | 237.93 | 56–501 | INVALIDATED | 2025-05-28 | — | 31.8% |
+| 2025-03-03 | IMPULSE | corrective A-B-C (down) | down | 183.22 | 170.30 | 128.50 | 3–27 | HIT_FULL | 2025-03-28 | 1 | 11.2% |
+| 2025-04-08 | FLAT | new impulse (up) | up | 255.86 | 417.38 | 138.10 | 20–183 | HIT_FULL | 2026-04-22 | 38 | 171.2% |
+| 2025-04-09 | ZIGZAG | new impulse (down) | down | 155.36 | 107.16 | 187.33 | 44–399 | INVALIDATED | 2025-04-24 | — | 12.7% |
+| 2025-04-11 | FLAT | new impulse (up) | up | 281.77 | 443.29 | 138.10 | 20–183 | HIT_FULL | 2026-05-29 | 63 | 146.7% |
+| 2025-08-28 | WXY | new impulse (down) | down | 204.06 | 155.97 | 281.87 | 57–510 | OPEN | — | — | 7.0% |
+| 2025-08-29 | FLAT | new impulse (up) | up | 397.22 | 558.74 | 138.10 | 20–183 | HIT | 2025-11-26 | 62 | 66.5% |
+| 2025-09-04 | WXY | new impulse (down) | down | 204.06 | 152.70 | 287.17 | 61–549 | OPEN | — | — | 5.3% |
+| 2025-09-17 | FLAT | new impulse (up) | up | 446.00 | 607.52 | 138.10 | 20–183 | EXPIRED | 2026-03-19 | — | 19.8% |
+| 2025-10-10 | FLAT | new impulse (up) | up | 380.28 | 470.32 | 196.23 | 14–126 | HIT_FULL | 2026-06-02 | 13 | 50.6% |
+| 2025-11-03 | WXY | new impulse (down) | down | 186.00 | 186.00 | 324.05 | 60–537 | INVALIDATED | 2025-12-17 | — | 11.3% |
+| 2025-11-07 | FLAT | new impulse (down) | down | 196.23 | 128.76 | 237.93 | 3–27 | EXPIRED | 2025-12-05 | — | 5.8% |
+| 2025-11-14 | ZIGZAG | new impulse (down) | down | 193.91 | 193.91 | 386.48 | 89–798 | INVALIDATED | 2025-11-25 | — | 3.1% |
+| 2025-11-20 | ZIGZAG | new impulse (down) | down | 237.93 | 181.61 | 329.06 | 94–846 | INVALIDATED | 2025-12-17 | — | 7.3% |
+| 2025-12-12 | IMPULSE | corrective A-B-C (down) | down | 308.98 | 243.73 | 138.10 | 9–78 | HIT | 2026-02-03 | 34 | 19.4% |
+| 2026-06-04 | IMPULSE | corrective A-B-C (down) | down | 358.66 | 274.44 | 138.10 | 22–195 | HIT | 2026-07-02 | 19 | 30.7% |
+| 2026-06-15 | WXY | new impulse (down) | down | 276.03 | 203.16 | 407.87 | 24–213 | INVALIDATED | 2026-06-18 | — | 4.4% |
+| 2026-06-16 | FLAT | new impulse (down) | down | 234.85 | 147.18 | 495.00 | 28–255 | OPEN | — | — | 23.0% |
+| 2026-06-17 | FLAT | new impulse (up) | up | 422.08 | 469.29 | 321.42 | 23–204 | HIT | 2026-08-05 | 33 | 10.1% |
+| 2026-06-22 | FLAT | new impulse (up) | up | 421.31 | 468.52 | 321.42 | 23–204 | HIT | 2026-08-04 | 30 | 10.3% |
+| 2026-06-25 | FLAT | new impulse (down) | down | 191.11 | 191.11 | 495.00 | 31–279 | OPEN | — | — | 23.4% |
+| 2026-07-09 | FLAT | new impulse (down) | down | 329.06 | 290.10 | 353.14 | 39–348 | INVALIDATED | 2026-08-26 | — | 12.7% |
+| 2026-07-17 | FLAT | new impulse (down) | down | 253.27 | 180.62 | 407.52 | 34–303 | INVALIDATED | 2026-08-04 | — | 0.4% |
+| 2026-08-04 | FLAT | new impulse (up) | up | 555.36 | 777.35 | 357.80 | 15–132 | INVALIDATED | 2026-08-19 | — | 3.5% |
+| 2026-08-06 | FLAT | new impulse (up) | up | 559.14 | 783.35 | 356.43 | 10–87 | INVALIDATED | 2026-08-25 | — | 2.9% |
+| 2026-09-03 | WXY | new impulse (down) | down | 282.23 | 160.99 | 432.73 | 8–72 | OPEN | — | — | 18.8% |
+| 2026-09-09 | WXY | new impulse (down) | down | 322.49 | 254.71 | 388.50 | 80–720 | HIT | 2026-10-22 | 31 | 20.4% |
+| 2026-09-10 | WXY | new impulse (down) | down | 285.90 | 164.66 | 432.73 | 8–72 | OPEN | — | — | 19.6% |
+| 2026-09-24 | WXY | new impulse (down) | down | 308.47 | 240.69 | 388.50 | 80–720 | HIT | 2026-11-05 | 30 | 17.2% |
+| 2026-09-29 | WXY | new impulse (down) | down | 280.17 | 158.93 | 432.73 | 8–72 | OPEN | — | — | 18.3% |
+| 2026-10-06 | FLAT | new impulse (up) | up | 514.38 | 738.59 | 356.43 | 10–87 | INVALIDATED | 2026-10-12 | — | 0.3% |
+| 2026-10-15 | WXY | new impulse (down) | down | 321.29 | 284.01 | 380.84 | 27–243 | HIT | 2026-10-22 | 5 | 15.7% |
+| 2026-10-23 | ZIGZAG | new impulse (down) | down | 242.09 | 113.31 | 432.73 | 51–459 | OPEN | — | — | 9.8% |
+
 ### AVGO — anchored count continuation (window 300 bars, stride 1, 4281 replay steps)
 
 | held from | to | bars | transition | count as labelled at the time | detail |
@@ -453,6 +511,65 @@ _Generated 2026-11-06 by `scripts/count_history.py`. At each step the engine saw
 
 ## MRVL — Marvell · NASDAQ:MRVL
 - 4489 1d bars 2009-01-02 → 2026-11-05, snapshot `2026-11`; interactive page: `charts/mrvl_count_history_2026-11.html`
+
+### MRVL — next-wave forecast scorecard (projection made on each adoption bar, graded on the bars that followed)
+
+| from pattern | forecasts | decided | T1 hit | full hit | invalidated | expired | open | T1 hit-rate | full-rate | median bars to T1 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| DIAGONAL | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 100% | 100% | 146 |
+| FLAT | 181 | 178 | 47 | 42 | 86 | 45 | 3 | 26% | 24% | 54 |
+| IMPULSE | 75 | 75 | 50 | 49 | 0 | 25 | 0 | 67% | 65% | 30 |
+| TRIANGLE | 6 | 6 | 1 | 1 | 5 | 0 | 0 | 17% | 17% | 24 |
+| WXY | 38 | 38 | 17 | 12 | 17 | 4 | 0 | 45% | 32% | 43 |
+| ZIGZAG | 82 | 82 | 23 | 20 | 39 | 20 | 0 | 28% | 24% | 19 |
+| ALL | 383 | 380 | 139 | 125 | 147 | 94 | 3 | 37% | 33% | 42 |
+
+T1 = nearest projected target in the forecast direction; full = farthest. A forecast is INVALIDATED when the count's void level is touched before T1, EXPIRED when nothing happens within the NeoWave time window (3x the prior wave's duration).
+
+### MRVL — forecast ledger (last 40 of 383)
+
+| adopted | from | expected next | dir | T1 | far | invalidation | window (days) | outcome | resolved | bars→T1 | MFE |
+|---|---|---|---|---:|---:|---:|---|---|---|---:|---:|
+| 2024-08-16 | FLAT | new impulse (up) | up | 86.15 | 113.38 | 56.03 | 60–543 | HIT_FULL | 2024-12-04 | 54 | 72.9% |
+| 2024-08-27 | WXY | new impulse (down) | down | 61.77 | 60.93 | 62.29 | 114–1026 | INVALIDATED | 2025-03-28 | — | 12.1% |
+| 2024-08-30 | FLAT | new impulse (up) | up | 108.81 | 161.51 | 53.19 | 50–453 | HIT_FULL | 2026-04-23 | 66 | 120.2% |
+| 2024-09-04 | FLAT | new impulse (up) | up | 96.12 | 136.97 | 53.19 | 23–207 | HIT_FULL | 2026-04-15 | 62 | 95.0% |
+| 2024-11-13 | FLAT | new impulse (up) | up | 115.32 | 156.17 | 53.19 | 23–207 | HIT_FULL | 2026-04-22 | 14 | 76.2% |
+| 2024-11-19 | ZIGZAG | new impulse (down) | down | 61.72 | 55.56 | 65.53 | 46–411 | INVALIDATED | 2025-03-10 | — | 28.8% |
+| 2024-12-18 | IMPULSE | corrective A-B-C (down) | down | 95.56 | 76.66 | 46.07 | 34–303 | HIT_FULL | 2025-03-06 | 44 | 31.9% |
+| 2024-12-26 | FLAT | new impulse (up) | up | 140.96 | 181.81 | 53.19 | 23–207 | INVALIDATED | 2025-04-04 | — | 10.2% |
+| 2025-01-27 | IMPULSE | corrective A-B-C (down) | down | 99.10 | 81.57 | 53.19 | 12–108 | HIT_FULL | 2025-03-06 | 19 | 28.6% |
+| 2025-04-07 | IMPULSE | corrective A-B-C (up) | up | 77.80 | 96.77 | 127.48 | 4–39 | EXPIRED | 2025-05-19 | — | 31.4% |
+| 2025-04-23 | FLAT | new impulse (up) | up | 118.18 | 157.99 | 48.09 | 20–183 | EXPIRED | 2025-10-23 | — | 76.0% |
+| 2025-04-24 | ZIGZAG | new impulse (up) | up | 70.54 | 91.91 | 48.09 | 4–36 | EXPIRED | 2025-06-02 | — | 17.9% |
+| 2025-05-21 | IMPULSE | corrective A-B-C (up) | up | 77.80 | 96.77 | 127.48 | 4–39 | HIT_FULL | 2025-10-31 | 24 | 62.3% |
+| 2025-09-17 | FLAT | new impulse (up) | up | 150.37 | 199.43 | 48.09 | 29–264 | HIT_FULL | 2026-05-26 | 148 | 206.3% |
+| 2025-09-18 | FLAT | new impulse (down) | down | 61.30 | 61.07 | 61.44 | 49–444 | OPEN | — | — | 4.8% |
+| 2025-10-13 | IMPULSE | corrective A-B-C (up) | up | 96.77 | 96.77 | 127.48 | 4–39 | HIT_FULL | 2025-10-31 | 14 | 9.2% |
+| 2025-10-29 | FLAT | new impulse (down) | down | 47.09 | 38.22 | 61.44 | 50–450 | OPEN | — | — | 21.6% |
+| 2025-11-11 | IMPULSE | corrective A-B-C (up) | up | 96.77 | 96.77 | 127.48 | 4–39 | HIT_FULL | 2025-12-03 | 15 | 14.3% |
+| 2025-11-14 | FLAT | new impulse (down) | down | 47.09 | 38.22 | 61.44 | 50–450 | OPEN | — | — | 18.2% |
+| 2025-11-18 | FLAT | new impulse (down) | down | 34.33 | 34.33 | 98.13 | 61–549 | INVALIDATED | 2025-12-03 | — | 6.4% |
+| 2025-11-24 | FLAT | new impulse (down) | down | 33.75 | 33.75 | 98.13 | 66–597 | INVALIDATED | 2025-12-03 | — | 3.9% |
+| 2025-11-26 | FLAT | new impulse (down) | down | 47.09 | 47.09 | 85.27 | 38–342 | INVALIDATED | 2025-11-28 | — | 3.6% |
+| 2025-12-01 | WXY | new impulse (down) | down | 83.69 | 71.70 | 92.74 | 16–144 | INVALIDATED | 2025-12-02 | — | 0.0% |
+| 2025-12-02 | FLAT | new impulse (down) | down | 47.09 | 47.09 | 85.27 | 38–342 | INVALIDATED | 2025-12-12 | — | 9.7% |
+| 2025-12-03 | WXY | new impulse (down) | down | 83.42 | 56.27 | 102.11 | 17–150 | INVALIDATED | 2025-12-04 | — | 3.0% |
+| 2025-12-04 | WXY | new impulse (down) | down | 85.33 | 73.34 | 92.74 | 16–144 | INVALIDATED | 2025-12-08 | — | 9.4% |
+| 2025-12-05 | WXY | new impulse (down) | down | 81.47 | 53.25 | 102.77 | 17–153 | HIT | 2025-12-17 | 8 | 28.5% |
+| 2025-12-08 | FLAT | new impulse (down) | down | 48.09 | 48.09 | 85.27 | 33–300 | INVALIDATED | 2025-12-12 | — | 8.8% |
+| 2025-12-17 | FLAT | new impulse (down) | down | 56.03 | 51.86 | 58.61 | 15–138 | EXPIRED | 2026-05-05 | — | 13.5% |
+| 2026-01-05 | FLAT | new impulse (down) | down | 35.55 | 35.55 | 102.77 | 76–681 | INVALIDATED | 2026-04-01 | — | 21.7% |
+| 2026-02-17 | FLAT | new impulse (up) | up | 121.81 | 152.62 | 102.77 | 100–900 | INVALIDATED | 2026-04-01 | — | 36.5% |
+| 2026-03-06 | ZIGZAG | new impulse (up) | up | 117.01 | 161.41 | 70.69 | 30–273 | HIT_FULL | 2026-04-23 | 23 | 87.4% |
+| 2026-04-07 | ZIGZAG | new impulse (up) | up | 136.82 | 181.22 | 70.69 | 30–273 | HIT_FULL | 2026-05-13 | 5 | 66.7% |
+| 2026-04-21 | ZIGZAG | new impulse (up) | up | 183.39 | 235.30 | 70.69 | 21–189 | HIT_FULL | 2026-06-02 | 17 | 92.5% |
+| 2026-04-30 | ZIGZAG | new impulse (up) | up | 192.59 | 236.99 | 70.69 | 30–273 | HIT_FULL | 2026-06-02 | 14 | 76.4% |
+| 2026-05-04 | ZIGZAG | new impulse (up) | up | 178.24 | 201.83 | 70.69 | 63–570 | HIT_FULL | 2026-05-26 | 7 | 32.9% |
+| 2026-05-05 | IMPULSE | corrective A-B-C (down) | down | 81.50 | 68.36 | 47.09 | 4–39 | EXPIRED | 2026-06-15 | — | 6.4% |
+| 2026-06-09 | IMPULSE | corrective A-B-C (down) | down | 218.34 | 152.95 | 47.09 | 65–582 | HIT_FULL | 2026-11-05 | 22 | 50.3% |
+| 2026-06-22 | FLAT | new impulse (up) | up | 388.06 | 517.82 | 244.00 | 2–18 | INVALIDATED | 2026-07-02 | — | 0.0% |
+| 2026-06-24 | IMPULSE | corrective A-B-C (down) | down | 227.34 | 163.98 | 61.44 | 3–27 | HIT_FULL | 2026-07-29 | 8 | 41.1% |
 
 ### MRVL — anchored count continuation (window 300 bars, stride 1, 4430 replay steps)
 

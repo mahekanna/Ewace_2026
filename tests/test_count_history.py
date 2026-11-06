@@ -7,7 +7,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.avgo import DAILY                                   # noqa: E402
 from wavelib.count_history import (count_history, history_markdown,  # noqa: E402
-                                   render_count_history_page, _transition, CountSegment)
+                                   render_count_history_page, _transition, CountSegment,
+                                   grade_forecasts, forecast_scorecard, scorecard_markdown,
+                                   ledger_markdown)
 
 BARS = DAILY[-320:]                                           # small, fast replay
 
@@ -73,6 +75,88 @@ class Replay(unittest.TestCase):
         self.assertIn('"window":200', html)
         self.assertIn('"snaps":[[60,', html)
         self.assertNotIn("__DATA__", html)
+
+
+class Forecasts(unittest.TestCase):
+    @staticmethod
+    def _seg(**f):
+        base = {"t": 0, "price": 100.0, "dir": "up", "next": "x", "pattern": "ZIGZAG",
+                "targets": [["a", 110.0]], "t1": 110.0, "t_far": 120.0, "cluster": None,
+                "inv": 90.0, "conf": 0.5, "anchor_t": 0, "anchor_p": 100.0, "leg_days": 10,
+                "time_lo": 3.3, "time_hi": 30.0, "why": ""}
+        base.update(f)
+        return CountSegment("anchored", base["pattern"], 0, 0, 1, [], forecast=base)
+
+    @staticmethod
+    def _bars(path):
+        """path: list of (day, high, low)."""
+        return [(d * 86400, 0, h, l, (h + l) / 2, 1) for d, h, l in path]
+
+    def test_hit_then_full(self):
+        s = self._seg()
+        grade_forecasts(self._bars([(1, 105, 95), (2, 111, 100), (3, 115, 105), (4, 121, 110)]), [s])
+        self.assertEqual(s.forecast["outcome"], "HIT_FULL")
+        self.assertEqual(s.forecast["bars_to_t1"], 2)
+        self.assertEqual(s.forecast["resolved_t"], 4 * 86400)
+        self.assertAlmostEqual(s.forecast["mfe"], 0.21)
+
+    def test_invalidated_before_t1(self):
+        s = self._seg()
+        grade_forecasts(self._bars([(1, 105, 95), (2, 100, 89), (3, 130, 100)]), [s])
+        self.assertEqual(s.forecast["outcome"], "INVALIDATED")
+        self.assertEqual(s.forecast["resolved_t"], 2 * 86400)
+
+    def test_hit_then_void_touch_is_still_hit(self):
+        s = self._seg()
+        grade_forecasts(self._bars([(1, 111, 100), (2, 100, 80)]), [s])
+        self.assertEqual(s.forecast["outcome"], "HIT")
+
+    def test_expired_and_open(self):
+        s = self._seg()
+        grade_forecasts(self._bars([(d, 105, 95) for d in range(1, 40)]), [s])
+        self.assertEqual(s.forecast["outcome"], "EXPIRED")
+        s2 = self._seg()
+        grade_forecasts(self._bars([(d, 105, 95) for d in range(1, 5)]), [s2])
+        self.assertEqual(s2.forecast["outcome"], "OPEN")
+
+    def test_void_level_beyond_the_target_impulse_case(self):
+        """Completed up-impulse -> expect a DOWN correction; the void level is the
+        wave-1 origin BELOW the targets. It must not count as touched merely because
+        price is above it."""
+        s = self._seg(dir="down", t1=90.0, t_far=80.0, inv=50.0)
+        grade_forecasts(self._bars([(1, 105, 95), (2, 100, 89), (3, 95, 79)]), [s])
+        self.assertEqual(s.forecast["outcome"], "HIT_FULL")
+        s2 = self._seg(dir="down", t1=90.0, t_far=80.0, inv=50.0)
+        grade_forecasts(self._bars([(1, 105, 95), (2, 100, 49)]), [s2])
+        self.assertEqual(s2.forecast["outcome"], "INVALIDATED")
+
+    def test_down_direction(self):
+        s = self._seg(dir="down", t1=90.0, t_far=80.0, inv=110.0)
+        grade_forecasts(self._bars([(1, 105, 95), (2, 100, 89)]), [s])
+        self.assertEqual(s.forecast["outcome"], "HIT")
+
+    def test_scorecard(self):
+        segs = [self._seg(), self._seg(), self._seg(pattern="IMPULSE"), CountSegment("anchored", "NONE", 0, 0, 1, [])]
+        grade_forecasts(self._bars([(1, 111, 100), (2, 115, 112)]), segs)
+        sc = forecast_scorecard(segs)
+        self.assertEqual(sc["ALL"]["n"], 3)
+        self.assertEqual(sc["ZIGZAG"]["n"], 2)
+        self.assertEqual(sc["ALL"]["hit_rate"], 1.0)
+        self.assertEqual(sc["ALL"]["median_bars_to_t1"], 1)
+
+    def test_replay_carries_graded_forecasts(self):
+        h = count_history(BARS, symbol="AVGO", window=200, stride=5, min_history=60)
+        fs = [s.forecast for s in h.anchored if s.forecast]
+        self.assertTrue(fs)
+        for f in fs:
+            self.assertIn(f["outcome"], {"HIT", "HIT_FULL", "INVALIDATED", "EXPIRED", "OPEN"})
+            self.assertLessEqual(f["anchor_t"], f["t"], "projection anchor must be a visible pivot")
+            if f["resolved_t"]:
+                self.assertGreater(f["resolved_t"], f["t"], "outcome must come from LATER bars")
+        self.assertIn("| from pattern |", scorecard_markdown(h))
+        self.assertIn("forecast ledger", ledger_markdown(h))
+        html = render_count_history_page(h)
+        self.assertIn('"score":', html)
 
 
 class Transitions(unittest.TestCase):

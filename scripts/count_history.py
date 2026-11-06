@@ -3,7 +3,8 @@ count_history.py
 ================
 Replay the daily history bar by bar and record the Elliott/NeoWave count the
 engine HELD at every bar — the continuation of the labelling, not just the
-label at the end.  Writes an interactive page per symbol (scrubber / play-head
+label at the end — plus the NEXT-WAVE forecast projected from each newly adopted
+count and how it played out (graded on the bars that followed).  Writes an interactive page per symbol (scrubber / play-head
 redraws the as-of legs; pattern band per bar; transitions table) and a markdown
 report of the segments.
 
@@ -24,7 +25,8 @@ sys.path.insert(0, ROOT)
 
 from data.fetch import load_bars, latest_tag          # noqa: E402
 from wavelib.count_history import (count_history, history_markdown,  # noqa: E402
-                                   render_count_history_page)
+                                   render_count_history_page, scorecard_markdown,
+                                   ledger_markdown)
 
 CHARTS = os.path.join(ROOT, "charts")
 REPORTS = os.path.join(ROOT, "reports")
@@ -76,6 +78,8 @@ def main(argv=None):
         md.extend([f"- {len(bars)} {a.tf} bars {datetime.datetime.fromtimestamp(bars[0][0], datetime.timezone.utc).date()} → "
                   f"{datetime.datetime.fromtimestamp(bars[-1][0], datetime.timezone.utc).date()}, snapshot `{tag}`; "
                    f"interactive page: `charts/{os.path.basename(page)}`", ""])
+        md.append(scorecard_markdown(h))
+        md.append(ledger_markdown(h))
         md.append(history_markdown(h, "anchored", min_bars=a.min_bars))
         md.append(history_markdown(h, "recent", min_bars=a.min_bars))
         md.append("---\n")

@@ -213,9 +213,23 @@ NEW/LOST. `render_count_history_page` emits a self-contained page: price line, a
 band per bar, a scrubber/play-head that redraws the as-of legs (only bars left of the head
 were visible), and the segments table.
 
+**Forecasting the next wave, tested.** Each time a new anchored count is adopted,
+`forecast_from_count` (`wavelib/forecast.py`) projects the next wave from it with the
+bars visible then — direction, Fibonacci targets (retracements after a 5, extensions /
+Blue Box after a 3, thrust after a triangle), the void level, and the NeoWave time window
+[N/3, 3N]. `grade_forecasts` then walks the bars that followed: **HIT** (nearest target
+reached), **HIT_FULL** (farthest), **INVALIDATED** (void level crossed first, judged from
+the side price was on at adoption — an impulse's void sits beyond its correction targets),
+**EXPIRED** (nothing within 3N), **OPEN**. `forecast_scorecard` aggregates hit rates per
+pattern; the page draws the projection at the play-head (targets, void, projected leg) and
+reveals the outcome only after the play-head passes it; the ledger tab lists every
+projection. On the 2026-11 daily replay the nearest-target hit rate is low (see
+`reports/COUNT_HISTORY_2026-11.md`), consistent with the forecast backtest in
+`reports/FORECAST_BACKTEST_2026-06.md`: the forecaster is a bias, not an edge.
+
 ```bash
 python3 scripts/count_history.py AVGO MRVL --tag 2026-11 [--window 300] [--stride 1] [--start 2021-01-01]
-# -> charts/<sym>_count_history_<tag>.html, reports/COUNT_HISTORY_<tag>.md
+# -> charts/<sym>_count_history_<tag>.html, reports/COUNT_HISTORY_<tag>.md (scorecard + ledger + segments)
 ```
 
 Run the full daily stack on a snapshot with

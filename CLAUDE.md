@@ -34,7 +34,8 @@ avgo_mrvl_wave_research/
 │   ├── rules.py           Elliott + NeoWave validators, channeling, engines (canonical Pivot/Wave)
 │   ├── toolkit.py         ZigZag, Fibonacci, terminal/wave-5 projection
 │   ├── confluence.py      reversal-confidence scoring (momentum/volume/structure)
-│   └── count_history.py   causal replay: the count HELD at every bar + continuation page
+│   ├── forecast.py        next-wave projection from a count (targets / void / time window)
+│   └── count_history.py   causal replay: count HELD at every bar + per-adoption forecasts graded
 ├── data/
 │   ├── fetch.py           load_bars() (stdlib) + yfinance fetch/refresh of snapshots & fixtures
 │   ├── avgo.py            WEEKLY / DAILY / H4 / H1 / FRESH_4H_VOL (auto-generated)
@@ -51,7 +52,7 @@ python3 wavelib/toolkit.py          # self-test
 cd examples && python3 02_confluence_score.py
 python3 -m unittest discover -s tests            # full suite
 python3 scripts/run_validation.py --tag 2026-11 --symbols AVGO MRVL   # daily (1d) stack on fresh data
-python3 scripts/count_history.py AVGO MRVL --tag 2026-11                # bar-by-bar count continuation (causal replay)
+python3 scripts/count_history.py AVGO MRVL --tag 2026-11                # bar-by-bar count continuation + graded next-wave forecasts
 ```
 All examples must run clean. To refresh data: `pip install yfinance` (optional extra),
 then `python3 data/fetch.py AVGO MRVL --fixtures` (see DOCUMENTATION §5). Do not
