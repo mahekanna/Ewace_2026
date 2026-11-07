@@ -14,6 +14,7 @@ Usage:
   python3 scripts/alpaca_fetch.py AVGO 15m
   python3 scripts/alpaca_fetch.py MRVL 1d 1h 15m        # several timeframes
   python3 scripts/alpaca_fetch.py AVGO 15m --feed sip   # if you have SIP data
+  python3 scripts/alpaca_fetch.py AVGO 15m --tag 2026-11 # snapshot tag (default: current YYYY-MM)
 Pure stdlib (urllib) — no pip install needed.
 """
 import json
@@ -67,6 +68,10 @@ def main():
     feed = "iex"
     if "--feed" in sys.argv:
         feed = sys.argv[sys.argv.index("--feed") + 1]
+    tag_out = datetime.now(timezone.utc).strftime("%Y-%m")       # snapshot tag (YYYY-MM)
+    if "--tag" in sys.argv:
+        tag_out = sys.argv[sys.argv.index("--tag") + 1]
+        args = [a for a in args if a != tag_out]
     sym = (args[0] if args else "AVGO").upper()
     tags = [a.lower() for a in args[1:] if a.lower() in TF] or ["15m"]
     os.makedirs(LIVE, exist_ok=True)
@@ -78,7 +83,7 @@ def main():
             continue
         out = {"symbol": f"ALPACA:{sym}", "interval": tag,
                "asof": datetime.now(timezone.utc).date().isoformat(), "bars": bars}
-        path = os.path.join(LIVE, f"{sym.lower()}_{tag}_2026-06.json")
+        path = os.path.join(LIVE, f"{sym.lower()}_{tag}_{tag_out}.json")
         json.dump(out, open(path, "w"))
         span = (f"{datetime.utcfromtimestamp(bars[0]['t']).date()} -> "
                 f"{datetime.utcfromtimestamp(bars[-1]['t']).date()}") if bars else "(empty)"

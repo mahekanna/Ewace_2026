@@ -45,9 +45,22 @@ If the Alpaca MCP is the only way you have data (no REST keys), use the MCP's
 get-bars tool and save the result into `data/live/<sym>_<tf>_2026-06.json` in the
 shape below — that's all the dev tools need.
 
-No Alpaca at all? `pip install yfinance && python3 data/fetch.py AVGO MRVL` writes the
-same contract from Yahoo Finance under a fresh `<YYYY-MM>` tag (1d/1w/1h/4h; 15m limited
-to 60 days). `python3 scripts/run_validation.py --tag <YYYY-MM>` runs the daily stack on it.
+No Alpaca at all? `pip install yfinance && python3 data/fetch.py AVGO MRVL --tf 15m 1h 1d`
+writes the same contract from Yahoo Finance under a fresh `<YYYY-MM>` tag. Yahoo limits:
+**15m = last 60 days, 1h = last 730 days** (regular session only), daily/weekly unlimited.
+So a continuous 15m history across months needs Alpaca keys: `alpaca_fetch.py` now takes
+`--tag <YYYY-MM>` (default: current month) and the host is reachable from the cloud
+session (it answers 401 without keys, i.e. not firewalled).
+
+Scripts that read snapshots take the tag too:
+`scripts/run_validation.py --tag 2026-11`, `scripts/count_history.py --tag 2026-11`,
+`scripts/forward_wave3.py avgo 15m 96 0.02 [strict] --tag 2026-11` (reports are suffixed
+with the tag so the June baseline files stay as recorded).
+
+Note on the June 15m files: Alpaca's stamps in them are **one hour early in winter**
+(first bar 08:30 ET on EST dates, 09:30 on EDT dates) — a DST handling slip in the
+original pull. Bars are still evenly spaced, so bar-indexed tests are unaffected, but do
+not splice them with Yahoo bars by timestamp without correcting that offset.
 
 ## DEV session — exact steps (here)
 

@@ -8,8 +8,11 @@ wave-3 entry. At each candle the signal is built from bars <= t only; when it fi
 ghost-fed forward to a stop (wave-2 extreme) or the wave-3 target, one position at a
 time. Reports expectancy in R — the metric that matters for an asymmetric setup.
 
-Run:  python3 scripts/forward_wave3.py [SYM] [TF] [MAX_HOLD] [PCT]
+Run:  python3 scripts/forward_wave3.py [SYM] [TF] [MAX_HOLD] [PCT] [strict] [--tag YYYY-MM]
       python3 scripts/forward_wave3.py avgo 15m 96 0.02
+      python3 scripts/forward_wave3.py avgo 15m 96 0.02 strict --tag 2026-11
+`--tag` selects the data/live snapshot (default 2026-06, the recorded baseline);
+reports for a non-default tag are suffixed with it so the baseline files stay.
 """
 import json
 import os
@@ -25,9 +28,15 @@ import wavelib as wl
 LIVE = os.path.join(ROOT, "data", "live")
 
 
-def load(sym, tf):
-    d = json.load(open(os.path.join(LIVE, f"{sym}_{tf}_2026-06.json")))
-    return [(b["t"], b["o"], b["h"], b["l"], b["c"], b.get("v", 0) or 0) for b in d["bars"]]
+DEFAULT_TAG = "2026-06"
+
+
+def load(sym, tf, tag=DEFAULT_TAG):
+    with open(os.path.join(LIVE, f"{sym}_{tf}_{tag}.json")) as fh:
+        d = json.load(fh)
+    bars = [(b["t"], b["o"], b["h"], b["l"], b["c"], b.get("v", 0) or 0) for b in d["bars"]]
+    bars.sort(key=lambda b: b[0])
+    return bars
 
 
 def dt(t):
@@ -96,12 +105,20 @@ def resolve_scaleout(sig, future):
 
 
 def main():
-    sym = (sys.argv[1] if len(sys.argv) > 1 else "avgo").lower()
-    tf = (sys.argv[2] if len(sys.argv) > 2 else "15m").lower()
-    max_hold = int(sys.argv[3]) if len(sys.argv) > 3 else 96
-    pct = float(sys.argv[4]) if len(sys.argv) > 4 else 0.02
-    strict = "strict" in sys.argv                # rule-faithful signal + scale-out + S&B time
-    bars = load(sym, tf)
+    argv = list(sys.argv[1:])
+    tag = DEFAULT_TAG
+    if "--tag" in argv:
+        i = argv.index("--tag")
+        tag = argv[i + 1]
+        del argv[i:i + 2]
+    pos = [a for a in argv if a != "strict"]
+    sym = (pos[0] if len(pos) > 0 else "avgo").lower()
+    tf = (pos[1] if len(pos) > 1 else "15m").lower()
+    max_hold = int(pos[2]) if len(pos) > 2 else 96
+    pct = float(pos[3]) if len(pos) > 3 else 0.02
+    strict = "strict" in argv                    # rule-faithful signal + scale-out + S&B time
+    suffix = "" if tag == DEFAULT_TAG else f"_{tag}"
+    bars = load(sym, tf, tag)
     n = len(bars)
     ROLL = 400                                   # rolling window for the signal (bounds cost)
     trades = []
@@ -125,7 +142,7 @@ def main():
                        "rr": sig.reward_risk, "held": held, "entry": sig.entry})
         t += held + 1                            # one position at a time
 
-    out = [f"# Forward test — WAVE-3 entry (confirmation-triggered) — {sym.upper()} {tf}",
+    out = [f"# Forward test — WAVE-3 entry (confirmation-triggered) — {sym.upper()} {tf} (snapshot {tag})",
            "",
            f"_Causal ghost-feed of `wave3_signal` over {n} bars "
            f"({dt(bars[0][0]):%Y-%m-%d} → {dt(bars[-1][0]):%Y-%m-%d}); stop=wave-2 extreme, "
@@ -135,7 +152,8 @@ def main():
         out.append("**No wave-3 signals fired** (structure/confirmation/momentum filters too tight "
                    "for this data/scale).")
         print("\n".join(out))
-        open(os.path.join(ROOT, "reports", f"FORWARD_WAVE3_{'STRICT_' if strict else ''}{sym.upper()}_{tf}.md"), "w").write("\n".join(out) + "\n")
+        with open(os.path.join(ROOT, "reports", f"FORWARD_WAVE3_{'STRICT_' if strict else ''}{sym.upper()}_{tf}{suffix}.md"), "w") as fh:
+            fh.write("\n".join(out) + "\n")
         return
     rs = [x["r"] for x in trades]
     wins = [x for x in rs if x > 0]
@@ -169,9 +187,10 @@ def main():
     for x in trades[:25]:
         out.append(f"| {dt(x['t']):%Y-%m-%d %H:%M} | {x['dir']} | {x['rr']:.2f} | "
                    f"{x['outcome']} | {x['r']:+.2f} | {x['held']} |")
-    rep = os.path.join(ROOT, "reports", f"FORWARD_WAVE3_{'STRICT_' if strict else ''}{sym.upper()}_{tf}.md")
+    rep = os.path.join(ROOT, "reports", f"FORWARD_WAVE3_{'STRICT_' if strict else ''}{sym.upper()}_{tf}{suffix}.md")
     os.makedirs(os.path.dirname(rep), exist_ok=True)
-    open(rep, "w").write("\n".join(out) + "\n")
+    with open(rep, "w") as fh:
+        fh.write("\n".join(out) + "\n")
     print("\n".join(out[:14]))
     print(f"\nwrote {rep}")
 
